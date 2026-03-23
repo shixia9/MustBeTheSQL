@@ -18,12 +18,63 @@ export default function DashboardPage() {
     }
   ]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!query.trim()) return;
-    setMessages([...messages, { role: 'user', content: query }]);
+    
+    const userMessage = { role: 'user', content: query };
+    setMessages(prev => [...prev, userMessage]);
     setQuery('');
     setIsStreaming(true);
-    setTimeout(() => setIsStreaming(false), 2000);
+    
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/sql/generate/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream'
+        },
+        body: JSON.stringify({
+          userInput: query,
+          schemaContext: 'schema_production.sales_ledger(sale_date, category_name, amount, order_id)',
+          strategyName: 'openAiStrategy'
+        })
+      });
+
+      if (!response.body) throw new Error('No readable stream');
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let aiMessage = '';
+      
+      setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        // The SSE chunk usually looks like "data: some content\n\n"
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data:')) {
+            const data = line.replace('data:', '');
+            if (data.trim() !== '') {
+               aiMessage += data;
+               setMessages(prev => {
+                 const newMessages = [...prev];
+                 newMessages[newMessages.length - 1].content = aiMessage;
+                 return newMessages;
+               });
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching streaming SQL:', error);
+      setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error generating the SQL.' }]);
+    } finally {
+      setIsStreaming(false);
+    }
   };
 
   return (
