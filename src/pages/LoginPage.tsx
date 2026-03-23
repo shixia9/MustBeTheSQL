@@ -29,7 +29,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <div className="w-12 h-12 primary-gradient rounded-lg flex items-center justify-center text-white shadow-lg">
               <Database size={28} />
             </div>
-            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary">SQL Logic Engine</h1>
+            <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary">Must Be the SQL</h1>
           </div>
 
           <h2 className="font-headline text-4xl font-bold leading-tight mb-6 text-on-surface">
@@ -86,7 +86,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <div className="w-8 h-8 primary-gradient rounded flex items-center justify-center text-white">
               <Database size={18} />
             </div>
-            <span className="font-headline font-bold text-primary tracking-tight">SQL Logic Engine</span>
+            <span className="font-headline font-bold text-primary tracking-tight">Must Be the SQL</span>
           </div>
 
           <div className="mb-10 text-center md:text-left">

@@ -4,7 +4,7 @@ export default function TopNav() {
   return (
     <header className="bg-surface-container-low flex justify-between items-center w-full px-6 h-14 z-50 fixed top-0 border-b border-outline-variant/20">
       <div className="flex items-center gap-8">
-        <span className="text-lg font-bold tracking-tight text-primary font-headline">SQL Logic Engine</span>
+        <span className="text-lg font-bold tracking-tight text-primary font-headline">Must Be the SQL</span>
         
         <div className="hidden md:flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/30">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant font-label">Model</span>

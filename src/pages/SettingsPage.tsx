@@ -18,7 +18,7 @@ export default function SettingsPage() {
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="mb-10">
           <h1 className="text-3xl font-extrabold font-headline text-on-surface tracking-tight">System Configuration</h1>
-          <p className="text-on-surface-variant mt-1 text-sm font-medium">Fine-tune the SQL Logic Engine parameters and security protocols.</p>
+          <p className="text-on-surface-variant mt-1 text-sm font-medium">Fine-tune the Must Be the SQL parameters and security protocols.</p>
         </div>
 
         <div className="grid grid-cols-12 gap-6 pb-24">
