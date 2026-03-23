@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Manrope", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #003490;
+  --color-primary-container: #0048c2;
+  --color-surface: #faf8ff;
+  --color-surface-container-low: #f2f3ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e8e9ff;
+  --color-surface-container-highest: #dae2fd;
+  --color-on-surface: #131b2e;
+  --color-on-surface-variant: #454652;
+  --color-outline-variant: #c6c5d4;
+  --color-error: #ba1a1a;
+
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+}
+
+.dark {
+  --color-primary: #a8c7ff;
+  --color-primary-container: #0048c2;
+  --color-surface: #0f1115;
+  --color-surface-container-low: #16181d;
+  --color-surface-container-lowest: #0a0b0e;
+  --color-surface-container-high: #1e2025;
+  --color-surface-container-highest: #2a2c32;
+  --color-on-surface: #e2e2e9;
+  --color-on-surface-variant: #c6c5d4;
+  --color-outline-variant: #3a3c42;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans;
+  }
+}
+
+@layer components {
+  .diffusion-shadow {
+    box-shadow: 0 12px 32px -4px rgba(19, 27, 46, 0.08);
+  }
+
+  .primary-gradient {
+    background: linear-gradient(135deg, #003490 0%, #0048c2 100%);
+  }
+
+  .glass-panel {
+    background: rgba(218, 226, 253, 0.7);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c6c5d4;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a0b0;
+}
