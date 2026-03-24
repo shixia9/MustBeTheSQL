@@ -1,5 +1,5 @@
 import { useState, React } from 'react';
-import { Database, Terminal, Share2, Mail, Lock, LogIn, ArrowRight } from 'lucide-react';
+import { Database, Terminal, Share2, Mail, Lock, LogIn, ArrowRight, User } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LoginPageProps {
@@ -7,7 +7,9 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
+  const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,16 +20,21 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setError('');
 
     try {
-      const response = await fetch('/api/v1/user/login', {
+      const endpoint = isLoginMode ? '/api/v1/user/login' : '/api/v1/user/register';
+      const body = isLoginMode 
+        ? { email, password } 
+        : { email, username, password };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(body)
       });
 
       const res = await response.json();
 
       if (res.code !== 200) {
-        throw new Error(res.message || 'Login failed');
+        throw new Error(res.message || (isLoginMode ? 'Login failed' : 'Registration failed'));
       }
 
       onLogin(res.data);
@@ -122,8 +129,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           <div className="mb-10 text-center md:text-left">
-            <h3 className="font-headline text-2xl font-bold text-on-surface mb-2">Welcome Back</h3>
-            <p className="text-on-surface-variant">Log in to manage your logic clusters.</p>
+            <h3 className="font-headline text-2xl font-bold text-on-surface mb-2">
+              {isLoginMode ? 'Welcome Back' : 'Create an Account'}
+            </h3>
+            <p className="text-on-surface-variant">
+              {isLoginMode ? 'Log in to manage your logic clusters.' : 'Sign up to start your journey.'}
+            </p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -132,6 +143,25 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 {error}
               </div>
             )}
+            
+            {!isLoginMode && (
+              <div>
+                <label className="block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1" htmlFor="username">Username</label>
+                <div className="relative">
+                  <input 
+                    className="w-full px-4 py-3 bg-surface-container-low border-none rounded-lg focus:ring-2 focus:ring-primary/20 text-on-surface placeholder:text-outline-variant transition-all" 
+                    id="username" 
+                    placeholder="architect_01" 
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required={!isLoginMode}
+                  />
+                  <User className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant" size={18} />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1" htmlFor="email">Work Email</label>
               <div className="relative">
@@ -181,7 +211,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               type="submit"
               disabled={isLoading}
             >
-              <span>{isLoading ? 'Logging in...' : 'Log In'}</span>
+              <span>
+                {isLoading 
+                  ? (isLoginMode ? 'Logging in...' : 'Registering...') 
+                  : (isLoginMode ? 'Log In' : 'Sign Up')}
+              </span>
               {!isLoading && <LogIn size={18} />}
             </button>
           </form>
@@ -212,8 +246,35 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
 
           <p className="mt-10 text-center text-sm text-on-surface-variant">
-            New to the engine? 
-            <a className="font-bold text-primary hover:underline decoration-2 underline-offset-4 ml-1" href="#">Create an architect account</a>
+            {isLoginMode ? (
+              <>
+                New to the engine? 
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(false);
+                    setError('');
+                  }}
+                  className="font-bold text-primary hover:underline decoration-2 underline-offset-4 ml-1"
+                >
+                  Create an architect account
+                </button>
+              </>
+            ) : (
+              <>
+                Already an architect? 
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(true);
+                    setError('');
+                  }}
+                  className="font-bold text-primary hover:underline decoration-2 underline-offset-4 ml-1"
+                >
+                  Log in to your account
+                </button>
+              </>
+            )}
           </p>
 
           <footer className="mt-12 pt-8 border-t border-outline-variant/10 text-center">

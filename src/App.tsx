@@ -53,13 +53,19 @@ function AppContent() {
     }
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setIsLoggedIn(false);
+    setCurrentPage('login');
+  };
+
   if (!isLoggedIn && currentPage === 'login') {
     return <LoginPage onLogin={handleLogin} />;
   }
 
   return (
     <div className="min-h-screen bg-surface selection:bg-primary/10 selection:text-primary">
-      <TopNav />
+      <TopNav onLogout={handleLogout} />
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       <div className="relative">
         {renderPage()}
