@@ -3,18 +3,14 @@ import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, Ch
 import { motion, AnimatePresence } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 
-export default function DashboardPage() {
+export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [messages, setMessages] = useState([
     { 
       role: 'ai', 
-      content: "I've generated a query to fetch the monthly revenue trends for the current fiscal year. Would you like me to add a breakdown by product category as well?" 
-    },
-    { 
-      role: 'user', 
-      content: "Yes, please include the category breakdown and sort by the highest performing month." 
+      content: `Welcome, ${user?.username || 'User'}! You have ${user?.tokenQuota || 0} AI tokens remaining. How can I help you today?` 
     }
   ]);
 
@@ -34,6 +30,7 @@ export default function DashboardPage() {
           'Accept': 'text/event-stream'
         },
         body: JSON.stringify({
+          userId: user?.id || 1, // Pass actual user ID
           userInput: query,
           schemaContext: 'schema_production.sales_ledger(sale_date, category_name, amount, order_id)',
           strategyName: 'openAiStrategy'

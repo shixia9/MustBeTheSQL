@@ -26,9 +26,11 @@ export default function App() {
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<{ id: number, username: string, tokenQuota: number } | null>(null);
 
   // Handle login transition
-  const handleLogin = () => {
+  const handleLogin = (userData: any) => {
+    setUser(userData);
     setIsLoggedIn(true);
     setCurrentPage('dashboard');
   };
@@ -39,7 +41,7 @@ function AppContent() {
       case 'login':
         return <LoginPage onLogin={handleLogin} />;
       case 'dashboard':
-        return <DashboardPage />;
+        return <DashboardPage user={user} />;
       case 'history':
         return <HistoryPage />;
       case 'database':
@@ -47,7 +49,7 @@ function AppContent() {
       case 'settings':
         return <SettingsPage />;
       default:
-        return <DashboardPage />;
+        return <DashboardPage user={user} />;
     }
   };
 

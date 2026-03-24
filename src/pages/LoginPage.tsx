@@ -1,11 +1,43 @@
+import { useState, React } from 'react';
 import { Database, Terminal, Share2, Mail, Lock, LogIn, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLogin: (user: any) => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/v1/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const res = await response.json();
+
+      if (res.code !== 200) {
+        throw new Error(res.message || 'Login failed');
+      }
+
+      onLogin(res.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-surface">
       {/* Left Side: Marketing */}
@@ -94,7 +126,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <p className="text-on-surface-variant">Log in to manage your logic clusters.</p>
           </div>
 
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block font-label text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1" htmlFor="email">Work Email</label>
               <div className="relative">
@@ -103,6 +140,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   id="email" 
                   placeholder="name@company.com" 
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
                 <Mail className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant" size={18} />
@@ -120,6 +159,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   id="password" 
                   placeholder="••••••••" 
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-outline-variant" size={18} />
@@ -136,11 +177,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <button 
-              className="w-full py-3.5 primary-gradient text-white font-headline font-bold rounded-lg diffusion-shadow hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2" 
+              className="w-full py-3.5 primary-gradient text-white font-headline font-bold rounded-lg diffusion-shadow hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50" 
               type="submit"
+              disabled={isLoading}
             >
-              <span>Log In</span>
-              <LogIn size={18} />
+              <span>{isLoading ? 'Logging in...' : 'Log In'}</span>
+              {!isLoading && <LogIn size={18} />}
             </button>
           </form>
 
