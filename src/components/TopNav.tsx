@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Database, Settings, LogOut, ChevronDown } from 'lucide-react';
 
 interface TopNavProps {
+  user?: { id: number, username: string, tokenQuota: number } | null;
   onLogout?: () => void;
 }
 
-export default function TopNav({ onLogout }: TopNavProps) {
+export default function TopNav({ user, onLogout }: TopNavProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
   return (
@@ -45,7 +46,9 @@ export default function TopNav({ onLogout }: TopNavProps) {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-sm font-medium hidden lg:block">Architect Mode</span>
+            <span className="text-sm font-medium hidden lg:block">
+              {user ? user.username : 'Architect Mode'}
+            </span>
             <ChevronDown size={14} className="text-on-surface-variant hidden lg:block" />
           </button>
 

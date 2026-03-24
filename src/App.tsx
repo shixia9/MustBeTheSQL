@@ -65,7 +65,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-surface selection:bg-primary/10 selection:text-primary">
-      <TopNav onLogout={handleLogout} />
+      <TopNav user={user} onLogout={handleLogout} />
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       <div className="relative">
         {renderPage()}
