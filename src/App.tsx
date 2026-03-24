@@ -43,11 +43,11 @@ function AppContent() {
       case 'dashboard':
         return <DashboardPage user={user} />;
       case 'history':
-        return <HistoryPage />;
+        return <HistoryPage user={user} />;
       case 'database':
-        return <DatabasePage />;
+        return <DatabasePage user={user} />;
       case 'settings':
-        return <SettingsPage />;
+        return <SettingsPage user={user} />;
       default:
         return <DashboardPage user={user} />;
     }
