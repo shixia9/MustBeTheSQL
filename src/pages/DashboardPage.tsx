@@ -124,21 +124,36 @@ export default function DashboardPage({ user }: { user: any }) {
                fullResponse += data;
                
                // Parse the full response to separate SQL and explanation
-               // Looking for ```sql ... ``` or ```sql\n ... \n```
-               // We use [\s\S]*? to match across multiple lines and \s* to handle optional newlines
-               const sqlMatch = fullResponse.match(/```sql\s*([\s\S]*?)\s*```/i);
+               // Using simple string split based on [SQL_START] and [SQL_END]
+               const sqlStartIndex = fullResponse.indexOf('[SQL_START]');
+               const sqlEndIndex = fullResponse.indexOf('[SQL_END]');
                
-               if (sqlMatch && sqlMatch[1]) {
-                 setGeneratedSql(sqlMatch[1].trim());
-                 // Remove the SQL block from the chat message content
-                 const explanation = fullResponse.replace(/```sql\s*[\s\S]*?\s*```/i, '').trim();
+               if (sqlStartIndex !== -1) {
+                 const explanation = fullResponse.substring(0, sqlStartIndex).trim();
+                 let sql = '';
+                 
+                 if (sqlEndIndex !== -1) {
+                     sql = fullResponse.substring(sqlStartIndex + '[SQL_START]'.length, sqlEndIndex).trim();
+                   } else {
+                     sql = fullResponse.substring(sqlStartIndex + '[SQL_START]'.length).trim();
+                   }
+                   
+                   // If the LLM somehow outputs explanation after SQL_END
+                 let postExplanation = '';
+                 if (sqlEndIndex !== -1 && sqlEndIndex + '[SQL_END]'.length < fullResponse.length) {
+                   postExplanation = fullResponse.substring(sqlEndIndex + '[SQL_END]'.length).trim();
+                 }
+                 
+                 const finalExplanation = postExplanation ? `${explanation}\n\n${postExplanation}` : explanation;
+                 
+                 setGeneratedSql(sql);
                  setMessages(prev => {
                    const newMessages = [...prev];
-                   newMessages[newMessages.length - 1].content = explanation;
+                   newMessages[newMessages.length - 1].content = finalExplanation;
                    return newMessages;
                  });
                } else {
-                 // If no SQL block is complete yet, show everything in chat
+                 // If no SQL block is started yet, show everything in chat
                  setMessages(prev => {
                    const newMessages = [...prev];
                    newMessages[newMessages.length - 1].content = fullResponse;
