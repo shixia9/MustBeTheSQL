@@ -1,13 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info, Database, Table2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import { format as formatSql } from 'sql-formatter';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
   const [messages, setMessages] = useState([
     { 
       role: 'ai', 
@@ -15,6 +18,9 @@ export default function DashboardPage({ user }: { user: any }) {
     }
   ]);
   const [generatedSql, setGeneratedSql] = useState('');
+  const [executeResult, setExecuteResult] = useState<any>(null);
+  const [executeError, setExecuteError] = useState<string>('');
+  const [clipboardJustCopied, setClipboardJustCopied] = useState(false);
 
   // Schema context states
   const [connections, setConnections] = useState<any[]>([]);
@@ -148,6 +154,96 @@ export default function DashboardPage({ user }: { user: any }) {
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error generating the SQL.' }]);
     } finally {
       setIsStreaming(false);
+    }
+  };
+
+  const handleCopySql = async () => {
+    if (!generatedSql.trim()) return;
+    try {
+      await navigator.clipboard.writeText(generatedSql);
+      setClipboardJustCopied(true);
+      window.setTimeout(() => setClipboardJustCopied(false), 1200);
+    } catch (e) {
+      setExecuteError('Copy failed. Please check browser permissions.');
+    }
+  };
+
+  const handleFormatSql = () => {
+    if (!generatedSql.trim()) return;
+    const selectedConn = connections.find(c => c.id === selectedConnId);
+    const dbType = (selectedConn?.dbType || '').toLowerCase();
+    const language = dbType === 'postgresql' ? 'postgresql' : 'mysql';
+    try {
+      setGeneratedSql(formatSql(generatedSql, { language }));
+    } catch (e) {
+      setExecuteError('SQL format failed.');
+    }
+  };
+
+  const handleEditorKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+
+    const textarea = editorRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+    const insert = '  ';
+    const nextValue = generatedSql.slice(0, start) + insert + generatedSql.slice(end);
+    setGeneratedSql(nextValue);
+
+    window.requestAnimationFrame(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + insert.length;
+    });
+  };
+
+  const runQuery = async (confirmed: boolean = false) => {
+    if (!generatedSql.trim()) {
+      setExecuteError('No SQL to execute.');
+      return;
+    }
+    if (!selectedConnId) {
+      setExecuteError('Please select a database connection first.');
+      return;
+    }
+
+    setIsExecuting(true);
+    setExecuteError('');
+
+    try {
+      const res = await fetch('/api/v1/sql/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          sql: generatedSql,
+          connectionId: selectedConnId,
+          confirmed
+        })
+      });
+      const data = await res.json();
+
+      if (data.code === 200) {
+        setExecuteResult(data.data);
+        return;
+      }
+
+      if (data.code === 409) {
+        const ok = window.confirm(`${data.message}\n\nExecute anyway?`);
+        if (ok) {
+          await runQuery(true);
+        } else {
+          setExecuteError('Execution cancelled.');
+        }
+        return;
+      }
+
+      setExecuteError(data.message || 'Execution failed.');
+    } catch (e) {
+      setExecuteError('Execution failed. Please check backend availability.');
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -301,18 +397,28 @@ export default function DashboardPage({ user }: { user: any }) {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors">
+              <button
+                onClick={handleCopySql}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors"
+              >
                 <Copy size={14} />
-                Copy
+                {clipboardJustCopied ? 'Copied' : 'Copy'}
               </button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors">
+              <button
+                onClick={handleFormatSql}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors"
+              >
                 <AlignLeft size={14} />
                 Format
               </button>
               <div className="h-4 w-px bg-white/10 mx-1"></div>
-              <button className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold primary-gradient text-white rounded transition-all hover:brightness-110 active:scale-95">
-                <Play size={14} fill="currentColor" />
-                Run Query
+              <button
+                disabled={isExecuting}
+                onClick={() => runQuery(false)}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold primary-gradient text-white rounded transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isExecuting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                {isExecuting ? 'Running...' : 'Run Query'}
               </button>
             </div>
           </div>
@@ -326,24 +432,18 @@ export default function DashboardPage({ user }: { user: any }) {
               {Array.from({ length: Math.max(15, generatedSql.split('\n').length) }).map((_, i) => <span key={i}>{i + 1}</span>)}
             </div>
             <div className="flex-1 p-4 overflow-auto bg-[#1e2433]">
-              {generatedSql ? (
-                <pre className="text-slate-200 font-mono whitespace-pre-wrap">
-                  {/* Basic syntax highlighting simulation */}
-                  {generatedSql.split(/(\bSELECT\b|\bFROM\b|\bWHERE\b|\bGROUP BY\b|\bORDER BY\b|\bJOIN\b|\bON\b|\bAND\b|\bOR\b|\bAS\b|\bLIMIT\b)/i).map((part, i) => {
-                    if (['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'JOIN', 'ON', 'AND', 'OR', 'AS', 'LIMIT'].includes(part.toUpperCase())) {
-                      return <span key={i} className="text-pink-400 font-bold">{part}</span>;
-                    }
-                    if (part.trim().startsWith('--')) {
-                       return <span key={i} className="text-slate-400 italic">{part}</span>;
-                    }
-                    return <span key={i}>{part}</span>;
-                  })}
-                </pre>
-              ) : (
-                <div className="text-slate-500 italic mt-4 ml-4">
-                  AI generated SQL will appear here...
-                </div>
-              )}
+              <textarea
+                ref={editorRef}
+                value={generatedSql}
+                readOnly={isStreaming}
+                onChange={(e) => setGeneratedSql(e.target.value)}
+                onKeyDown={handleEditorKeyDown}
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                className="w-full h-full min-h-[240px] bg-transparent text-slate-200 font-mono outline-none resize-none"
+                placeholder="AI generated SQL will appear here..."
+              />
               {isStreaming && (
                 <motion.div 
                   animate={{ opacity: [1, 0] }}
@@ -359,7 +459,16 @@ export default function DashboardPage({ user }: { user: any }) {
             <div className="h-10 flex items-center justify-between px-4 border-b border-outline-variant/10 bg-surface-container-low/50">
               <div className="flex items-center gap-4">
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest font-label">Query Results</span>
-                <span className="text-[10px] px-2 py-0.5 bg-primary-fixed text-primary font-bold rounded-full">1,248 Rows</span>
+                {executeResult?.resultType === 'QUERY' && (
+                  <span className="text-[10px] px-2 py-0.5 bg-primary-fixed text-primary font-bold rounded-full">
+                    {(executeResult?.rowCount ?? 0).toLocaleString()} Rows
+                  </span>
+                )}
+                {executeResult?.resultType === 'UPDATE' && (
+                  <span className="text-[10px] px-2 py-0.5 bg-primary-fixed text-primary font-bold rounded-full">
+                    Affected: {(executeResult?.affectedRows ?? 0).toLocaleString()}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <button className="text-on-surface-variant hover:text-primary transition-colors">
@@ -371,32 +480,40 @@ export default function DashboardPage({ user }: { user: any }) {
               </div>
             </div>
             <div className="flex-1 overflow-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-surface-container-low/95 backdrop-blur-sm z-10">
-                  <tr className="border-b border-outline-variant/20">
-                    {['Month', 'Category', 'Revenue', 'Transactions'].map((h) => (
-                      <th key={h} className={`px-4 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest font-label ${h === 'Revenue' || h === 'Transactions' ? 'text-right' : ''}`}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10 text-sm">
-                  {[
-                    { month: 'January', cat: 'Enterprise Cloud', rev: '$1,240,500.00', trans: '14,202' },
-                    { month: 'January', cat: 'Consumer Apps', rev: '$842,120.50', trans: '98,124' },
-                    { month: 'February', cat: 'Enterprise Cloud', rev: '$1,450,200.00', trans: '16,110' },
-                    { month: 'February', cat: 'Consulting Services', rev: '$320,000.00', trans: '42' },
-                  ].map((row, i) => (
-                    <tr key={i} className="hover:bg-surface-container-high/40 transition-colors">
-                      <td className="px-4 py-2.5 font-medium">{row.month}</td>
-                      <td className="px-4 py-2.5">{row.cat}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{row.rev}</td>
-                      <td className="px-4 py-2.5 text-right font-mono">{row.trans}</td>
+              {executeError ? (
+                <div className="p-4 text-sm text-red-400">{executeError}</div>
+              ) : executeResult?.resultType === 'QUERY' ? (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-surface-container-low/95 backdrop-blur-sm z-10">
+                    <tr className="border-b border-outline-variant/20">
+                      {(executeResult?.columns || []).map((h: string) => (
+                        <th key={h} className="px-4 py-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest font-label">
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/10 text-sm">
+                    {(executeResult?.rows || []).map((row: any, i: number) => (
+                      <tr key={i} className="hover:bg-surface-container-high/40 transition-colors">
+                        {(executeResult?.columns || []).map((col: string) => (
+                          <td key={col} className="px-4 py-2.5 font-mono">
+                            {row?.[col] === null || row?.[col] === undefined ? '' : String(row[col])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : executeResult?.resultType === 'UPDATE' ? (
+                <div className="p-4 text-sm text-on-surface">
+                  {executeResult?.affectedRows === null || executeResult?.affectedRows === undefined
+                    ? 'Statement executed.'
+                    : `Statement executed. Affected rows: ${executeResult.affectedRows}`}
+                </div>
+              ) : (
+                <div className="p-4 text-sm text-on-surface-variant">No results yet.</div>
+              )}
             </div>
           </div>
         </section>

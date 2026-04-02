@@ -88,7 +88,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const handleTestConnection = async () => {
     setIsTesting(true);
     try {
-      const payload = { ...formData, userId: user.id };
+      const payload: any = { ...formData, userId: user.id };
       if (selectedId !== 'new') {
         payload.id = selectedId;
       }
@@ -115,7 +115,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const payload = { ...formData, userId: user.id };
+      const payload: any = { ...formData, userId: user.id };
       const isUpdate = selectedId !== 'new';
       
       if (isUpdate) {

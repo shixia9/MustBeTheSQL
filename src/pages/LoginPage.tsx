@@ -1,4 +1,4 @@
-import { useState, React } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Database, Terminal, Share2, Mail, Lock, LogIn, ArrowRight, User } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -14,7 +14,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
