@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info, Database, Table2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function DashboardPage({ user }: { user: any }) {
@@ -117,13 +118,14 @@ export default function DashboardPage({ user }: { user: any }) {
                fullResponse += data;
                
                // Parse the full response to separate SQL and explanation
-               // Looking for ```sql\n ... \n```
-               const sqlMatch = fullResponse.match(/```sql\n([\s\S]*?)\n```/);
+               // Looking for ```sql ... ``` or ```sql\n ... \n```
+               // We use [\s\S]*? to match across multiple lines and \s* to handle optional newlines
+               const sqlMatch = fullResponse.match(/```sql\s*([\s\S]*?)\s*```/i);
                
                if (sqlMatch && sqlMatch[1]) {
                  setGeneratedSql(sqlMatch[1].trim());
                  // Remove the SQL block from the chat message content
-                 const explanation = fullResponse.replace(/```sql\n[\s\S]*?\n```/, '').trim();
+                 const explanation = fullResponse.replace(/```sql\s*[\s\S]*?\s*```/i, '').trim();
                  setMessages(prev => {
                    const newMessages = [...prev];
                    newMessages[newMessages.length - 1].content = explanation;
@@ -173,7 +175,13 @@ export default function DashboardPage({ user }: { user: any }) {
                     ? 'bg-surface-container-lowest rounded-tl-none' 
                     : 'bg-primary text-white rounded-tr-none'
                 }`}>
-                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                  {msg.role === 'ai' ? (
+                    <div className="text-sm leading-relaxed prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                  )}
                 </div>
               </motion.div>
             ))}
