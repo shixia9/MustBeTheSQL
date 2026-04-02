@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info } from 'lucide-react';
+import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info, Database, Table2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 
@@ -13,6 +13,64 @@ export default function DashboardPage({ user }: { user: any }) {
       content: `Welcome, ${user?.username || 'User'}! You have ${user?.tokenQuota || 0} AI tokens remaining. How can I help you today?` 
     }
   ]);
+  const [generatedSql, setGeneratedSql] = useState('');
+
+  // Schema context states
+  const [connections, setConnections] = useState<any[]>([]);
+  const [selectedConnId, setSelectedConnId] = useState<number | ''>('');
+  const [tables, setTables] = useState<string[]>([]);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [showTableSelect, setShowTableSelect] = useState(false);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchConnections();
+    }
+  }, [user]);
+
+  const fetchConnections = async () => {
+    try {
+      const res = await fetch(`/api/v1/database/list?userId=${user.id}`);
+      const data = await res.json();
+      if (data.code === 200) {
+        setConnections(data.data);
+        if (data.data.length > 0) {
+          setSelectedConnId(data.data[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch connections', e);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedConnId) {
+      fetchTables(selectedConnId as number);
+      setSelectedTables([]);
+    } else {
+      setTables([]);
+    }
+  }, [selectedConnId]);
+
+  const fetchTables = async (connId: number) => {
+    try {
+      const res = await fetch(`/api/v1/database/${connId}/tables`);
+      const data = await res.json();
+      if (data.code === 200) {
+        setTables(data.data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch tables', e);
+    }
+  };
+
+  const toggleTableSelection = (tableName: string) => {
+    setSelectedTables(prev => 
+      prev.includes(tableName) 
+        ? prev.filter(t => t !== tableName)
+        : [...prev, tableName]
+    );
+  };
 
   const handleSend = async () => {
     if (!query.trim()) return;
@@ -30,9 +88,10 @@ export default function DashboardPage({ user }: { user: any }) {
           'Accept': 'text/event-stream'
         },
         body: JSON.stringify({
-          userId: user?.id || 1, // Pass actual user ID
+          userId: user?.id || 1,
           userInput: query,
-          schemaContext: 'schema_production.sales_ledger(sale_date, category_name, amount, order_id)',
+          connectionId: selectedConnId || null,
+          tableNames: selectedTables,
           strategyName: 'openAiStrategy'
         })
       });
@@ -41,7 +100,7 @@ export default function DashboardPage({ user }: { user: any }) {
       
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let aiMessage = '';
+      let fullResponse = '';
       
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
@@ -50,18 +109,34 @@ export default function DashboardPage({ user }: { user: any }) {
         if (done) break;
         
         const chunk = decoder.decode(value, { stream: true });
-        // The SSE chunk usually looks like "data: some content\n\n"
         const lines = chunk.split('\n');
         for (const line of lines) {
           if (line.startsWith('data:')) {
             const data = line.replace('data:', '');
             if (data.trim() !== '') {
-               aiMessage += data;
-               setMessages(prev => {
-                 const newMessages = [...prev];
-                 newMessages[newMessages.length - 1].content = aiMessage;
-                 return newMessages;
-               });
+               fullResponse += data;
+               
+               // Parse the full response to separate SQL and explanation
+               // Looking for ```sql\n ... \n```
+               const sqlMatch = fullResponse.match(/```sql\n([\s\S]*?)\n```/);
+               
+               if (sqlMatch && sqlMatch[1]) {
+                 setGeneratedSql(sqlMatch[1].trim());
+                 // Remove the SQL block from the chat message content
+                 const explanation = fullResponse.replace(/```sql\n[\s\S]*?\n```/, '').trim();
+                 setMessages(prev => {
+                   const newMessages = [...prev];
+                   newMessages[newMessages.length - 1].content = explanation;
+                   return newMessages;
+                 });
+               } else {
+                 // If no SQL block is complete yet, show everything in chat
+                 setMessages(prev => {
+                   const newMessages = [...prev];
+                   newMessages[newMessages.length - 1].content = fullResponse;
+                   return newMessages;
+                 });
+               }
             }
           }
         }
@@ -129,6 +204,60 @@ export default function DashboardPage({ user }: { user: any }) {
 
           {/* Input Area */}
           <div className="p-4 bg-surface-container-low border-t border-outline-variant/20">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="flex items-center gap-2">
+                <Database size={14} className="text-primary" />
+                <select 
+                  className="bg-surface-container-lowest text-xs font-semibold text-on-surface px-2 py-1 rounded border border-outline-variant/30 focus:ring-1 focus:ring-primary outline-none"
+                  value={selectedConnId}
+                  onChange={(e) => setSelectedConnId(e.target.value ? Number(e.target.value) : '')}
+                >
+                  <option value="">Select Database</option>
+                  {connections.map(conn => (
+                    <option key={conn.id} value={conn.id}>{conn.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedConnId && (
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowTableSelect(!showTableSelect)}
+                    className={`flex items-center gap-1 text-[10px] font-semibold font-label transition-colors ${selectedTables.length > 0 ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}
+                  >
+                    <Table2 size={14} />
+                    {selectedTables.length > 0 ? `${selectedTables.length} Tables Attached` : 'Attach Schema'}
+                  </button>
+                  
+                  {showTableSelect && (
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-surface-container-high border border-outline-variant/20 rounded-xl shadow-xl z-50 overflow-hidden">
+                      <div className="p-2 border-b border-outline-variant/20 bg-surface-container-highest flex justify-between items-center">
+                        <span className="text-xs font-bold text-on-surface">Select Tables</span>
+                        <span className="text-[10px] text-on-surface-variant">{selectedTables.length} selected</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto p-1">
+                        {tables.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-on-surface-variant">No tables found</div>
+                        ) : (
+                          tables.map(table => (
+                            <label key={table} className="flex items-center gap-2 px-3 py-2 hover:bg-surface-container-highest rounded cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-outline-variant/30 text-primary focus:ring-primary/20"
+                                checked={selectedTables.includes(table)}
+                                onChange={() => toggleTableSelection(table)}
+                              />
+                              <span className="text-xs font-mono text-on-surface">{table}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="relative group">
               <textarea 
                 value={query}
@@ -145,10 +274,6 @@ export default function DashboardPage({ user }: { user: any }) {
               </button>
             </div>
             <div className="flex items-center gap-3 mt-3">
-              <button className="flex items-center gap-1 text-[10px] font-semibold text-on-surface-variant font-label hover:text-primary transition-colors">
-                <Paperclip size={14} />
-                Attach Schema
-              </button>
               <button className="flex items-center gap-1 text-[10px] font-semibold text-on-surface-variant font-label hover:text-primary transition-colors">
                 <FileText size={14} />
                 Templates
@@ -190,35 +315,34 @@ export default function DashboardPage({ user }: { user: any }) {
             style={{ fontSize: `${fontSize}px` }}
           >
             <div className="w-12 bg-slate-900/50 flex flex-col items-center py-4 text-slate-600 select-none border-r border-white/5">
-              {Array.from({ length: 15 }).map((_, i) => <span key={i}>{i + 1}</span>)}
+              {Array.from({ length: Math.max(15, generatedSql.split('\n').length) }).map((_, i) => <span key={i}>{i + 1}</span>)}
             </div>
             <div className="flex-1 p-4 overflow-auto bg-[#1e2433]">
-              <div className="text-indigo-300"><span className="text-pink-400">SELECT</span></div>
-              <div className="pl-4 text-slate-200">
-                EXTRACT(MONTH <span className="text-pink-400">FROM</span> sale_date) <span className="text-pink-400">AS</span> month,
-              </div>
-              <div className="pl-4 text-slate-200">category_name,</div>
-              <div className="pl-4 text-slate-200">
-                SUM(amount) <span className="text-pink-400">AS</span> total_revenue,
-              </div>
-              <div className="pl-4 text-slate-200">
-                COUNT(order_id) <span className="text-pink-400">AS</span> transaction_count
-              </div>
-              <div className="text-indigo-300"><span className="text-pink-400">FROM</span></div>
-              <div className="pl-4 text-slate-200">
-                schema_production.sales_ledger <span className="text-slate-400">-- main fact table</span>
-              </div>
-              <div className="text-indigo-300"><span className="text-pink-400">WHERE</span></div>
-              <div className="pl-4 text-slate-200">
-                sale_date &gt;= <span className="text-emerald-400">'2024-01-01'</span>
-              </div>
-              <div className="text-indigo-300"><span className="text-pink-400">GROUP BY</span> <span className="text-slate-200">1, 2</span></div>
-              <div className="text-indigo-300"><span className="text-pink-400">ORDER BY</span> <span className="text-slate-200">1, 3 DESC;</span></div>
-              <motion.div 
-                animate={{ opacity: [1, 0] }}
-                transition={{ repeat: Infinity, duration: 0.8 }}
-                className="h-4 w-1 bg-primary/40 mt-1"
-              ></motion.div>
+              {generatedSql ? (
+                <pre className="text-slate-200 font-mono whitespace-pre-wrap">
+                  {/* Basic syntax highlighting simulation */}
+                  {generatedSql.split(/(\bSELECT\b|\bFROM\b|\bWHERE\b|\bGROUP BY\b|\bORDER BY\b|\bJOIN\b|\bON\b|\bAND\b|\bOR\b|\bAS\b|\bLIMIT\b)/i).map((part, i) => {
+                    if (['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'JOIN', 'ON', 'AND', 'OR', 'AS', 'LIMIT'].includes(part.toUpperCase())) {
+                      return <span key={i} className="text-pink-400 font-bold">{part}</span>;
+                    }
+                    if (part.trim().startsWith('--')) {
+                       return <span key={i} className="text-slate-400 italic">{part}</span>;
+                    }
+                    return <span key={i}>{part}</span>;
+                  })}
+                </pre>
+              ) : (
+                <div className="text-slate-500 italic mt-4 ml-4">
+                  AI generated SQL will appear here...
+                </div>
+              )}
+              {isStreaming && (
+                <motion.div 
+                  animate={{ opacity: [1, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.8 }}
+                  className="h-4 w-1 bg-primary/40 mt-1 inline-block"
+                ></motion.div>
+              )}
             </div>
           </div>
 
