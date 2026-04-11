@@ -107,7 +107,9 @@ export default function DashboardPage({ user }: { user: any }) {
       
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let fullResponse = '';
+      
+      let currentExplain = '';
+      let currentSql = '';
       
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
@@ -119,44 +121,27 @@ export default function DashboardPage({ user }: { user: any }) {
         const lines = chunk.split('\n');
         for (const line of lines) {
           if (line.startsWith('data:')) {
-            const data = line.replace('data:', '');
-            if (data.trim() !== '') {
-               fullResponse += data;
-               
-               // Parse the full response to separate SQL and explanation
-               // Using simple string split based on [SQL_START] and [SQL_END]
-               const sqlStartIndex = fullResponse.indexOf('[SQL_START]');
-               const sqlEndIndex = fullResponse.indexOf('[SQL_END]');
-               
-               if (sqlStartIndex !== -1) {
-                 const explanation = fullResponse.substring(0, sqlStartIndex).trim();
-                 let sql = '';
-                 
-                 if (sqlEndIndex !== -1) {
-                     sql = fullResponse.substring(sqlStartIndex + '[SQL_START]'.length, sqlEndIndex).trim();
-                   } else {
-                     sql = fullResponse.substring(sqlStartIndex + '[SQL_START]'.length).trim();
-                   }
-                   
-                   // If the LLM somehow outputs explanation after SQL_END
-                 let postExplanation = '';
-                 if (sqlEndIndex !== -1 && sqlEndIndex + '[SQL_END]'.length < fullResponse.length) {
-                   postExplanation = fullResponse.substring(sqlEndIndex + '[SQL_END]'.length).trim();
+            const dataStr = line.replace('data:', '').trim();
+            if (dataStr !== '') {
+               try {
+                 const dataObj = JSON.parse(dataStr);
+                 if (dataObj.type === 'explain') {
+                   currentExplain += dataObj.content;
+                   setMessages(prev => {
+                     const newMessages = [...prev];
+                     newMessages[newMessages.length - 1].content = currentExplain;
+                     return newMessages;
+                   });
+                 } else if (dataObj.type === 'sql') {
+                   currentSql += dataObj.content;
+                   setGeneratedSql(currentSql);
                  }
-                 
-                 const finalExplanation = postExplanation ? `${explanation}\n\n${postExplanation}` : explanation;
-                 
-                 setGeneratedSql(sql);
+               } catch (e) {
+                 // On fallback or parse error, treat as raw explanation text
+                 currentExplain += dataStr;
                  setMessages(prev => {
                    const newMessages = [...prev];
-                   newMessages[newMessages.length - 1].content = finalExplanation;
-                   return newMessages;
-                 });
-               } else {
-                 // If no SQL block is started yet, show everything in chat
-                 setMessages(prev => {
-                   const newMessages = [...prev];
-                   newMessages[newMessages.length - 1].content = fullResponse;
+                   newMessages[newMessages.length - 1].content = currentExplain;
                    return newMessages;
                  });
                }
