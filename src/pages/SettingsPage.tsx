@@ -7,10 +7,27 @@ export default function SettingsPage({ user }: { user: any }) {
   const [creativeControl, setCreativeControl] = useState(0.2);
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const [isSaving, setIsSaving] = useState(false);
+  const [apiKey, setApiKey] = useState(user?.apiKey || '');
+  const [secretKey, setSecretKey] = useState(user?.secretKey || '');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => setIsSaving(false), 1000);
+    try {
+      const params = new URLSearchParams({
+        userId: user?.id,
+        apiKey: apiKey || '',
+        secretKey: secretKey || ''
+      });
+      const res = await fetch(`/api/v1/user/updateKeys?${params.toString()}`, {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Failed to save settings');
+      // If there's a global user context, you might want to update it here.
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -165,21 +182,27 @@ export default function SettingsPage({ user }: { user: any }) {
               <h3 className="font-bold font-headline mb-4 text-sm uppercase tracking-tight">API Key Management</h3>
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">OpenAI Key</label>
+                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Custom API Key</label>
                   <div className="flex gap-2">
-                    <input className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" type="password" value="sk-••••••••••••••••" readOnly />
-                    <button className="p-2 hover:bg-surface-container-low rounded border border-outline-variant/20">
-                      <Edit size={16} />
-                    </button>
+                    <input 
+                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" 
+                      type="password" 
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="sk-••••••••••••••••" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Anthropic Key</label>
+                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Custom Secret Key</label>
                   <div className="flex gap-2">
-                    <input className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" type="password" value="sk-ant-••••••••••••" readOnly />
-                    <button className="p-2 hover:bg-surface-container-low rounded border border-outline-variant/20 text-primary">
-                      <Plus size={16} />
-                    </button>
+                    <input 
+                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" 
+                      type="password" 
+                      value={secretKey}
+                      onChange={(e) => setSecretKey(e.target.value)}
+                      placeholder="sk-secret-••••••••••••" 
+                    />
                   </div>
                 </div>
               </div>

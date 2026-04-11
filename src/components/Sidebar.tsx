@@ -4,9 +4,10 @@ import { Page } from '../types';
 interface SidebarProps {
   currentPage: Page;
   onPageChange: (page: Page) => void;
+  user?: any;
 }
 
-export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
+export default function Sidebar({ currentPage, onPageChange, user }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Chat', icon: MessageSquare },
     { id: 'database', label: 'Database', icon: Database },
@@ -45,10 +46,25 @@ export default function Sidebar({ currentPage, onPageChange }: SidebarProps) {
       <div className="px-4 mt-auto space-y-4">
         <div className="p-4 bg-surface-container-high/50 rounded-xl">
           <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Usage</p>
-          <div className="w-full bg-outline-variant/30 h-1 rounded-full mb-1">
-            <div className="bg-primary h-full rounded-full" style={{ width: '65%' }}></div>
-          </div>
-          <p className="text-[10px] text-on-surface-variant">842 / 1000 tokens used</p>
+          {user?.apiKey && user?.secretKey ? (
+            <>
+              <div className="w-full bg-outline-variant/30 h-1 rounded-full mb-1">
+                <div className="bg-primary h-full rounded-full" style={{ width: '0%' }}></div>
+              </div>
+              <p className="text-[10px] text-primary font-bold">Custom Keys Active</p>
+            </>
+          ) : (
+            <>
+              <div className="w-full bg-outline-variant/30 h-1 rounded-full mb-1">
+                <div className="bg-primary h-full rounded-full" style={{ 
+                  width: `${Math.max(0, Math.min(100, ((Math.max(user?.tokenQuota || 0, user?.username === 'admin' ? 10000 : 100) - (user?.tokenQuota || 0)) / Math.max(user?.tokenQuota || 0, user?.username === 'admin' ? 10000 : 100)) * 100))}%` 
+                }}></div>
+              </div>
+              <p className="text-[10px] text-on-surface-variant">
+                {Math.max(0, Math.max(user?.tokenQuota || 0, user?.username === 'admin' ? 10000 : 100) - (user?.tokenQuota || 0)).toLocaleString()} / {Math.max(user?.tokenQuota || 0, user?.username === 'admin' ? 10000 : 100).toLocaleString()} tokens used
+              </p>
+            </>
+          )}
         </div>
 
         <button 
