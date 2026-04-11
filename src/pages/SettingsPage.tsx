@@ -3,7 +3,7 @@ import { Sliders, Palette, ShieldCheck, Edit, Plus, Clock, ChevronDown, Sun, Moo
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 
-export default function SettingsPage() {
+export default function SettingsPage({ user }: { user: any }) {
   const [creativeControl, setCreativeControl] = useState(0.2);
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const [isSaving, setIsSaving] = useState(false);

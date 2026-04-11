@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MOCK_QUERIES } from '../constants';
 import { QueryRecord } from '../types';
 
-export default function HistoryPage() {
+export default function HistoryPage({ user }: { user: any }) {
   const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(MOCK_QUERIES[0]);
 
   return (
