@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Database, Terminal, Share2, Mail, Lock, LogIn, ArrowRight, User } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import storageUtils from '../utils/storageUtils';
+
 interface LoginPageProps {
   onLogin: (user: any) => void;
 }
@@ -13,6 +15,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -22,7 +25,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     try {
       const endpoint = isLoginMode ? '/api/v1/user/login' : '/api/v1/user/register';
       const body = isLoginMode 
-        ? { email, password } 
+        ? { email, password, rememberMe } 
         : { email, username, password };
 
       const response = await fetch(endpoint, {
@@ -37,6 +40,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         throw new Error(res.message || (isLoginMode ? 'Login failed' : 'Registration failed'));
       }
 
+      // store login state
+      const userData = res.data;
+      storageUtils.saveUser(userData);
       onLogin(res.data);
     } catch (err: any) {
       setError(err.message);
@@ -202,6 +208,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/20" 
                 id="remember" 
                 type="checkbox" 
+                checked={rememberMe}
+                onChange={() => setRememberMe(!rememberMe)}
               />
               <label className="ml-2 text-sm text-on-surface-variant font-medium select-none" htmlFor="remember">Maintain persistent session</label>
             </div>

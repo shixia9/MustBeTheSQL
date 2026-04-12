@@ -15,6 +15,9 @@ import SettingsPage from './pages/SettingsPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 
+import storageUtils from './utils/storageUtils.ts'
+import memoryUtils from './utils/memoryUtils.ts';
+
 export default function App() {
   return (
     <SettingsProvider>
@@ -27,11 +30,28 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ id: number, username: string, tokenQuota: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const init = () => {
+      const localUser = storageUtils.getUser();
+      if (localUser) {
+        setUser(localUser);
+        setIsLoggedIn(true);
+        memoryUtils.user = localUser;
+        setCurrentPage('dashboard');
+      }
+      setLoading(false);
+    };
+    init();
+  }, []);
 
   // Handle login transition
   const handleLogin = (userData: any) => {
     setUser(userData);
     setIsLoggedIn(true);
+    memoryUtils.user = userData;
+    storageUtils.saveUser(userData);
     setCurrentPage('dashboard');
   };
 
@@ -56,6 +76,8 @@ function AppContent() {
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
+    memoryUtils.user = null;
+    storageUtils.deleteUser();
     setCurrentPage('login');
   };
 

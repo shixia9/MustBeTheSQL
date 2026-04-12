@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Database, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { tr } from 'motion/react-client';
 
 interface TopNavProps {
   user?: { id: number, username: string, tokenQuota: number } | null;
@@ -8,6 +9,22 @@ interface TopNavProps {
 
 export default function TopNav({ user, onLogout }: TopNavProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // logout
+  const handleLogout = async () => {
+    setShowDropdown(false);
+    try {
+      await fetch('/api/v1/user/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.log('logout backend failed, but still logout in frontend: ', error);
+    }
+    onLogout && onLogout();
+  };
 
   return (
     <header className="bg-surface-container-low flex justify-between items-center w-full px-6 h-14 z-50 fixed top-0 border-b border-outline-variant/20">
@@ -56,10 +73,7 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
             <div className="absolute right-0 mt-2 w-48 bg-surface-container-high rounded-lg shadow-lg border border-outline-variant/20 py-1 overflow-hidden z-50">
               <button 
                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
-                onClick={() => {
-                  setShowDropdown(false);
-                  onLogout && onLogout();
-                }}
+                onClick={handleLogout}
               >
                 <LogOut size={16} className="text-error" />
                 <span>Logout</span>
