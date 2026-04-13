@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Database, Settings, LogOut, ChevronDown } from 'lucide-react';
-import { tr } from 'motion/react-client';
 
 interface TopNavProps {
   user?: { id: number, username: string, tokenQuota: number } | null;

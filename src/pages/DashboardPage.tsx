@@ -135,6 +135,12 @@ export default function DashboardPage({ user }: { user: any }) {
                  } else if (dataObj.type === 'sql') {
                    currentSql += dataObj.content;
                    setGeneratedSql(currentSql);
+
+                  //  setMessages(prev => {
+                  //   const newMessages = [...prev];
+                  //   newMessages[newMessages.length - 1].content = currentExplain + "\n```sql\n" + currentSql + "\n```";
+                  //   return newMessages;
+                  // });
                  }
                } catch (e) {
                  // On fallback or parse error, treat as raw explanation text
