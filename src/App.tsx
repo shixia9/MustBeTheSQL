@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import DatabasePage from './pages/DatabasePage';
 import SettingsPage from './pages/SettingsPage';
+import WorkspacePage from './pages/WorkspacePage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 
@@ -36,7 +37,7 @@ function AppContent() {
     const init = () => {
       const localUser = storageUtils.getUser();
       if (localUser) {
-        setUser(localUser);
+        setUser({ id: localUser.id, username: localUser.username, tokenQuota: localUser.tokenQuota ?? 0 });
         setIsLoggedIn(true);
         memoryUtils.user = localUser;
         setCurrentPage('dashboard');
@@ -56,22 +57,24 @@ function AppContent() {
   };
 
   // Simple routing based on state
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'login':
-        return <LoginPage onLogin={handleLogin} />;
-      case 'dashboard':
-        return <DashboardPage user={user} />;
-      case 'history':
-        return <HistoryPage user={user} />;
-      case 'database':
-        return <DatabasePage user={user} />;
-      case 'settings':
-        return <SettingsPage user={user} />;
-      default:
-        return <DashboardPage user={user} />;
-    }
-  };
+    const renderPage = () => {
+      switch (currentPage) {
+        case 'login':
+          return <LoginPage onLogin={handleLogin} />;
+        case 'dashboard':
+          return <DashboardPage user={user} />;
+        case 'workspace':
+          return <WorkspacePage user={user} />;
+        case 'history':
+          return <HistoryPage user={user} />;
+        case 'database':
+          return <DatabasePage user={user} />;
+        case 'settings':
+          return <SettingsPage user={user} />;
+        default:
+          return <DashboardPage user={user} />;
+      }
+    };
 
   const handleLogout = () => {
     setUser(null);
