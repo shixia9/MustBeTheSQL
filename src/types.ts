@@ -1,4 +1,4 @@
-export type Page = 'login' | 'dashboard' | 'history' | 'database' | 'settings';
+export type Page = 'login' | 'dashboard' | 'workspace' | 'history' | 'database' | 'settings';
 
 export interface QueryRecord {
   id: string;

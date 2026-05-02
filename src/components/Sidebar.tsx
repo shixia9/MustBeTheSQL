@@ -10,6 +10,7 @@ interface SidebarProps {
 export default function Sidebar({ currentPage, onPageChange, user }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Chat', icon: MessageSquare },
+    { id: 'workspace', label: 'Workspace', icon: LayoutDashboard },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'history', label: 'History', icon: History },
     { id: 'settings', label: 'Settings', icon: Settings },
