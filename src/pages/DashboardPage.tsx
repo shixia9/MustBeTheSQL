@@ -11,23 +11,47 @@ export default function DashboardPage({ user }: { user: any }) {
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [messages, setMessages] = useState([
-    { 
+  
+  // Use localStorage to cache messages and generatedSql
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem(`chat_messages_${user?.id}`);
+    if (saved) return JSON.parse(saved);
+    return [{ 
       role: 'ai', 
       content: `Welcome, ${user?.username || 'User'}! You have ${user?.tokenQuota || 0} AI tokens remaining. How can I help you today?` 
-    }
-  ]);
-  const [generatedSql, setGeneratedSql] = useState('');
+    }];
+  });
+  
+  const [generatedSql, setGeneratedSql] = useState(() => {
+    return localStorage.getItem(`chat_sql_${user?.id}`) || '';
+  });
+
   const [executeResult, setExecuteResult] = useState<any>(null);
   const [executeError, setExecuteError] = useState<string>('');
   const [clipboardJustCopied, setClipboardJustCopied] = useState(false);
 
   // Schema context states
   const [connections, setConnections] = useState<any[]>([]);
-  const [selectedConnId, setSelectedConnId] = useState<number | ''>('');
+  const [selectedConnId, setSelectedConnId] = useState<number | ''>(() => {
+    const saved = localStorage.getItem(`chat_conn_${user?.id}`);
+    return saved ? Number(saved) : '';
+  });
   const [tables, setTables] = useState<string[]>([]);
-  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [selectedTables, setSelectedTables] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`chat_tables_${user?.id}`);
+    return saved ? JSON.parse(saved) : [];
+  });
   const [showTableSelect, setShowTableSelect] = useState(false);
+
+  // Save to localStorage whenever state changes
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`chat_messages_${user.id}`, JSON.stringify(messages));
+      localStorage.setItem(`chat_sql_${user.id}`, generatedSql);
+      localStorage.setItem(`chat_conn_${user.id}`, selectedConnId.toString());
+      localStorage.setItem(`chat_tables_${user.id}`, JSON.stringify(selectedTables));
+    }
+  }, [messages, generatedSql, selectedConnId, selectedTables, user?.id]);
 
   useEffect(() => {
     if (user?.id) {
@@ -119,9 +143,13 @@ export default function DashboardPage({ user }: { user: any }) {
         
         const chunk = decoder.decode(value, { stream: true });
         const lines = chunk.split('\n');
-        for (const line of lines) {
+        for (let line of lines) {
+          line = line.trim();
           if (line.startsWith('data:')) {
-            const dataStr = line.replace('data:', '').trim();
+            let dataStr = line;
+            while (dataStr.startsWith('data:')) {
+              dataStr = dataStr.replace('data:', '').trim();
+            }
             if (dataStr !== '') {
                try {
                  const dataObj = JSON.parse(dataStr);

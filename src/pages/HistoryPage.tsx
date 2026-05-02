@@ -1,11 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, X, RefreshCw, Share2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_QUERIES } from '../constants';
 import { QueryRecord } from '../types';
 
 export default function HistoryPage({ user }: { user: any }) {
-  const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(MOCK_QUERIES[0]);
+  const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(null);
+  const [queries, setQueries] = useState<QueryRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchHistory();
+    }
+  }, [user]);
+
+  const fetchHistory = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/v1/history/user/${user.id}`);
+      const data = await res.json();
+      if (data.code === 200) {
+        const formattedQueries: QueryRecord[] = data.data.map((item: any) => ({
+          id: item.id.toString(),
+          prompt: item.prompt || '',
+          database: item.databaseName || 'Unknown',
+          sql: item.generatedSql || '',
+          model: item.modelName || 'Unknown',
+          latency: item.executeLatency != null ? `${item.executeLatency}ms` : '-',
+          tokens: item.tokens || 0,
+          rows: item.rowCount || 0,
+          cost: item.cost || 0,
+          timestamp: new Date(item.createTime).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          })
+        }));
+        setQueries(formattedQueries);
+        if (formattedQueries.length > 0) {
+          setSelectedQuery(formattedQueries[0]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch history', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <main className="ml-64 pt-14 min-h-screen flex bg-surface-container-low">
@@ -19,11 +59,15 @@ export default function HistoryPage({ user }: { user: any }) {
           <div className="flex gap-4">
             <div className="px-4 py-2 bg-surface-container-highest/30 rounded-lg flex flex-col items-end">
               <span className="text-[10px] font-bold uppercase text-primary/70">Total Queries</span>
-              <span className="font-mono text-lg font-bold">1,284</span>
+              <span className="font-mono text-lg font-bold">{isLoading ? '-' : queries.length}</span>
             </div>
             <div className="px-4 py-2 bg-surface-container-highest/30 rounded-lg flex flex-col items-end">
               <span className="text-[10px] font-bold uppercase text-primary/70">Avg Latency</span>
-              <span className="font-mono text-lg font-bold">42ms</span>
+              <span className="font-mono text-lg font-bold">
+                {isLoading ? '-' : (queries.filter(q => q.latency !== '-').length > 0 
+                  ? `${Math.round(queries.filter(q => q.latency !== '-').reduce((acc, q) => acc + parseInt(q.latency.replace('ms', '')), 0) / queries.filter(q => q.latency !== '-').length)}ms` 
+                  : '-')}
+              </span>
             </div>
           </div>
         </div>
@@ -69,7 +113,15 @@ export default function HistoryPage({ user }: { user: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/5">
-              {MOCK_QUERIES.map((q) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-on-surface-variant">Loading history...</td>
+                </tr>
+              ) : queries.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-on-surface-variant">No history found. Try running a query!</td>
+                </tr>
+              ) : queries.map((q) => (
                 <tr 
                   key={q.id} 
                   onClick={() => setSelectedQuery(q)}
@@ -91,8 +143,8 @@ export default function HistoryPage({ user }: { user: any }) {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <p className="text-[11px] font-medium text-on-surface-variant">{q.timestamp.split(' ')[0]}</p>
-                    <p className="text-[10px] text-on-surface-variant/60">{q.timestamp.split(' ')[1]}</p>
+                    <p className="text-[11px] font-medium text-on-surface-variant">{q.timestamp.split(',')[0]}</p>
+                    <p className="text-[10px] text-on-surface-variant/60">{q.timestamp.split(',')[1]}</p>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -108,13 +160,11 @@ export default function HistoryPage({ user }: { user: any }) {
           </table>
           
           <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low/30">
-            <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">Showing 1-10 of 1,284 queries</span>
+            <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">Showing {queries.length} queries</span>
             <div className="flex items-center gap-2">
               <button className="p-1 text-on-surface-variant/40 cursor-not-allowed"><ChevronLeft size={18} /></button>
               <button className="px-3 py-1 bg-primary text-white text-xs font-bold rounded">1</button>
-              <button className="px-3 py-1 hover:bg-surface-container-high text-xs font-bold rounded transition-colors">2</button>
-              <button className="px-3 py-1 hover:bg-surface-container-high text-xs font-bold rounded transition-colors">3</button>
-              <button className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"><ChevronRight size={18} /></button>
+              <button className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors cursor-not-allowed"><ChevronRight size={18} /></button>
             </div>
           </div>
         </div>
@@ -156,11 +206,11 @@ export default function HistoryPage({ user }: { user: any }) {
                   <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded">{selectedQuery.model}</span>
                 </div>
                 <div className="bg-[#1e2433] rounded-xl overflow-hidden shadow-xl border border-white/5">
-                  <div className="px-4 py-2 bg-surface-container-high/50 border-b border-white/5 flex justify-between items-center">
-                    <span className="text-[10px] text-white/40 font-mono uppercase">PostgreSQL</span>
-                    <button className="text-white/60 hover:text-white transition-colors"><Copy size={14} /></button>
+                  <div className="px-4 py-2 bg-slate-800/50 border-b border-white/5 flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400 font-mono uppercase">PostgreSQL</span>
+                    <button className="text-slate-400 hover:text-white transition-colors"><Copy size={14} /></button>
                   </div>
-                  <pre className="p-4 text-[11px] font-mono text-primary-fixed leading-relaxed overflow-x-auto">
+                  <pre className="p-4 text-[11px] font-mono text-slate-200 leading-relaxed overflow-x-auto whitespace-pre-wrap">
                     <code>{selectedQuery.sql}</code>
                   </pre>
                 </div>
