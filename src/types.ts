@@ -6,11 +6,13 @@ export interface QueryRecord {
   sql: string;
   model: string;
   database: string;
+  connectionId?: number;
   timestamp: string;
   latency: string;
   tokens: number;
   rows: number;
   cost: number;
+  parentId?: string;
 }
 
 export interface DatabaseConnection {
