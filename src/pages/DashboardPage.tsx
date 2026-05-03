@@ -1,13 +1,45 @@
-import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info, Database, Table2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { format as formatSql } from 'sql-formatter';
+import Editor from '@monaco-editor/react';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
-  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleEditorWillMount = (monaco: any) => {
+    monaco.editor.defineTheme('logicLedgerTheme', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'keyword', foreground: '38bdf8', fontStyle: 'bold' }, // sky-400
+        { token: 'string', foreground: 'a3e635' }, // lime-400
+        { token: 'comment', foreground: '64748b', fontStyle: 'italic' }, // slate-500
+        { token: 'number', foreground: 'f472b6' }, // rose-400
+        { token: 'operator', foreground: '94a3b8' }, // slate-400
+        { token: 'identifier', foreground: 'e2e8f0' }, // slate-200
+        { token: 'predefined', foreground: 'c084fc' }, // purple-400
+      ],
+      colors: {
+        'editor.background': '#1e2433', // existing background
+        'editor.foreground': '#e2e8f0',
+        'editor.lineHighlightBackground': '#33415550',
+        'editorLineNumber.foreground': '#475569',
+        'editorLineNumber.activeForeground': '#94a3b8',
+        'editorIndentGuide.background': '#334155',
+        'editor.selectionBackground': '#38bdf830',
+        'editorCursor.foreground': '#38bdf8',
+        'editorWidget.background': '#0f172a',
+        'editorWidget.border': '#334155',
+        'editorSuggestWidget.background': '#0f172a',
+        'editorSuggestWidget.border': '#334155',
+        'editorSuggestWidget.selectedBackground': '#1e293b',
+      }
+    });
+  };
+
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -149,6 +181,7 @@ export default function DashboardPage({ user }: { user: any }) {
       
       let currentExplain = '';
       let currentSql = '';
+      let partialChunk = '';
       
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
@@ -157,7 +190,11 @@ export default function DashboardPage({ user }: { user: any }) {
         if (done) break;
         
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        const lines = (partialChunk + chunk).split('\n');
+        
+        // Keep the last part if it doesn't end with a newline
+        partialChunk = lines.pop() || '';
+        
         for (let line of lines) {
           line = line.trim();
           if (line.startsWith('data:')) {
@@ -198,6 +235,38 @@ export default function DashboardPage({ user }: { user: any }) {
           }
         }
       }
+      
+      // Process any remaining partial chunk
+      if (partialChunk.trim().startsWith('data:')) {
+        let dataStr = partialChunk.trim();
+        while (dataStr.startsWith('data:')) {
+          dataStr = dataStr.replace('data:', '').trim();
+        }
+        if (dataStr !== '') {
+          try {
+            const dataObj = JSON.parse(dataStr);
+            if (dataObj.type === 'explain') {
+              currentExplain += dataObj.content;
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1].content = currentExplain;
+                return newMessages;
+              });
+            } else if (dataObj.type === 'sql') {
+              currentSql += dataObj.content;
+              setGeneratedSql(currentSql);
+            }
+          } catch (e) {
+            currentExplain += dataStr;
+            setMessages(prev => {
+              const newMessages = [...prev];
+              newMessages[newMessages.length - 1].content = currentExplain;
+              return newMessages;
+            });
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Error fetching streaming SQL:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error generating the SQL.' }]);
@@ -227,24 +296,6 @@ export default function DashboardPage({ user }: { user: any }) {
     } catch (e) {
       setExecuteError('SQL format failed.');
     }
-  };
-
-  const handleEditorKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== 'Tab') return;
-    e.preventDefault();
-
-    const textarea = editorRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart ?? 0;
-    const end = textarea.selectionEnd ?? 0;
-    const insert = '  ';
-    const nextValue = generatedSql.slice(0, start) + insert + generatedSql.slice(end);
-    setGeneratedSql(nextValue);
-
-    window.requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + insert.length;
-    });
   };
 
   const runQuery = async (confirmed: boolean = false) => {
@@ -474,33 +525,51 @@ export default function DashboardPage({ user }: { user: any }) {
 
           {/* Editor Surface */}
           <div 
-            className="flex-1 flex font-mono leading-relaxed overflow-hidden transition-all duration-200"
+            className="flex-1 flex overflow-hidden transition-all duration-200 relative bg-[#1e2433]"
             style={{ fontSize: `${fontSize}px` }}
           >
-            <div className="w-12 bg-slate-900/50 flex flex-col items-center py-4 text-slate-600 select-none border-r border-white/5">
-              {Array.from({ length: Math.max(15, generatedSql.split('\n').length) }).map((_, i) => <span key={i}>{i + 1}</span>)}
-            </div>
-            <div className="flex-1 p-4 overflow-auto bg-[#1e2433]">
-              <textarea
-                ref={editorRef}
+            <div className="absolute inset-0">
+              <Editor
                 value={generatedSql}
-                readOnly={isStreaming}
-                onChange={(e) => setGeneratedSql(e.target.value)}
-                onKeyDown={handleEditorKeyDown}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                className="w-full h-full min-h-[240px] bg-transparent text-slate-200 font-mono outline-none resize-none"
-                placeholder="AI generated SQL will appear here..."
+                beforeMount={handleEditorWillMount}
+                onChange={(val) => setGeneratedSql(val || '')}
+                language={
+                  (connections.find(c => c.id === selectedConnId)?.dbType || '').toLowerCase() === 'postgresql'
+                    ? 'pgsql'
+                    : 'mysql'
+                }
+                theme="logicLedgerTheme"
+                options={{
+                  readOnly: isStreaming,
+                  minimap: { enabled: false },
+                  fontSize: fontSize,
+                  fontFamily: "'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
+                  lineHeight: 1.6,
+                  padding: { top: 16, bottom: 16 },
+                  scrollBeyondLastLine: false,
+                  smoothScrolling: true,
+                  cursorBlinking: 'smooth',
+                  cursorSmoothCaretAnimation: 'on',
+                  renderLineHighlight: 'all',
+                  scrollbar: {
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8,
+                  },
+                }}
+                loading={
+                  <div className="flex items-center justify-center h-full text-slate-500">
+                    <Loader2 size={24} className="animate-spin opacity-50" />
+                  </div>
+                }
               />
-              {isStreaming && (
-                <motion.div 
-                  animate={{ opacity: [1, 0] }}
-                  transition={{ repeat: Infinity, duration: 0.8 }}
-                  className="h-4 w-1 bg-primary/40 mt-1 inline-block"
-                ></motion.div>
-              )}
             </div>
+            {isStreaming && (
+              <motion.div 
+                animate={{ opacity: [1, 0] }}
+                transition={{ repeat: Infinity, duration: 0.8 }}
+                className="absolute top-4 left-4 h-4 w-1 bg-primary/40 pointer-events-none z-10"
+              ></motion.div>
+            )}
           </div>
 
           {/* Result Panel */}
