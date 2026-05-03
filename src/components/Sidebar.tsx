@@ -69,7 +69,10 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
         </div>
 
         <button 
-          onClick={() => onPageChange('dashboard')}
+          onClick={() => {
+            onPageChange('dashboard');
+            window.dispatchEvent(new CustomEvent('new-query'));
+          }}
           className="w-full flex items-center justify-center gap-2 py-3 primary-gradient text-white rounded-md font-semibold text-xs uppercase tracking-widest shadow-lg hover:brightness-110 transition-all active:scale-95"
         >
           <Plus size={16} />

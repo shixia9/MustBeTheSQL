@@ -54,6 +54,21 @@ export default function DashboardPage({ user }: { user: any }) {
   }, [messages, generatedSql, selectedConnId, selectedTables, user?.id]);
 
   useEffect(() => {
+    const handleNewQuery = () => {
+      setMessages([{ 
+        role: 'ai', 
+        content: `Welcome, ${user?.username || 'User'}! You have ${user?.tokenQuota || 0} AI tokens remaining. How can I help you today?` 
+      }]);
+      setGeneratedSql('');
+      setExecuteResult(null);
+      setExecuteError('');
+    };
+
+    window.addEventListener('new-query', handleNewQuery);
+    return () => window.removeEventListener('new-query', handleNewQuery);
+  }, [user?.username, user?.tokenQuota]);
+
+  useEffect(() => {
     if (user?.id) {
       fetchConnections();
     }
