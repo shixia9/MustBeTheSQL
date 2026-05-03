@@ -23,6 +23,13 @@ export default function HistoryPage({ user }: { user: any }) {
   // Copy Feedback State
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Re-run Modal State
+  const [isReRunModalOpen, setIsReRunModalOpen] = useState(false);
+  const [reRunQueryData, setReRunQueryData] = useState<QueryRecord | null>(null);
+  const [isReRunning, setIsReRunning] = useState(false);
+  const [reRunResult, setReRunResult] = useState<any>(null);
+  const [reRunError, setReRunError] = useState<string>('');
+
   // Debounce fetch when filters change
   useEffect(() => {
     if (user?.id) {
@@ -140,19 +147,46 @@ export default function HistoryPage({ user }: { user: any }) {
     }
   };
 
-  const handleReRun = (query: QueryRecord, e?: React.MouseEvent) => {
+  const handleReRun = async (query: QueryRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    // Dispatch global event to jump to dashboard and re-run
-    const detail = {
-      prompt: query.prompt,
-      sql: query.sql,
-      connectionId: query.connectionId,
-      parentHistoryId: query.id
-    };
-    window.dispatchEvent(new CustomEvent('re-run-query', { detail }));
-    // Also change page to dashboard by dispatching an event that App.tsx can listen to,
-    // Or simpler: We can dispatch a global event that Sidebar listens to.
-    window.dispatchEvent(new CustomEvent('navigate', { detail: 'dashboard' }));
+    
+    setReRunQueryData(query);
+    setIsReRunModalOpen(true);
+    setIsReRunning(true);
+    setReRunResult(null);
+    setReRunError('');
+
+    try {
+      const res = await fetch('/api/v1/sql/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          sql: query.sql,
+          connectionId: query.connectionId,
+          confirmed: true,
+          parentHistoryId: Number(query.id)
+        }),
+      });
+
+      const data = await res.json();
+      if (data.code === 200) {
+        setReRunResult(data.data);
+        // Refresh the list and lineage
+        fetchHistory();
+        if (selectedQuery?.id === query.id) {
+          fetchLineage(query.id);
+        }
+      } else {
+        setReRunError(data.message || 'Execution failed');
+      }
+    } catch (e: any) {
+      setReRunError(e.message || 'An error occurred during execution');
+    } finally {
+      setIsReRunning(false);
+    }
   };
 
   return (
@@ -446,6 +480,113 @@ export default function HistoryPage({ user }: { user: any }) {
               </button>
             </div>
           </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* Re-run Modal */}
+      <AnimatePresence>
+        {isReRunModalOpen && reRunQueryData && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsReRunModalOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-surface-container-low border border-outline-variant/30 rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface-container-highest/20">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-on-surface">
+                  <Play size={18} className="text-primary" />
+                  Re-Run Query Results
+                </h2>
+                <button 
+                  onClick={() => setIsReRunModalOpen(false)}
+                  className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="flex-1 overflow-auto p-6 bg-surface custom-scrollbar">
+                <div className="mb-6">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">Executing SQL</span>
+                  <div className="bg-[#1e2433] p-4 rounded-xl border border-white/5 font-mono text-sm text-slate-200 overflow-x-auto">
+                    <code>{reRunQueryData.sql}</code>
+                  </div>
+                </div>
+
+                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">Execution Result</span>
+                
+                {isReRunning ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
+                    <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
+                    <p className="text-sm font-medium">Executing query on {reRunQueryData.database}...</p>
+                  </div>
+                ) : reRunError ? (
+                  <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error">
+                    <p className="font-bold text-sm mb-1">Execution Failed</p>
+                    <p className="text-xs font-mono whitespace-pre-wrap">{reRunError}</p>
+                  </div>
+                ) : reRunResult ? (
+                  <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm">
+                    {reRunResult.resultType === 'UPDATE' ? (
+                      <div className="p-6 flex flex-col items-center justify-center text-on-surface">
+                        <CheckCircle2 className="w-12 h-12 text-primary mb-3" />
+                        <p className="text-lg font-bold">Execution Successful</p>
+                        <p className="text-sm text-on-surface-variant mt-1">
+                          Affected Rows: <span className="font-mono text-primary font-bold">{reRunResult.affectedRows}</span>
+                        </p>
+                      </div>
+                    ) : reRunResult.rows && reRunResult.rows.length > 0 ? (
+                      <div className="overflow-x-auto custom-scrollbar max-h-[400px]">
+                        <table className="w-full text-left border-collapse text-sm">
+                          <thead className="bg-surface-container-low sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                            <tr>
+                              <th className="py-3 px-4 border-b border-outline-variant/30 font-bold text-on-surface-variant w-12 text-center">#</th>
+                              {reRunResult.columns?.map((col: string, i: number) => (
+                                <th key={i} className="py-3 px-4 border-b border-outline-variant/30 font-bold text-on-surface tracking-wide whitespace-nowrap">
+                                  {col}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="font-mono text-[13px]">
+                            {reRunResult.rows.map((row: any, i: number) => (
+                              <tr 
+                                key={i} 
+                                className={`hover:bg-primary/5 transition-colors border-b border-outline-variant/20 last:border-0 ${i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface-container-low/30'}`}
+                              >
+                                <td className="py-2.5 px-4 whitespace-nowrap text-on-surface-variant/50 text-center font-sans text-xs">
+                                  {i + 1}
+                                </td>
+                                {reRunResult.columns?.map((col: string, j: number) => (
+                                  <td key={j} className="py-2.5 px-4 text-on-surface/80 whitespace-nowrap max-w-[250px] truncate">
+                                    {row[col] !== null ? String(row[col]) : <span className="text-on-surface-variant/40 italic">NULL</span>}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-on-surface-variant text-sm">
+                        Query executed successfully, but no data was returned.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </main>
