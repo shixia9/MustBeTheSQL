@@ -57,6 +57,7 @@ export default function DashboardPage({ user }: { user: any }) {
   const [generatedSql, setGeneratedSql] = useState(() => {
     return localStorage.getItem(`chat_sql_${user?.id}`) || '';
   });
+  const [parentHistoryId, setParentHistoryId] = useState<string | null>(null);
 
   const [executeResult, setExecuteResult] = useState<any>(null);
   const [executeError, setExecuteError] = useState<string>('');
@@ -94,10 +95,27 @@ export default function DashboardPage({ user }: { user: any }) {
       setGeneratedSql('');
       setExecuteResult(null);
       setExecuteError('');
+      setParentHistoryId(null);
+    };
+
+    const handleReRunQuery = (e: any) => {
+      const { prompt, sql, connectionId, parentHistoryId } = e.detail;
+      setQuery(prompt);
+      setGeneratedSql(sql);
+      setParentHistoryId(parentHistoryId);
+      if (connectionId) {
+        setSelectedConnId(connectionId);
+      }
+      setExecuteResult(null);
+      setExecuteError('');
     };
 
     window.addEventListener('new-query', handleNewQuery);
-    return () => window.removeEventListener('new-query', handleNewQuery);
+    window.addEventListener('re-run-query', handleReRunQuery);
+    return () => {
+      window.removeEventListener('new-query', handleNewQuery);
+      window.removeEventListener('re-run-query', handleReRunQuery);
+    };
   }, [user?.username, user?.tokenQuota]);
 
   useEffect(() => {
@@ -170,7 +188,8 @@ export default function DashboardPage({ user }: { user: any }) {
           userInput: query,
           connectionId: selectedConnId || null,
           tableNames: selectedTables,
-          strategyName: 'openAiStrategy'
+          strategyName: 'openAiStrategy',
+          parentHistoryId: parentHistoryId ? Number(parentHistoryId) : null
         })
       });
 

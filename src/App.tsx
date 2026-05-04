@@ -45,6 +45,14 @@ function AppContent() {
       setLoading(false);
     };
     init();
+
+    const handleNavigate = (e: any) => {
+      if (e.detail) {
+        setCurrentPage(e.detail as Page);
+      }
+    };
+    window.addEventListener('navigate', handleNavigate);
+    return () => window.removeEventListener('navigate', handleNavigate);
   }, []);
 
   // Handle login transition
