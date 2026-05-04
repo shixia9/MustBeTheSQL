@@ -12,6 +12,7 @@ import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import DatabasePage from './pages/DatabasePage';
 import SettingsPage from './pages/SettingsPage';
+import ProfilePage from './pages/ProfilePage.tsx';
 import WorkspacePage from './pages/WorkspacePage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -30,14 +31,21 @@ export default function App() {
 function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<{ id: number, username: string, tokenQuota: number } | null>(null);
+  const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const init = () => {
       const localUser = storageUtils.getUser();
       if (localUser) {
-        setUser({ id: localUser.id, username: localUser.username, tokenQuota: localUser.tokenQuota ?? 0 });
+        setUser({ 
+          id: localUser.id, 
+          username: localUser.username, 
+          email: localUser.email,
+          avatar: localUser.avatar,
+          status: localUser.status,
+          tokenQuota: localUser.tokenQuota ?? 0 
+        });
         setIsLoggedIn(true);
         memoryUtils.user = localUser;
         setCurrentPage('dashboard');
@@ -64,6 +72,13 @@ function AppContent() {
     setCurrentPage('dashboard');
   };
 
+  // Handle user update without navigation
+  const handleUserUpdate = (userData: any) => {
+    setUser(userData);
+    memoryUtils.user = userData;
+    storageUtils.saveUser(userData);
+  };
+
   // Simple routing based on state
     const renderPage = () => {
       switch (currentPage) {
@@ -79,6 +94,8 @@ function AppContent() {
           return <DatabasePage user={user} />;
         case 'settings':
           return <SettingsPage user={user} />;
+        case 'profile':
+          return <ProfilePage user={user} onUserUpdate={handleUserUpdate} />;
         default:
           return <DashboardPage user={user} />;
       }

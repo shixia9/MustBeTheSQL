@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Database, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Database, Settings, LogOut, ChevronDown, User as UserIcon } from 'lucide-react';
 
 interface TopNavProps {
-  user?: { id: number, username: string, tokenQuota: number } | null;
+  user?: { id: number, username: string, email?: string, avatar?: string, tokenQuota: number } | null;
   onLogout?: () => void;
 }
 
@@ -55,12 +55,15 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container overflow-hidden border border-primary/10">
-              <img 
-                src="https://picsum.photos/seed/architect/100/100" 
-                alt="User" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+              {user?.avatar ? (
+                <img 
+                  src={user.avatar} 
+                  alt="User Avatar" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <UserIcon size={18} className="text-primary" />
+              )}
             </div>
             <span className="text-sm font-medium hidden lg:block">
               {user ? user.username : 'Architect Mode'}
@@ -70,6 +73,16 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
 
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-48 bg-surface-container-high rounded-lg shadow-lg border border-outline-variant/20 py-1 overflow-hidden z-50">
+              <button 
+                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
+                onClick={() => {
+                  setShowDropdown(false);
+                  window.dispatchEvent(new CustomEvent('navigate', { detail: 'profile' }));
+                }}
+              >
+                <UserIcon size={16} className="text-primary" />
+                <span>Profile Center</span>
+              </button>
               <button 
                 className="w-full flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
                 onClick={handleLogout}
