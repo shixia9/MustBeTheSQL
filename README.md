@@ -1,20 +1,89 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 📊 Must Be The SQL
 
-# Must Be the SQL
+<p align="center">
+  <img src="https://img.shields.io/badge/Frontend-React-blue" />
+  <img src="https://img.shields.io/badge/Backend-SpringBoot-green" />
+  <img src="https://img.shields.io/badge/AI-LLM-orange" />
+  <img src="https://img.shields.io/badge/Database-MySQL%20%7C%20PostgreSQL-lightgrey" />
+  <img src="https://img.shields.io/badge/License-MIT-purple" />
+</p>
 
-This contains everything you need to run your app locally.
+<p align="center">
+  <b>💡 A modern database visualization and AI-powered SQL generation platform</b>
+</p>
 
-View your app in AI Studio: https://ai.studio/apps/e4454379-9f29-4d4c-9af9-c5d5b34b17a2
+<p align="center">
+  <a href="./README.zh-CN.md">🇨🇳 中文文档</a> |
+  <a href="#quick-start">⚡ Quick Start</a> |
+  <a href="https://github.com/shixia9/MustBeTheSQL-Server">Server</a>
+</p>
 
-## Run Locally
 
-**Prerequisites:**  Node.js
+## 📖 Introduction
+
+**SQL Logic Engine** is a full-stack intelligent database platform built with **React + Spring Boot**, designed to:
+
+- 🔍 Visualize database structures
+- ✍️ Generate SQL via AI (LLM-powered)
+- ⚡ Execute queries safely
+- 📊 Improve developer productivity
 
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## ✨ Features
+
+### 🔌 Database Connection Management
+
+- Secure multi-database connection support
+- Supports **MySQL**, **PostgreSQL**
+- Connection isolation via **HikariCP**
+
+
+### 🧭 Workspace (Core UI)
+
+A modern single-page database workspace:
+
+- **Tree Navigation**
+  - Browse schemas, tables, columns, indexes
+- &#x20;**Multi-Tab Editor**
+  - Open multiple SQL consoles or table previews
+- **DDL Export**
+  - Auto-generate `CREATE TABLE` / `VIEW` statements
+- **Connection Pooling**
+  - High-performance management via HikariCP
+- **Dialect Abstraction**
+  - SPI-style metadata extension
+  - Easily extend to new databases
+
+
+### 🤖 AI SQL Assistant
+
+- Natural language → SQL generation
+- Query explanation
+- Safe execution (prevent destructive queries)
+- Chat history tracking
+
+
+## ⚡ Quick Start
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/shixia9/MustBeTheSQL-Server.git
+git clone https://github.com/shixia9/MustBeTheSQL.git
+```
+
+### 2. Start Backend
+
+```bash
+cd MustBeTheSQL-Server
+mvn spring-boot:run
+```
+
+### 3. Start Frontend
+
+```bash
+cd MustBeTheSQL
+npm install
+npm run dev
+```
+
