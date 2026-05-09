@@ -309,16 +309,16 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
             className="px-3 py-1.5 hover:bg-primary/10 hover:text-primary cursor-pointer flex items-center gap-2"
             onClick={() => {
               addTab({
-                id: `tab-ddl-${Date.now()}`,
-                title: 'DDL Console',
-                type: 'ddl',
+                id: `tab-sql-console-${Date.now()}`,
+                title: 'SQL Console',
+                type: 'sql_console',
                 connectionId,
                 content: ''
               });
               closeContextMenu();
             }}
           >
-            <FileCode className="w-4 h-4" /> New DDL Console
+            <FileCode className="w-4 h-4" /> New SQL Console
           </div>
         </div>
       )}

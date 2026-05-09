@@ -3,11 +3,11 @@ import { create } from 'zustand';
 export interface TabItem {
   id: string;
   title: string;
-  type: 'table' | 'query' | 'view' | 'ddl';
+  type: 'table' | 'query' | 'sql_console' | 'view';
   connectionId: number;
   schemaName?: string;
   tableName?: string;
-  content?: string;
+  content?: string; // For SQL queries
 }
 
 export interface WorkspaceState {

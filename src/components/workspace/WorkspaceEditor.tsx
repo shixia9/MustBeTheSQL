@@ -3,7 +3,7 @@ import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { X, RefreshCw, FileJson, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import TableCell from './TableCell';
-import DdlConsole from './DdlConsole';
+import SqlConsole from './SqlConsole';
 
 export default function WorkspaceEditor() {
   const { tabs, activeTabId, removeTab, setActiveTabId } = useWorkspaceStore();
@@ -57,7 +57,7 @@ export default function WorkspaceEditor() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-on-surface-variant h-full bg-surface">
         <DatabaseIcon className="w-16 h-16 mb-4 opacity-20" />
-        <p>No tabs open. Double-click a table or right-click to open DDL/Query.</p>
+        <p>No tabs open. Double-click a table or right-click to open SQL Console/Query.</p>
       </div>
     );
   }
@@ -92,7 +92,7 @@ export default function WorkspaceEditor() {
             <div className="flex items-center justify-between mb-4 border-b border-outline-variant/30 pb-2">
               <h2 className="text-lg font-medium flex items-center gap-2">
                 {activeTab.type === 'table' ? <TableIcon className="w-5 h-5 text-primary" /> : 
-                 activeTab.type === 'ddl' ? <FileCode className="w-5 h-5 text-primary" /> :
+                 activeTab.type === 'sql_console' ? <FileCode className="w-5 h-5 text-primary" /> :
                  <FileJson className="w-5 h-5 text-primary" />}
                 {activeTab.title}
               </h2>
@@ -106,9 +106,9 @@ export default function WorkspaceEditor() {
               )}
             </div>
 
-            {activeTab.type === 'ddl' && (
+            {activeTab.type === 'sql_console' && (
               <div className="flex-1 min-h-0">
-                <DdlConsole tab={activeTab} />
+                <SqlConsole tab={activeTab} />
               </div>
             )}
 
