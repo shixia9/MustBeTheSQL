@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { X, RefreshCw, FileJson } from 'lucide-react';
+import { X, RefreshCw, FileJson, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import TableCell from './TableCell';
+import DdlConsole from './DdlConsole';
 
 export default function WorkspaceEditor() {
   const { tabs, activeTabId, removeTab, setActiveTabId } = useWorkspaceStore();
@@ -90,7 +91,9 @@ export default function WorkspaceEditor() {
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-4 border-b border-outline-variant/30 pb-2">
               <h2 className="text-lg font-medium flex items-center gap-2">
-                {activeTab.type === 'table' ? <TableIcon className="w-5 h-5 text-primary" /> : <FileJson className="w-5 h-5 text-primary" />}
+                {activeTab.type === 'table' ? <TableIcon className="w-5 h-5 text-primary" /> : 
+                 activeTab.type === 'ddl' ? <FileCode className="w-5 h-5 text-primary" /> :
+                 <FileJson className="w-5 h-5 text-primary" />}
                 {activeTab.title}
               </h2>
               {activeTab.type === 'table' && (
@@ -102,6 +105,12 @@ export default function WorkspaceEditor() {
                 </button>
               )}
             </div>
+
+            {activeTab.type === 'ddl' && (
+              <div className="flex-1 min-h-0">
+                <DdlConsole tab={activeTab} />
+              </div>
+            )}
 
             {activeTab.type === 'query' && (
               <div className="flex-1 bg-surface-container-lowest rounded-md p-4 overflow-auto border border-outline-variant/30">

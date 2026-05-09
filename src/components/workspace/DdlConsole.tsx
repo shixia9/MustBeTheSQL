@@ -1,0 +1,250 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Loader2, CheckCircle2, AlertTriangle, ListTree, Download } from 'lucide-react';
+import SqlEditor from '../editor/SqlEditor';
+import { useWorkspaceStore, TabItem } from '../../stores/workspaceStore';
+import storageUtils from '../../utils/storageUtils';
+
+interface DdlConsoleProps {
+  tab: TabItem;
+}
+
+interface ExecutionLog {
+  id: string;
+  time: string;
+  sql: string;
+  success: boolean;
+  affectedRows?: number;
+  latency?: number;
+  errorMessage?: string;
+  errorLine?: number;
+}
+
+export default function DdlConsole({ tab }: DdlConsoleProps) {
+  const { updateTabContent } = useWorkspaceStore();
+  const editorRef = useRef<any>(null);
+  
+  const [autoCommit, setAutoCommit] = useState(true);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [logs, setLogs] = useState<ExecutionLog[]>([]);
+  const [userId, setUserId] = useState<number>(1);
+
+  useEffect(() => {
+    const user = storageUtils.getUser();
+    if (user && user.id) {
+      setUserId(user.id);
+    }
+  }, []);
+
+  const handleContentChange = (val: string) => {
+    updateTabContent(tab.id, val);
+  };
+
+  const executeSql = async (mode: 'all' | 'selected' | 'current') => {
+    let sqlToExecute = '';
+    
+    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    
+    if (mode === 'all') {
+      sqlToExecute = editor.getValue();
+    } else if (mode === 'selected') {
+      const selection = editor.getSelection();
+      sqlToExecute = editor.getModel().getValueInRange(selection);
+    } else if (mode === 'current') {
+      // simplistic: just get current line for 'current' statement if not properly parsed
+      const position = editor.getPosition();
+      sqlToExecute = editor.getModel().getLineContent(position.lineNumber);
+    }
+
+    if (!sqlToExecute.trim()) {
+      const newLog: ExecutionLog = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleTimeString(),
+        sql: sqlToExecute,
+        success: false,
+        errorMessage: 'No SQL to execute.'
+      };
+      setLogs(prev => [newLog, ...prev]);
+      return;
+    }
+
+    setIsExecuting(true);
+
+    try {
+      const res = await fetch('/api/v1/workspace/ddl/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connectionId: tab.connectionId,
+          sql: sqlToExecute,
+          autoCommit: autoCommit,
+          userId: userId
+        })
+      });
+      const json = await res.json();
+      
+      const newLog: ExecutionLog = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleTimeString(),
+        sql: sqlToExecute,
+        success: json.code === 200 ? json.data.success : false,
+        affectedRows: json.data?.affectedRows,
+        latency: json.data?.latency,
+        errorMessage: json.code === 200 ? json.data.errorMessage : json.message,
+        errorLine: json.data?.errorLine
+      };
+      setLogs(prev => [newLog, ...prev]);
+      
+    } catch (e: any) {
+      const newLog: ExecutionLog = {
+        id: Date.now().toString(),
+        time: new Date().toLocaleTimeString(),
+        sql: sqlToExecute,
+        success: false,
+        errorMessage: 'Network error: ' + e.message
+      };
+      setLogs(prev => [newLog, ...prev]);
+    } finally {
+      setIsExecuting(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (logs.length === 0) return;
+    
+    const headers = ['Time', 'Status', 'Latency(ms)', 'Affected Rows', 'SQL', 'Error Message'];
+    const rows = logs.map(log => [
+      log.time,
+      log.success ? 'SUCCESS' : 'FAILED',
+      log.latency || '',
+      log.affectedRows || '',
+      `"${log.sql.replace(/"/g, '""')}"`,
+      `"${(log.errorMessage || '').replace(/"/g, '""')}"`
+    ]);
+    
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ddl_execution_log_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#1e2433] rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm">
+      {/* Toolbar */}
+      <div className="h-12 flex items-center justify-between px-4 border-b border-white/5 bg-slate-800/50 flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={autoCommit} 
+              onChange={(e) => setAutoCommit(e.target.checked)}
+              className="rounded border-outline-variant/30 text-primary focus:ring-primary/20"
+            />
+            Auto Commit
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            disabled={isExecuting || !tab.content?.trim()}
+            onClick={() => executeSql('current')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors disabled:opacity-50"
+            title="Execute Current Line (Ctrl+Shift+Enter)"
+          >
+            <ListTree size={14} />
+            Current
+          </button>
+          <button
+            disabled={isExecuting || !tab.content?.trim()}
+            onClick={() => executeSql('selected')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 rounded transition-colors disabled:opacity-50"
+            title="Execute Selected"
+          >
+            <ListTree size={14} />
+            Selected
+          </button>
+          <div className="h-4 w-px bg-white/10 mx-1"></div>
+          <button
+            disabled={isExecuting || !tab.content?.trim()}
+            onClick={() => executeSql('all')}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold primary-gradient text-white rounded transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Execute All (Ctrl+Enter)"
+          >
+            {isExecuting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+            {isExecuting ? 'Running...' : 'Execute All'}
+          </button>
+        </div>
+      </div>
+
+      {/* Editor Area */}
+      <div className="flex-1 relative min-h-[200px]">
+        <SqlEditor
+          value={tab.content || ''}
+          onChange={handleContentChange}
+          readOnly={isExecuting}
+          editorRef={editorRef}
+          errorLine={logs.length > 0 ? logs[0].errorLine : null}
+          onExecuteAll={() => executeSql('all')}
+          onExecuteCurrent={() => executeSql('current')}
+        />
+      </div>
+
+      {/* Result Panel */}
+      <div className="h-48 bg-surface-container-lowest border-t border-outline-variant/30 flex flex-col flex-shrink-0">
+        <div className="h-8 flex items-center justify-between px-4 border-b border-outline-variant/10 bg-surface-container-low/50">
+          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest font-label">Execution Log</span>
+          <button 
+            onClick={handleExportCsv}
+            disabled={logs.length === 0}
+            className="flex items-center gap-1 text-[10px] font-medium text-on-surface-variant hover:text-primary disabled:opacity-50 transition-colors"
+            title="Export Logs as CSV"
+          >
+            <Download size={12} />
+            Export CSV
+          </button>
+        </div>
+        <div className="flex-1 p-4 overflow-y-auto text-sm font-mono custom-scrollbar flex flex-col gap-2">
+          {logs.length === 0 && !isExecuting && (
+            <span className="text-on-surface-variant/50 italic">Ready to execute.</span>
+          )}
+          {isExecuting && (
+            <span className="text-primary flex items-center gap-2 mb-2">
+              <Loader2 size={14} className="animate-spin" /> Executing script...
+            </span>
+          )}
+          {logs.map((log) => (
+            <div key={log.id} className={`p-3 rounded border ${log.success ? 'bg-primary/5 border-primary/20 text-on-surface' : 'bg-error/5 border-error/20 text-error'}`}>
+              {log.success ? (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-primary font-bold">
+                    <CheckCircle2 size={16} /> [{log.time}] Execution Successful
+                  </div>
+                  <div className="text-xs text-on-surface-variant mt-2 flex flex-col gap-1">
+                    <div>Affected Rows: {log.affectedRows} | Latency: {log.latency}ms</div>
+                    <div className="text-on-surface-variant/50 truncate" title={log.sql}>SQL: {log.sql}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 font-bold">
+                    <AlertTriangle size={16} /> [{log.time}] Execution Failed
+                  </div>
+                  {log.errorLine && (
+                    <div className="text-xs mt-1">Error near line: {log.errorLine}</div>
+                  )}
+                  <div className="text-xs mt-2 whitespace-pre-wrap">{log.errorMessage}</div>
+                  <div className="text-xs mt-1 text-error/50 truncate" title={log.sql}>SQL: {log.sql}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
