@@ -3,42 +3,11 @@ import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, Ch
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { format as formatSql } from 'sql-formatter';
-import Editor from '@monaco-editor/react';
+import SqlEditor from '../components/editor/SqlEditor';
 import { useSettings } from '../contexts/SettingsContext';
 
 export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
-
-  const handleEditorWillMount = (monaco: any) => {
-    monaco.editor.defineTheme('logicLedgerTheme', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'keyword', foreground: '38bdf8', fontStyle: 'bold' }, // sky-400
-        { token: 'string', foreground: 'a3e635' }, // lime-400
-        { token: 'comment', foreground: '64748b', fontStyle: 'italic' }, // slate-500
-        { token: 'number', foreground: 'f472b6' }, // rose-400
-        { token: 'operator', foreground: '94a3b8' }, // slate-400
-        { token: 'identifier', foreground: 'e2e8f0' }, // slate-200
-        { token: 'predefined', foreground: 'c084fc' }, // purple-400
-      ],
-      colors: {
-        'editor.background': '#1e2433', // existing background
-        'editor.foreground': '#e2e8f0',
-        'editor.lineHighlightBackground': '#33415550',
-        'editorLineNumber.foreground': '#475569',
-        'editorLineNumber.activeForeground': '#94a3b8',
-        'editorIndentGuide.background': '#334155',
-        'editor.selectionBackground': '#38bdf830',
-        'editorCursor.foreground': '#38bdf8',
-        'editorWidget.background': '#0f172a',
-        'editorWidget.border': '#334155',
-        'editorSuggestWidget.background': '#0f172a',
-        'editorSuggestWidget.border': '#334155',
-        'editorSuggestWidget.selectedBackground': '#1e293b',
-      }
-    });
-  };
 
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -548,38 +517,15 @@ export default function DashboardPage({ user }: { user: any }) {
             style={{ fontSize: `${fontSize}px` }}
           >
             <div className="absolute inset-0">
-              <Editor
+              <SqlEditor
                 value={generatedSql}
-                beforeMount={handleEditorWillMount}
-                onChange={(val) => setGeneratedSql(val || '')}
+                onChange={(val) => setGeneratedSql(val)}
                 language={
                   (connections.find(c => c.id === selectedConnId)?.dbType || '').toLowerCase() === 'postgresql'
                     ? 'pgsql'
                     : 'mysql'
                 }
-                theme="logicLedgerTheme"
-                options={{
-                  readOnly: isStreaming,
-                  minimap: { enabled: false },
-                  fontSize: fontSize,
-                  fontFamily: "'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace",
-                  lineHeight: 1.6,
-                  padding: { top: 16, bottom: 16 },
-                  scrollBeyondLastLine: false,
-                  smoothScrolling: true,
-                  cursorBlinking: 'smooth',
-                  cursorSmoothCaretAnimation: 'on',
-                  renderLineHighlight: 'all',
-                  scrollbar: {
-                    verticalScrollbarSize: 8,
-                    horizontalScrollbarSize: 8,
-                  },
-                }}
-                loading={
-                  <div className="flex items-center justify-center h-full text-slate-500">
-                    <Loader2 size={24} className="animate-spin opacity-50" />
-                  </div>
-                }
+                readOnly={isStreaming}
               />
             </div>
             {isStreaming && (

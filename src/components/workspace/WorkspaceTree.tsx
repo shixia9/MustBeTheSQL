@@ -83,22 +83,35 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
   const [contextMenu, setContextMenu] = useState<{x: number, y: number, node: TreeNodeProps | null} | null>(null);
   const { addTab } = useWorkspaceStore();
 
+  const fetchSchemas = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/v1/workspace/schemas?connectionId=${connectionId}`);
+      const json = await res.json();
+      if (json.code === 200 && json.data) {
+        const schemaNodes = json.data.map((s: any) => createSchemaNode(s.name, connectionId));
+        setSchemas(schemaNodes);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchSchemas = async () => {
-      try {
-        const res = await fetch(`/api/v1/workspace/schemas?connectionId=${connectionId}`);
-        const json = await res.json();
-        if (json.code === 200 && json.data) {
-          const schemaNodes = json.data.map((s: any) => createSchemaNode(s.name, connectionId));
-          setSchemas(schemaNodes);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+    fetchSchemas();
+  }, [connectionId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F5') {
+        e.preventDefault();
+        fetchSchemas();
       }
     };
-    fetchSchemas();
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [connectionId]);
 
   const createSchemaNode = (schemaName: string, connId: number): TreeNodeProps => ({
@@ -296,16 +309,16 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
             className="px-3 py-1.5 hover:bg-primary/10 hover:text-primary cursor-pointer flex items-center gap-2"
             onClick={() => {
               addTab({
-                id: `tab-query-${Date.now()}`,
-                title: 'New Query',
-                type: 'query',
+                id: `tab-sql-console-${Date.now()}`,
+                title: 'SQL Console',
+                type: 'sql_console',
                 connectionId,
                 content: ''
               });
               closeContextMenu();
             }}
           >
-            <FileCode className="w-4 h-4" /> New Query Console
+            <FileCode className="w-4 h-4" /> New SQL Console
           </div>
         </div>
       )}

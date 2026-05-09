@@ -3,11 +3,11 @@ import { create } from 'zustand';
 export interface TabItem {
   id: string;
   title: string;
-  type: 'table' | 'query' | 'view';
+  type: 'table' | 'query' | 'sql_console' | 'view';
   connectionId: number;
   schemaName?: string;
   tableName?: string;
-  content?: string;
+  content?: string; // For SQL queries
 }
 
 export interface WorkspaceState {
@@ -24,6 +24,7 @@ export interface WorkspaceState {
   addTab: (tab: TabItem) => void;
   removeTab: (id: string) => void;
   setActiveTabId: (id: string | null) => void;
+  updateTabContent: (id: string, content: string) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
@@ -66,5 +67,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     return { tabs: newTabs, activeTabId: newActiveId };
   }),
 
-  setActiveTabId: (id) => set({ activeTabId: id })
+  setActiveTabId: (id) => set({ activeTabId: id }),
+
+  updateTabContent: (id, content) => set((state) => ({
+    tabs: state.tabs.map(t => t.id === id ? { ...t, content } : t)
+  }))
 }));
