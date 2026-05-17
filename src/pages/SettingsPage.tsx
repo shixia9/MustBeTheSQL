@@ -8,7 +8,7 @@ export default function SettingsPage({ user }: { user: any }) {
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const [isSaving, setIsSaving] = useState(false);
   const [apiKey, setApiKey] = useState(user?.apiKey || '');
-  const [secretKey, setSecretKey] = useState(user?.secretKey || '');
+  const [baseUrl, setBaseUrl] = useState(user?.baseUrl || '');
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -16,7 +16,7 @@ export default function SettingsPage({ user }: { user: any }) {
       const params = new URLSearchParams({
         userId: user?.id,
         apiKey: apiKey || '',
-        secretKey: secretKey || ''
+        baseUrl: baseUrl || ''
       });
       const res = await fetch(`/api/v1/user/updateKeys?${params.toString()}`, {
         method: 'POST'
@@ -185,7 +185,7 @@ export default function SettingsPage({ user }: { user: any }) {
                   <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Custom API Key</label>
                   <div className="flex gap-2">
                     <input 
-                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" 
+                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono text-on-surface" 
                       type="password" 
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
@@ -194,14 +194,14 @@ export default function SettingsPage({ user }: { user: any }) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Custom Secret Key</label>
+                  <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Custom Base URL</label>
                   <div className="flex gap-2">
                     <input 
-                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono" 
-                      type="password" 
-                      value={secretKey}
-                      onChange={(e) => setSecretKey(e.target.value)}
-                      placeholder="sk-secret-••••••••••••" 
+                      className="flex-1 bg-surface-container-low border-none rounded px-3 py-2 text-xs font-mono text-on-surface" 
+                      type="text" 
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      placeholder="https://api.openai.com" 
                     />
                   </div>
                 </div>
