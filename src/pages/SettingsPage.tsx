@@ -13,13 +13,13 @@ export default function SettingsPage({ user }: { user: any }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const params = new URLSearchParams({
-        userId: user?.id,
-        apiKey: apiKey || '',
-        baseUrl: baseUrl || ''
-      });
-      const res = await fetch(`/api/v1/user/updateKeys?${params.toString()}`, {
-        method: 'POST'
+      const res = await fetch('/api/v1/user/updateKeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: apiKey || '',
+          baseUrl: baseUrl || ''
+        })
       });
       if (!res.ok) throw new Error('Failed to save settings');
       // If there's a global user context, you might want to update it here.

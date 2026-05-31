@@ -16,6 +16,7 @@ import ProfilePage from './pages/ProfilePage.tsx';
 import WorkspacePage from './pages/WorkspacePage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import storageUtils from './utils/storageUtils.ts'
 import memoryUtils from './utils/memoryUtils.ts';
@@ -23,7 +24,9 @@ import memoryUtils from './utils/memoryUtils.ts';
 export default function App() {
   return (
     <SettingsProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </SettingsProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Copy, Play, AlignLeft, Download, Maximize2, Sparkles, Loader2, CheckCircle2, Paperclip, FileText, Info, Database, Table2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -45,15 +45,27 @@ export default function DashboardPage({ user }: { user: any }) {
   });
   const [showTableSelect, setShowTableSelect] = useState(false);
 
-  // Save to localStorage whenever state changes
+  // Debounced localStorage persistence and AbortController for SSE
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Debounced save to localStorage — avoids writing on every streaming token
+  const saveToLocal = useCallback((messagesToSave: any[], sql: string | number, conn: string | number, tables: string[]) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (user?.id) {
+        localStorage.setItem(`chat_messages_${user.id}`, JSON.stringify(messagesToSave));
+        localStorage.setItem(`chat_sql_${user.id}`, sql as string);
+        localStorage.setItem(`chat_conn_${user.id}`, conn.toString());
+        localStorage.setItem(`chat_tables_${user.id}`, JSON.stringify(tables));
+      }
+    }, 500);
+  }, [user?.id]);
+
   useEffect(() => {
-    if (user?.id) {
-      localStorage.setItem(`chat_messages_${user.id}`, JSON.stringify(messages));
-      localStorage.setItem(`chat_sql_${user.id}`, generatedSql);
-      localStorage.setItem(`chat_conn_${user.id}`, selectedConnId.toString());
-      localStorage.setItem(`chat_tables_${user.id}`, JSON.stringify(selectedTables));
-    }
-  }, [messages, generatedSql, selectedConnId, selectedTables, user?.id]);
+    saveToLocal(messages, generatedSql, selectedConnId, selectedTables);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [messages, generatedSql, selectedConnId, selectedTables, saveToLocal]);
 
   useEffect(() => {
     const handleNewQuery = () => {
@@ -139,12 +151,18 @@ export default function DashboardPage({ user }: { user: any }) {
 
   const handleSend = async () => {
     if (!query.trim()) return;
-    
+
     const userMessage = { role: 'user', content: query };
     setMessages(prev => [...prev, userMessage]);
     setQuery('');
     setIsStreaming(true);
-    
+
+    // Cancel any previous streaming request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await fetch('/api/v1/sql/generate/stream', {
         method: 'POST',
@@ -159,30 +177,31 @@ export default function DashboardPage({ user }: { user: any }) {
           tableNames: selectedTables,
           strategyName: 'openAiStrategy',
           parentHistoryId: parentHistoryId ? Number(parentHistoryId) : null
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.body) throw new Error('No readable stream');
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      
+
       let currentExplain = '';
       let currentSql = '';
       let partialChunk = '';
-      
+
       setMessages(prev => [...prev, { role: 'ai', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
+
         const chunk = decoder.decode(value, { stream: true });
         const lines = (partialChunk + chunk).split('\n');
-        
+
         // Keep the last part if it doesn't end with a newline
         partialChunk = lines.pop() || '';
-        
+
         for (let line of lines) {
           line = line.trim();
           if (line.startsWith('data:')) {
@@ -195,35 +214,28 @@ export default function DashboardPage({ user }: { user: any }) {
                  const dataObj = JSON.parse(dataStr);
                  if (dataObj.type === 'explain') {
                    currentExplain += dataObj.content;
+                   // Immutable state update: create a new array with a new last message object
                    setMessages(prev => {
-                     const newMessages = [...prev];
-                     newMessages[newMessages.length - 1].content = currentExplain;
-                     return newMessages;
+                     const newMessages = prev.slice(0, -1);
+                     return [...newMessages, { ...prev[prev.length - 1], content: currentExplain }];
                    });
                  } else if (dataObj.type === 'sql') {
                    currentSql += dataObj.content;
                    setGeneratedSql(currentSql);
-
-                  //  setMessages(prev => {
-                  //   const newMessages = [...prev];
-                  //   newMessages[newMessages.length - 1].content = currentExplain + "\n```sql\n" + currentSql + "\n```";
-                  //   return newMessages;
-                  // });
                  }
                } catch (e) {
                  // On fallback or parse error, treat as raw explanation text
                  currentExplain += dataStr;
                  setMessages(prev => {
-                   const newMessages = [...prev];
-                   newMessages[newMessages.length - 1].content = currentExplain;
-                   return newMessages;
+                   const newMessages = prev.slice(0, -1);
+                   return [...newMessages, { ...prev[prev.length - 1], content: currentExplain }];
                  });
                }
             }
           }
         }
       }
-      
+
       // Process any remaining partial chunk
       if (partialChunk.trim().startsWith('data:')) {
         let dataStr = partialChunk.trim();
@@ -236,9 +248,8 @@ export default function DashboardPage({ user }: { user: any }) {
             if (dataObj.type === 'explain') {
               currentExplain += dataObj.content;
               setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].content = currentExplain;
-                return newMessages;
+                const newMessages = prev.slice(0, -1);
+                return [...newMessages, { ...prev[prev.length - 1], content: currentExplain }];
               });
             } else if (dataObj.type === 'sql') {
               currentSql += dataObj.content;
@@ -247,19 +258,21 @@ export default function DashboardPage({ user }: { user: any }) {
           } catch (e) {
             currentExplain += dataStr;
             setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[newMessages.length - 1].content = currentExplain;
-              return newMessages;
+              const newMessages = prev.slice(0, -1);
+              return [...newMessages, { ...prev[prev.length - 1], content: currentExplain }];
             });
           }
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show error for aborted requests (user navigated away or new request)
+      if (error?.name === 'AbortError') return;
       console.error('Error fetching streaming SQL:', error);
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error generating the SQL.' }]);
     } finally {
       setIsStreaming(false);
+      abortControllerRef.current = null;
     }
   };
 
