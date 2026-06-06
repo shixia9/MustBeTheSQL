@@ -24,13 +24,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
     try {
       const endpoint = isLoginMode ? '/api/v1/user/login' : '/api/v1/user/register';
-      const body = isLoginMode 
-        ? { email, password, rememberMe } 
+      const body = isLoginMode
+        ? { email, password, rememberMe }
         : { email, username, password };
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',  // Include cookies (Sa-Token)
         body: JSON.stringify(body)
       });
 
@@ -40,7 +41,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         throw new Error(res.message || (isLoginMode ? 'Login failed' : 'Registration failed'));
       }
 
-      // store login state
+      // Store login state
       const userData = res.data;
       storageUtils.saveUser(userData);
       onLogin(res.data);

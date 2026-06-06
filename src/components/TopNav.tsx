@@ -15,9 +15,8 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
     try {
       await fetch('/api/v1/user/logout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'  // Include cookies (Sa-Token)
       });
     } catch (error) {
       console.log('logout backend failed, but still logout in frontend: ', error);
