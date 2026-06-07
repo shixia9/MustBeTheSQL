@@ -1,18 +1,19 @@
 import React, { useEffect, useState, MouseEvent } from 'react';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  Database, 
-  Table, 
-  LayoutTemplate, 
-  Columns, 
-  Key, 
+import {
+  ChevronRight,
+  ChevronDown,
+  Database,
+  Table,
+  LayoutTemplate,
+  Columns,
+  Key,
   FileCode,
   FolderTree,
   Loader2,
   FileJson
 } from 'lucide-react';
+import { api } from '../../api/client';
 
 interface TreeNodeProps {
   id: string;
@@ -86,8 +87,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
   const fetchSchemas = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/workspace/schemas?connectionId=${connectionId}`);
-      const json = await res.json();
+      const json = await api.get(`/workspace/schemas?connectionId=${connectionId}`);
       if (json.code === 200 && json.data) {
         const schemaNodes = json.data.map((s: any) => createSchemaNode(s.name, connectionId));
         setSchemas(schemaNodes);
@@ -130,8 +130,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
         hasChildren: true,
         level: 1,
         loadChildren: async () => {
-          const res = await fetch(`/api/v1/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
-          const json = await res.json();
+          const json = await api.get(`/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
           if (json.code !== 200 || !json.data) return [];
           return json.data
             .filter((t: any) => t.type === 'TABLE')
@@ -146,8 +145,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
         hasChildren: true,
         level: 1,
         loadChildren: async () => {
-          const res = await fetch(`/api/v1/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
-          const json = await res.json();
+          const json = await api.get(`/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
           if (json.code !== 200 || !json.data) return [];
           return json.data
             .filter((t: any) => t.type === 'VIEW')
@@ -175,14 +173,13 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
       });
     },
     loadChildren: async () => {
-      const colsRes = await fetch(`/api/v1/workspace/columns?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`);
-      const idxsRes = await fetch(`/api/v1/workspace/indexes?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`);
-      
-      const colsJson = await colsRes.json();
-      const idxsJson = await idxsRes.json();
-      
+      const [colsJson, idxsJson] = await Promise.all([
+        api.get(`/workspace/columns?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`),
+        api.get(`/workspace/indexes?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`)
+      ]);
+
       const nodes: TreeNodeProps[] = [];
-      
+
       if (colsJson.code === 200 && colsJson.data) {
         colsJson.data.forEach((c: any) => {
           nodes.push({
@@ -195,7 +192,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
           });
         });
       }
-      
+
       if (idxsJson.code === 200 && idxsJson.data) {
         idxsJson.data.forEach((i: any) => {
           nodes.push({
@@ -208,7 +205,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
           });
         });
       }
-      
+
       return nodes;
     }
   });
@@ -257,8 +254,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
     const tableName = parts.slice(2).join('-'); // handles tables with '-' in name
 
     try {
-      const res = await fetch(`/api/v1/workspace/ddl?connectionId=${connectionId}&schemaName=${schemaName}&tableName=${tableName}`);
-      const json = await res.json();
+      const json = await api.get(`/workspace/ddl?connectionId=${connectionId}&schemaName=${schemaName}&tableName=${tableName}`);
       if (json.code === 200 && json.data) {
         addTab({
           id: `tab-ddl-${schemaName}-${tableName}`,

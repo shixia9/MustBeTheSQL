@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Database, CheckCircle2, Link as LinkIcon, Eye, RefreshCw, Star, ShieldCheck, X, Activity, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { api } from '../api/client';
 
 interface DatabasePageProps {
   user?: any;
@@ -36,8 +37,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const fetchConnections = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/v1/database/list?userId=${user.id}`);
-      const data = await res.json();
+      const data = await api.get(`/database/list?userId=${user.id}`);
       if (data.code === 200) {
         setConnections(data.data);
         if (data.data.length > 0 && selectedId === null) {
@@ -92,14 +92,9 @@ export default function DatabasePage({ user }: DatabasePageProps) {
       if (selectedId !== 'new') {
         payload.id = selectedId;
       }
-      
-      const res = await fetch('/api/v1/database/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      
+
+      const data = await api.post('/database/test', payload);
+
       if (data.code === 200 && data.data === true) {
         showNotification('Connection Successful!', 'success');
       } else {
@@ -117,21 +112,15 @@ export default function DatabasePage({ user }: DatabasePageProps) {
     try {
       const payload: any = { ...formData, userId: user.id };
       const isUpdate = selectedId !== 'new';
-      
+
       if (isUpdate) {
         payload.id = selectedId;
       }
-      
-      const endpoint = isUpdate ? `/api/v1/database/update?userId=${user.id}` : '/api/v1/database/add';
-      const method = isUpdate ? 'PUT' : 'POST';
-      
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      
+
+      const data = isUpdate
+        ? await api.put(`/database/update?userId=${user.id}`, payload)
+        : await api.post('/database/add', payload);
+
       if (data.code === 200) {
         showNotification(isUpdate ? 'Connection updated' : 'Connection created', 'success');
         await fetchConnections();
@@ -151,12 +140,9 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const handleDelete = async () => {
     if (selectedId === 'new') return;
     if (!confirm('Are you sure you want to delete this connection?')) return;
-    
+
     try {
-      const res = await fetch(`/api/v1/database/delete/${selectedId}?userId=${user.id}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
+      const data = await api.delete(`/database/delete/${selectedId}?userId=${user.id}`);
       if (data.code === 200) {
         showNotification('Connection deleted', 'success');
         setSelectedId(null);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, X, RefreshCw, Share2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { QueryRecord } from '../types';
+import { api } from '../api/client';
 
 export default function HistoryPage({ user }: { user: any }) {
   const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(null);
@@ -59,8 +60,7 @@ export default function HistoryPage({ user }: { user: any }) {
       if (dbType !== 'All DB Types') params.append('dbType', dbType);
       if (model !== 'All Models') params.append('model', model);
 
-      const res = await fetch(`/api/v1/history/user/${user.id}?${params.toString()}`);
-      const data = await res.json();
+      const data = await api.get(`/history/user/${user.id}?${params.toString()}`);
       if (data.code === 200 && data.data) {
         const records = data.data.records || [];
         setTotal(data.data.total || 0);
@@ -101,8 +101,7 @@ export default function HistoryPage({ user }: { user: any }) {
   const fetchLineage = async (historyId: string) => {
     try {
       setIsLoadingLineage(true);
-      const res = await fetch(`/api/v1/history/${historyId}/lineage`);
-      const data = await res.json();
+      const data = await api.get(`/history/${historyId}/lineage`);
       if (data.code === 200) {
         setLineage(data.data || []);
       }
@@ -118,8 +117,7 @@ export default function HistoryPage({ user }: { user: any }) {
     if (!window.confirm('Are you sure you want to delete this query history?')) return;
     
     try {
-      const res = await fetch(`/api/v1/history/${id}`, { method: 'DELETE' });
-      const data = await res.json();
+      const data = await api.delete(`/history/${id}`);
       if (data.code === 200) {
         if (selectedQuery?.id === id) {
           setSelectedQuery(null);
@@ -157,21 +155,14 @@ export default function HistoryPage({ user }: { user: any }) {
     setReRunError('');
 
     try {
-      const res = await fetch('/api/v1/sql/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          sql: query.sql,
-          connectionId: query.connectionId,
-          confirmed: true,
-          parentHistoryId: Number(query.id)
-        }),
+      const data = await api.post('/sql/execute', {
+        userId: user.id,
+        sql: query.sql,
+        connectionId: query.connectionId,
+        confirmed: true,
+        parentHistoryId: Number(query.id)
       });
 
-      const data = await res.json();
       if (data.code === 200) {
         setReRunResult(data.data);
         // Refresh the list and lineage

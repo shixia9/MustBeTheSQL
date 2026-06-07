@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { format as formatSql } from 'sql-formatter';
 import SqlEditor from '../components/editor/SqlEditor';
 import { useSettings } from '../contexts/SettingsContext';
+import { api } from '../api/client';
 
 export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
@@ -107,8 +108,7 @@ export default function DashboardPage({ user }: { user: any }) {
 
   const fetchConnections = async () => {
     try {
-      const res = await fetch(`/api/v1/database/list?userId=${user.id}`);
-      const data = await res.json();
+      const data = await api.get(`/database/list?userId=${user.id}`);
       if (data.code === 200) {
         setConnections(data.data);
         if (data.data.length > 0) {
@@ -131,8 +131,7 @@ export default function DashboardPage({ user }: { user: any }) {
 
   const fetchTables = async (connId: number) => {
     try {
-      const res = await fetch(`/api/v1/database/${connId}/tables`);
-      const data = await res.json();
+      const data = await api.get(`/database/${connId}/tables`);
       if (data.code === 200) {
         setTables(data.data);
       }
@@ -170,6 +169,7 @@ export default function DashboardPage({ user }: { user: any }) {
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream'
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: user?.id || 1,
           userInput: query,
@@ -313,17 +313,12 @@ export default function DashboardPage({ user }: { user: any }) {
     setExecuteError('');
 
     try {
-      const res = await fetch('/api/v1/sql/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await api.post('/sql/execute', {
           userId: user?.id,
           sql: generatedSql,
           connectionId: selectedConnId,
           confirmed
-        })
-      });
-      const data = await res.json();
+        });
 
       if (data.code === 200) {
         setExecuteResult(data.data);

@@ -4,6 +4,7 @@ import { X, RefreshCw, FileJson, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import TableCell from './TableCell';
 import SqlConsole from './SqlConsole';
+import { api } from '../../api/client';
 
 export default function WorkspaceEditor() {
   const { tabs, activeTabId, removeTab, setActiveTabId } = useWorkspaceStore();
@@ -27,17 +28,12 @@ export default function WorkspaceEditor() {
     setLoading(true);
     try {
       const sql = `SELECT * FROM ${schemaName ? `\`${schemaName}\`.` : ''}\`${tableName}\` LIMIT 100`;
-      const res = await fetch('/api/v1/sql/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: 1, // Will be overridden by backend token
-          connectionId: connId,
-          sql: sql,
-          forceExecute: true
-        })
+      const json = await api.post('/sql/execute', {
+        userId: 1, // Will be overridden by backend token
+        connectionId: connId,
+        sql: sql,
+        forceExecute: true
       });
-      const json = await res.json();
       if (json.code === 200 && json.data && json.data.rows) {
         setTableData(json.data.rows);
         if (json.data.columns && json.data.columns.length > 0) {

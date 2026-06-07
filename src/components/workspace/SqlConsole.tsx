@@ -4,6 +4,7 @@ import SqlEditor from '../editor/SqlEditor';
 import { useWorkspaceStore, TabItem } from '../../stores/workspaceStore';
 import storageUtils from '../../utils/storageUtils';
 import TableCell from './TableCell';
+import { api } from '../../api/client';
 
 interface SqlConsoleProps {
   tab: TabItem;
@@ -76,17 +77,12 @@ export default function SqlConsole({ tab }: SqlConsoleProps) {
     setIsExecuting(true);
 
     try {
-      const res = await fetch('/api/v1/workspace/console/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          connectionId: tab.connectionId,
-          sql: sqlToExecute,
-          autoCommit: autoCommit,
-          userId: userId
-        })
+      const json = await api.post('/workspace/console/execute', {
+        connectionId: tab.connectionId,
+        sql: sqlToExecute,
+        autoCommit: autoCommit,
+        userId: userId
       });
-      const json = await res.json();
       
       const newLog: ExecutionLog = {
         id: Date.now().toString(),

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Database, Settings, LogOut, ChevronDown, User as UserIcon } from 'lucide-react';
+import { api } from '../api/client';
 
 interface TopNavProps {
   user?: { id: number, username: string, email?: string, avatar?: string, tokenQuota: number } | null;
@@ -13,11 +14,7 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
   const handleLogout = async () => {
     setShowDropdown(false);
     try {
-      await fetch('/api/v1/user/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'  // Include cookies (Sa-Token)
-      });
+      await api.post('/user/logout');
     } catch (error) {
       console.log('logout backend failed, but still logout in frontend: ', error);
     }

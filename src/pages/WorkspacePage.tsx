@@ -3,6 +3,7 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import WorkspaceTree from '../components/workspace/WorkspaceTree';
 import WorkspaceEditor from '../components/workspace/WorkspaceEditor';
 import { Database, Loader2 } from 'lucide-react';
+import { api } from '../api/client';
 
 interface WorkspacePageProps {
   user: { id: number; username: string } | null;
@@ -21,8 +22,7 @@ export default function WorkspacePage({ user }: WorkspacePageProps) {
         return;
       }
       try {
-        const res = await fetch(`/api/v1/database/list?userId=${user.id}`);
-        const json = await res.json();
+        const json = await api.get(`/database/list?userId=${user.id}`);
         if (json.code === 200) {
           setConnections(json.data);
           if (json.data.length > 0 && !activeConnectionId) {

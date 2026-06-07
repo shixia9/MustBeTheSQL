@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Mail, Shield, AlertTriangle, Camera, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { api, apiFetch } from '../api/client';
 
 interface ProfilePageProps {
   user: any;
@@ -37,12 +38,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
     e.preventDefault();
     setIsUpdatingProfile(true);
     try {
-      const res = await fetch('/api/v1/user/updateProfile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, username, email }),
-      });
-      const data = await res.json();
+      const data = await api.post('/user/updateProfile', { userId: user.id, username, email });
       if (data.code === 200) {
         onUserUpdate(data.data);
         showMessage('success', 'Profile updated successfully');
@@ -64,12 +60,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
     }
     setIsUpdatingPassword(true);
     try {
-      const res = await fetch('/api/v1/user/updatePassword', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, oldPassword, newPassword }),
-      });
-      const data = await res.json();
+      const data = await api.post('/user/updatePassword', { userId: user.id, oldPassword, newPassword });
       if (data.code === 200) {
         // Automatically logged out by backend
         window.dispatchEvent(new CustomEvent('navigate', { detail: 'login' }));
@@ -87,18 +78,19 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setIsUploadingAvatar(true);
     const formData = new FormData();
     formData.append('userId', user.id.toString());
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/v1/user/uploadAvatar', {
+      // Use apiFetch with empty headers to let browser set Content-Type with boundary for FormData
+      const data = await apiFetch('/user/uploadAvatar', {
         method: 'POST',
         body: formData,
+        headers: {} as any,  // Let browser set multipart boundary
       });
-      const data = await res.json();
       if (data.code === 200) {
         onUserUpdate(data.data);
         showMessage('success', 'Avatar updated successfully');
@@ -123,10 +115,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
     if (!confirm2) return;
 
     try {
-      const res = await fetch(`/api/v1/user/cancelAccount?userId=${user.id}`, {
-        method: 'POST'
-      });
-      const data = await res.json();
+      const data = await api.post(`/user/cancelAccount?userId=${user.id}`);
       if (data.code === 200) {
         window.location.reload();
       } else {

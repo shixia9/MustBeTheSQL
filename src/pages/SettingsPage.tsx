@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sliders, Palette, ShieldCheck, Edit, Plus, Clock, ChevronDown, Sun, Moon, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
+import { api } from '../api/client';
 
 export default function SettingsPage({ user }: { user: any }) {
   const [creativeControl, setCreativeControl] = useState(0.2);
@@ -13,16 +14,10 @@ export default function SettingsPage({ user }: { user: any }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch('/api/v1/user/updateKeys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          apiKey: apiKey || '',
-          baseUrl: baseUrl || ''
-        })
+      await api.post('/user/updateKeys', {
+        apiKey: apiKey || '',
+        baseUrl: baseUrl || ''
       });
-      if (!res.ok) throw new Error('Failed to save settings');
-      // If there's a global user context, you might want to update it here.
     } catch (e) {
       console.error(e);
     } finally {

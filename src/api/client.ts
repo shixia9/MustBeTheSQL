@@ -10,6 +10,16 @@
  *   import { api } from '../api/client';
  *   const data = await api.get('/user/info');
  *   const data = await api.post('/sql/execute', body);
+ *
+ * For file uploads (FormData) or SSE streaming, use apiFetch directly:
+ *   import { apiFetch } from '../api/client';
+ *   const res = await apiFetch('/user/uploadAvatar', { method: 'POST', body: formData });
+ *   // Note: for FormData, clear Content-Type to let the browser set it:
+ *   const res = await apiFetch('/user/uploadAvatar', {
+ *     method: 'POST',
+ *     body: formData,
+ *     headers: {}  // override default Content-Type
+ *   });
  */
 
 const BASE_URL = '/api/v1';
@@ -18,13 +28,17 @@ export async function apiFetch<T = any>(
   path: string,
   options: RequestInit = {}
 ): Promise<{ code: number; message: string; data: T }> {
+  // If the caller explicitly sets headers (possibly to override Content-Type),
+  // respect their headers. Otherwise default to JSON content type.
+  const hasExplicitHeaders = options.headers !== undefined;
+  const headers: Record<string, string> = hasExplicitHeaders
+    ? { ...(options.headers as Record<string, string>) }
+    : { 'Content-Type': 'application/json' };
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     credentials: 'include',  // Always include cookies (Sa-Token)
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   });
 
   if (res.status === 401) {
