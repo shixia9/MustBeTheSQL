@@ -3,8 +3,10 @@ import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, 
 import { motion, AnimatePresence } from 'motion/react';
 import { QueryRecord } from '../types';
 import { api } from '../api/client';
+import { useLlmConfig } from '../contexts/LlmConfigContext';
 
 export default function HistoryPage({ user }: { user: any }) {
+  const { configs } = useLlmConfig();
   const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(null);
   const [queries, setQueries] = useState<QueryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -233,7 +235,7 @@ export default function HistoryPage({ user }: { user: any }) {
               <option value="MySQL">MySQL</option>
               <option value="PostgreSQL">PostgreSQL</option>
             </select>
-            <select 
+            <select
               className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8 rounded-md focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
               value={model}
               onChange={(e) => {
@@ -242,8 +244,9 @@ export default function HistoryPage({ user }: { user: any }) {
               }}
             >
               <option>All Models</option>
-              <option value="openAiStrategy">GPT-4o</option>
-              <option value="claudeStrategy">Claude 3.5</option>
+              {configs.filter(c => c.status === 1).map(config => (
+                <option key={config.id} value={config.configName}>{config.configName}</option>
+              ))}
             </select>
             <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-md text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               <Calendar size={14} />

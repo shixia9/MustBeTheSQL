@@ -16,6 +16,7 @@ import ProfilePage from './pages/ProfilePage.tsx';
 import WorkspacePage from './pages/WorkspacePage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
+import { LlmConfigProvider } from './contexts/LlmConfigContext';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import storageUtils from './utils/storageUtils.ts'
@@ -25,9 +26,11 @@ import { api } from './api/client.ts';
 export default function App() {
   return (
     <SettingsProvider>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
+      <LlmConfigProvider>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </LlmConfigProvider>
     </SettingsProvider>
   );
 }

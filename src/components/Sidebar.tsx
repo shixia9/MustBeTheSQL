@@ -1,5 +1,6 @@
 import { Database, Settings, History, MessageSquare, Plus, LayoutDashboard, LogOut, ShieldCheck, Cpu, Database as DbIcon, Activity } from 'lucide-react';
 import { Page } from '../types';
+import { useLlmConfig } from '../contexts/LlmConfigContext';
 
 interface SidebarProps {
   currentPage: Page;
@@ -8,6 +9,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ currentPage, onPageChange, user }: SidebarProps) {
+  const { configs } = useLlmConfig();
+  const hasCustomConfig = configs.filter(c => c.status === 1).length > 0;
   const navItems = [
     { id: 'dashboard', label: 'Chat', icon: MessageSquare },
     { id: 'workspace', label: 'Workspace', icon: LayoutDashboard },
@@ -47,7 +50,7 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
       <div className="px-4 mt-auto space-y-4">
         <div className="p-4 bg-surface-container-high/50 rounded-xl">
           <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2">Usage</p>
-          {user?.apiKey && user?.secretKey ? (
+          {hasCustomConfig ? (
             <>
               <div className="w-full bg-outline-variant/30 h-1 rounded-full mb-1">
                 <div className="bg-primary h-full rounded-full" style={{ width: '0%' }}></div>

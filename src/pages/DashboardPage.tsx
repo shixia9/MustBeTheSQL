@@ -5,10 +5,12 @@ import ReactMarkdown from 'react-markdown';
 import { format as formatSql } from 'sql-formatter';
 import SqlEditor from '../components/editor/SqlEditor';
 import { useSettings } from '../contexts/SettingsContext';
+import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { api } from '../api/client';
 
 export default function DashboardPage({ user }: { user: any }) {
   const { fontSize } = useSettings();
+  const { selectedConfigId } = useLlmConfig();
 
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -175,7 +177,7 @@ export default function DashboardPage({ user }: { user: any }) {
           userInput: query,
           connectionId: selectedConnId || null,
           tableNames: selectedTables,
-          strategyName: 'openAiStrategy',
+          llmConfigId: selectedConfigId,
           parentHistoryId: parentHistoryId ? Number(parentHistoryId) : null
         }),
         signal: abortControllerRef.current.signal

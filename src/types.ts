@@ -24,3 +24,16 @@ export interface DatabaseConnection {
   status: 'active' | 'inactive' | 'error';
   type: 'PostgreSQL' | 'MySQL' | 'Redis' | 'Snowflake' | 'BigQuery';
 }
+
+export interface LlmConfig {
+  id: number;
+  configName: string;
+  providerType: 'OPENAI_COMPATIBLE' | 'ANTHROPIC';
+  baseUrl: string | null;
+  apiKeyMasked: string;
+  modelName: string | null;
+  isDefault: boolean;
+  status: number;
+  createTime: string;
+  updateTime: string;
+}
