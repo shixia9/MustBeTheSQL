@@ -108,6 +108,9 @@ export default function AgentFlowPanel({
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
 
+    // Reset steps and show "running" for the first node immediately
+    setSteps([{ id: 'EVIDENCE_RECALL', name: 'EVIDENCE_RECALL', content: '', status: 'running' as StepStatus }]);
+
     try {
       const response = await fetch('/api/v1/agent/sql/stream', {
         method: 'POST',
@@ -145,18 +148,27 @@ export default function AgentFlowPanel({
             if (!nodeName) continue;
             if (!stepStartTimes[nodeName]) stepStartTimes[nodeName] = Date.now();
 
-            const newSteps: AgentStep[] = [];
-            let foundCurrent = false;
-            for (const n of NODE_ORDER) {
-              if (n === nodeName) {
-                newSteps.push({ id: n, name: n, content: '', status: 'success', data: event.data,
-                  durationMs: Math.round(Date.now() - (stepStartTimes[n] || Date.now())) });
-                foundCurrent = true;
-              } else if (!foundCurrent) {
-                newSteps.push({ id: n, name: n, content: '', status: 'pending' });
+            // Merge incoming event into existing steps: preserve 'success' for completed nodes
+            setSteps(prev => {
+              const updated = prev.map(s =>
+                s.name === nodeName
+                  ? { ...s, status: 'success' as StepStatus, data: event.data,
+                      durationMs: Math.round(Date.now() - (stepStartTimes[nodeName] || Date.now())) }
+                  : s
+              );
+              // Add new node if it doesn't exist yet
+              if (!updated.find(s => s.name === nodeName)) {
+                updated.push({ id: nodeName, name: nodeName, content: '', status: 'success' as StepStatus,
+                  data: event.data, durationMs: Math.round(Date.now() - (stepStartTimes[nodeName] || Date.now())) });
               }
-            }
-            setSteps(newSteps);
+              // Sort by NODE_ORDER to maintain timeline sequence
+              updated.sort((a, b) => {
+                const idxA = NODE_ORDER.indexOf(a.name as typeof NODE_ORDER[number]);
+                const idxB = NODE_ORDER.indexOf(b.name as typeof NODE_ORDER[number]);
+                return idxA - idxB;
+              });
+              return updated;
+            });
           } catch (e) { /* ignore */ }
         }
       }
