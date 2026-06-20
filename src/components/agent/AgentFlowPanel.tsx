@@ -110,6 +110,8 @@ export default function AgentFlowPanel({
 
     // Reset steps and show "running" for the first node immediately
     setSteps([{ id: 'EVIDENCE_RECALL', name: 'EVIDENCE_RECALL', content: '', status: 'running' as StepStatus }]);
+    const stepStartTimes: Record<string, number> = {};
+    stepStartTimes['EVIDENCE_RECALL'] = Date.now();
 
     try {
       const response = await fetch('/api/v1/agent/sql/stream', {
@@ -146,6 +148,8 @@ export default function AgentFlowPanel({
             if (event.type === 'ERROR') { setError(event.message || 'Agent execution failed'); setIsStreaming(false); continue; }
             const nodeName = event.nodeName;
             if (!nodeName) continue;
+            // Safety filter: skip pseudo-nodes not in the frontend node order
+            if (!NODE_ORDER.includes(nodeName as typeof NODE_ORDER[number])) continue;
             if (!stepStartTimes[nodeName]) stepStartTimes[nodeName] = Date.now();
 
             // Merge incoming event into existing steps: preserve 'success' for completed nodes
