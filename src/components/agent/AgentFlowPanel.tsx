@@ -86,9 +86,22 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
               </pre>
             </details>
           )}
-          {step.data?.report && (
-            <div className="text-on-surface text-xs mt-1 leading-relaxed whitespace-pre-wrap">{step.data.report}</div>
-          )}
+          {(() => {
+            // Report content — try both 'report' (controller-mapped) and 'reportResult' (raw state key)
+            const reportText = step.data?.report ?? step.data?.reportResult ?? '';
+            if (reportText) {
+              return <div className="text-on-surface text-xs mt-1 leading-relaxed whitespace-pre-wrap">{reportText}</div>;
+            }
+            // step.data exists with unknown keys — dump as JSON for debugging
+            if (step.data && Object.keys(step.data).length > 0 && !step.data?.sql && !step.data?.rewriteQuery && !step.data?.evidence && !step.data?.tableRelation && !step.data?.filteredTables) {
+              return <pre className="text-xs text-on-surface-variant/60 mt-1 p-2 bg-surface-container-low rounded overflow-x-auto max-h-48">{JSON.stringify(step.data, null, 2)}</pre>;
+            }
+            // REPORT step completed but no data found — show a minimal indicator
+            if (step.name === 'REPORT') {
+              return <div className="text-on-surface-variant/40 text-xs mt-1 italic">Report generated</div>;
+            }
+            return null;
+          })()}
         </div>
       )}
 
@@ -130,14 +143,14 @@ export default function AgentFlowPanel({
     const sentText = query;
     setQuery('');
 
-    // Pre-initialize ALL active steps: first as "running", rest as "pending"
+    // Initialize only the first node — others appear dynamically as they start
     const stepStartTime = Date.now();
-    setSteps(ACTIVE_NODES.map((name, idx) => ({
-      id: name,
-      name,
+    setSteps([{
+      id: ACTIVE_NODES[0],
+      name: ACTIVE_NODES[0],
       content: '',
-      status: idx === 0 ? 'running' as StepStatus : 'pending' as StepStatus,
-    })));
+      status: 'running' as StepStatus,
+    }]);
 
     try {
       const response = await fetch('/api/v1/agent/sql/stream', {
@@ -166,6 +179,16 @@ export default function AgentFlowPanel({
         const lines = (partial + chunk).split('\n');
         partial = lines.pop() || '';
 
+        // Collect all events in this chunk, then process in a SINGLE setSteps update
+        // to avoid React batching issues where function updaters see stale state.
+        const batch: Array<{
+          type: 'NODE' | 'COMPLETED' | 'ERROR';
+          nodeName?: string;
+          data?: any;
+          nodeIdx?: number;
+          message?: string;
+        }> = [];
+
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed.startsWith('data:')) continue;
@@ -175,49 +198,72 @@ export default function AgentFlowPanel({
           try {
             const event = JSON.parse(dataStr);
 
-            // Handle terminal events
             if (event.type === 'COMPLETED') {
-              setSteps(prev => prev.map(s =>
-                s.status === 'running'
-                  ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
-                  : s
-              ));
-              setIsStreaming(false);
+              batch.push({ type: 'COMPLETED' });
               continue;
             }
             if (event.type === 'ERROR') {
-              setSteps(prev => prev.map(s =>
-                s.status === 'running'
-                  ? { ...s, status: 'error' as StepStatus }
-                  : s
-              ));
-              setError(event.message || 'Agent execution failed');
-              setIsStreaming(false);
+              batch.push({ type: 'ERROR', message: event.message || 'Agent execution failed' });
               continue;
             }
 
-            // Process per-node completion events
+            // Per-node completion events
             const nodeName = event.nodeName;
             if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
-
             const nodeIdx = ACTIVE_NODES.indexOf(nodeName);
-            setSteps(prev => prev.map((step, i) => {
-              if (step.name === nodeName) {
-                // This node just completed — show its result
-                return {
-                  ...step,
-                  status: 'success' as StepStatus,
-                  data: event.data,
-                  durationMs: Math.round(Date.now() - stepStartTime),
-                };
-              }
-              if (i === nodeIdx + 1 && step.status === 'pending') {
-                // The next expected node is now running
-                return { ...step, status: 'running' as StepStatus };
-              }
-              return step;
-            }));
+
+            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data });
           } catch (_) { /* ignore malformed JSON */ }
+        }
+
+        // Apply all batched updates in a SINGLE setSteps call
+        if (batch.length > 0) {
+          let hasCompleted = false;
+          let hasError = false;
+          let errorMsg = '';
+          setSteps(prev => {
+            // Manually chain updates — prev is stable for this updater call
+            let current = prev;
+
+            for (const update of batch) {
+              if (update.type === 'NODE') {
+                current = current.map(step =>
+                  step.name === update.nodeName
+                    ? { ...step, status: 'success' as StepStatus, data: update.data, durationMs: Math.round(Date.now() - stepStartTime) }
+                    : step
+                );
+                // Append the next node in the chain
+                const nextName = ACTIVE_NODES[(update.nodeIdx!) + 1];
+                if (nextName && !current.some(s => s.name === nextName)) {
+                  current = [...current, {
+                    id: nextName,
+                    name: nextName,
+                    content: '',
+                    status: 'running' as StepStatus,
+                  }];
+                }
+              } else if (update.type === 'COMPLETED') {
+                hasCompleted = true;
+                current = current.map(s =>
+                  s.status === 'running'
+                    ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
+                    : s
+                );
+              } else if (update.type === 'ERROR') {
+                hasError = true;
+                errorMsg = update.message || '';
+                current = current.map(s =>
+                  s.status === 'running' ? { ...s, status: 'error' as StepStatus } : s
+                );
+              }
+            }
+            return current;
+          });
+          if (hasCompleted) setIsStreaming(false);
+          if (hasError) {
+            setError(errorMsg);
+            setIsStreaming(false);
+          }
         }
       }
     } catch (err: any) {
