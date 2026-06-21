@@ -4,6 +4,8 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { Loader2, Database } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { AgentStep, StepStatus } from '../../types/agent';
 
 interface AgentFlowPanelProps {
@@ -27,6 +29,51 @@ const NODE_LABELS: Record<string, string> = {
   HITL: 'Human Review', SQL_GENERATION: 'SQL Generation', SQL_EXECUTION: 'SQL Execution',
   REPORT: 'Report',
 };
+
+/** Strip ```markdown ... ``` wrapper if present */
+function stripMdCodeBlock(text: string): string {
+  const trimmed = text.trim();
+  const m = trimmed.match(/^```(?:markdown)?\s*\n([\s\S]*?)\n?```$/);
+  return m ? m[1] : text;
+}
+
+/** Render report markdown with project-consistent styling */
+function ReportMarkdown({ content }: { content: string }) {
+  return (
+    <div className="text-xs text-on-surface-variant leading-relaxed mt-1">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => <h1 className="text-sm font-bold text-on-surface mt-3 mb-1">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-xs font-bold text-on-surface mt-2 mb-1">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-xs font-semibold text-on-surface mt-1 mb-0.5">{children}</h3>,
+          p: ({ children }) => <p className="text-xs text-on-surface-variant leading-relaxed mb-1">{children}</p>,
+          ul: ({ children }) => <ul className="text-xs text-on-surface-variant list-disc ml-4 mb-1">{children}</ul>,
+          ol: ({ children }) => <ol className="text-xs text-on-surface-variant list-decimal ml-4 mb-1">{children}</ol>,
+          li: ({ children }) => <li className="text-xs text-on-surface-variant mb-0.5">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold text-on-surface">{children}</strong>,
+          code: ({ className, children, ...props }: any) => {
+            const isBlock = Boolean(className) || (typeof children === 'string' && children.includes('\n'));
+            return isBlock ? (
+              <pre className="text-[10px] p-2 bg-surface-container-low rounded overflow-x-auto max-h-32 font-mono border-l-2 border-primary/30 whitespace-pre-wrap my-1">
+                <code className={className} {...props}>{children}</code>
+              </pre>
+            ) : (
+              <code className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary font-mono" {...props}>{children}</code>
+            );
+          },
+          blockquote: ({ children }) => <blockquote className="border-l-2 border-primary/30 pl-3 my-1 text-xs text-on-surface-variant/70 italic">{children}</blockquote>,
+          table: ({ children }) => <table className="text-[10px] w-full border-collapse my-1 border border-outline-variant/20 rounded">{children}</table>,
+          th: ({ children }) => <th className="px-2 py-1 text-left text-on-surface font-semibold bg-surface-container-low border-b border-outline-variant/20">{children}</th>,
+          td: ({ children }) => <td className="px-2 py-1 border-b border-outline-variant/10 text-on-surface-variant">{children}</td>,
+          hr: () => <hr className="border-outline-variant/20 my-2" />,
+        }}
+      >
+        {stripMdCodeBlock(content)}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 function StepLine({ step, order }: { step: AgentStep; order: number }) {
   const statusChar =
@@ -90,7 +137,7 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
             // Report content — try both 'report' (controller-mapped) and 'reportResult' (raw state key)
             const reportText = step.data?.report ?? step.data?.reportResult ?? '';
             if (reportText) {
-              return <div className="text-on-surface text-xs mt-1 leading-relaxed whitespace-pre-wrap">{reportText}</div>;
+              return <ReportMarkdown content={reportText} />;
             }
             // step.data exists with unknown keys — dump as JSON for debugging
             if (step.data && Object.keys(step.data).length > 0 && !step.data?.sql && !step.data?.rewriteQuery && !step.data?.evidence && !step.data?.tableRelation && !step.data?.filteredTables) {
@@ -181,13 +228,12 @@ export default function AgentFlowPanel({
 
         // Collect all events in this chunk, then process in a SINGLE setSteps update
         // to avoid React batching issues where function updaters see stale state.
-        const batch: Array<{
-          type: 'NODE' | 'COMPLETED' | 'ERROR';
-          nodeName?: string;
-          data?: any;
-          nodeIdx?: number;
-          message?: string;
-        }> = [];
+        type BatchItem =
+          | { type: 'COMPLETED' }
+          | { type: 'ERROR'; message: string }
+          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any };
+
+        const batch: BatchItem[] = [];
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -227,13 +273,32 @@ export default function AgentFlowPanel({
 
             for (const update of batch) {
               if (update.type === 'NODE') {
+                // Ensure this step exists — SSE events may arrive out of order,
+                // so a node that hasn't been pre-appended yet must be inserted.
+                if (!current.some(s => s.name === update.nodeName)) {
+                  // Insert in ACTIVE_NODES order: find the right position
+                  const insertIdx = ACTIVE_NODES.indexOf(update.nodeName);
+                  // Place after the highest-ordered step that already exists
+                  let targetPos = 0;
+                  for (let i = 0; i < current.length; i++) {
+                    const existingIdx = ACTIVE_NODES.indexOf(current[i].name);
+                    if (existingIdx < insertIdx) targetPos = i + 1;
+                  }
+                  current = [
+                    ...current.slice(0, targetPos),
+                    { id: update.nodeName, name: update.nodeName, content: '', status: 'running' as StepStatus },
+                    ...current.slice(targetPos),
+                  ];
+                }
+                // Update the matching step with completion data
                 current = current.map(step =>
                   step.name === update.nodeName
                     ? { ...step, status: 'success' as StepStatus, data: update.data, durationMs: Math.round(Date.now() - stepStartTime) }
                     : step
                 );
-                // Append the next node in the chain
-                const nextName = ACTIVE_NODES[(update.nodeIdx!) + 1];
+                // Pre-append the next expected node so a running indicator appears
+                const nextIdx = update.nodeIdx + 1;
+                const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
                 if (nextName && !current.some(s => s.name === nextName)) {
                   current = [...current, {
                     id: nextName,
@@ -257,6 +322,13 @@ export default function AgentFlowPanel({
                 );
               }
             }
+            // Always re-sort by ACTIVE_NODES order so display is correct
+            // regardless of SSE event arrival order
+            current.sort((a, b) => {
+              const ai = ACTIVE_NODES.indexOf(a.name);
+              const bi = ACTIVE_NODES.indexOf(b.name);
+              return ai - bi;
+            });
             return current;
           });
           if (hasCompleted) setIsStreaming(false);
