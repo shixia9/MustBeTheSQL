@@ -68,6 +68,23 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
           {step.data?.evidence && step.data.evidence !== '' && step.data.evidence !== '无' && (
             <div className="text-on-surface-variant/60 text-xs mt-1 italic">{step.data.evidence}</div>
           )}
+          {step.data?.filteredTables && Array.isArray(step.data.filteredTables) && step.data.filteredTables.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {step.data.filteredTables.map((t: string) => (
+                <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">{t}</span>
+              ))}
+            </div>
+          )}
+          {step.data?.tableRelation && (
+            <details className="mt-1">
+              <summary className="text-xs text-on-surface-variant/70 cursor-pointer select-none">
+                Schema Context (click to expand)
+              </summary>
+              <pre className="text-[10px] text-on-surface-variant/60 mt-1 p-2 bg-surface-container-low rounded overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto">
+                {step.data.tableRelation}
+              </pre>
+            </details>
+          )}
           {step.data?.report && (
             <div className="text-on-surface text-xs mt-1 leading-relaxed whitespace-pre-wrap">{step.data.report}</div>
           )}
