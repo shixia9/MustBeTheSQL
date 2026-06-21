@@ -1,12 +1,10 @@
 /**
  * AgentFlowPanel — terminal/CLI-style Agent timeline.
- * Uses project CSS variables for seamless dual-theme support.
+ * Streams SSE events and displays progressive per-node results as they arrive.
  */
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Loader2, Database } from 'lucide-react';
-import { useSettings } from '../../contexts/SettingsContext';
 import type { AgentStep, StepStatus } from '../../types/agent';
-import { NODE_ORDER } from '../../types/agent';
 
 interface AgentFlowPanelProps {
   user: any;
@@ -15,6 +13,9 @@ interface AgentFlowPanelProps {
   selectedConfigId: number | null;
   onConnectionChange: (connId: number) => void;
 }
+
+/** Phase 2 active nodes — subset of NODE_ORDER actually wired in the graph. */
+const ACTIVE_NODES = ['EVIDENCE_RECALL', 'SCHEMA_LINKING', 'SQL_GENERATION', 'REPORT'];
 
 const NODE_ICONS: Record<string, string> = {
   EVIDENCE_RECALL: '🔍', SCHEMA_LINKING: '🔗', FEASIBILITY_ASSESSMENT: '✅',
@@ -122,24 +123,35 @@ export default function AgentFlowPanel({
 
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
-    setSentQuery(query); // Persist query for display before clearing input
-    setSteps([]); setError(''); setIsStreaming(true);
+    setSentQuery(query);
+    setError('');
+    setIsStreaming(true);
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
-    setQuery(''); // Clear input after sending
+    const sentText = query;
+    setQuery('');
 
-    // Reset steps and show "running" for the first node immediately
-    setSteps([{ id: 'EVIDENCE_RECALL', name: 'EVIDENCE_RECALL', content: '', status: 'running' as StepStatus }]);
-    const stepStartTimes: Record<string, number> = {};
-    stepStartTimes['EVIDENCE_RECALL'] = Date.now();
+    // Pre-initialize ALL active steps: first as "running", rest as "pending"
+    const stepStartTime = Date.now();
+    setSteps(ACTIVE_NODES.map((name, idx) => ({
+      id: name,
+      name,
+      content: '',
+      status: idx === 0 ? 'running' as StepStatus : 'pending' as StepStatus,
+    })));
 
     try {
       const response = await fetch('/api/v1/agent/sql/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
         credentials: 'include',
-        body: JSON.stringify({ userId: user?.id || 1, userInput: query,
-          connectionId: selectedConnId || null, tableNames: [], llmConfigId: selectedConfigId }),
+        body: JSON.stringify({
+          userId: user?.id || 1,
+          userInput: sentText,
+          connectionId: selectedConnId || null,
+          tableNames: [],
+          llmConfigId: selectedConfigId,
+        }),
         signal: abortRef.current.signal,
       });
       if (!response.body) throw new Error('No readable stream');
@@ -147,7 +159,6 @@ export default function AgentFlowPanel({
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let partial = '';
-      const stepStartTimes: Record<string, number> = {};
 
       while (true) {
         const { done, value } = await reader.read();
@@ -159,56 +170,75 @@ export default function AgentFlowPanel({
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed.startsWith('data:')) continue;
-          let dataStr = trimmed.replace(/^data:+/, '').trim();
+          const dataStr = trimmed.replace(/^data:+/, '').trim();
           if (!dataStr) continue;
 
           try {
             const event = JSON.parse(dataStr);
-            if (event.type === 'COMPLETED') { setIsStreaming(false); continue; }
-            if (event.type === 'ERROR') { setError(event.message || 'Agent execution failed'); setIsStreaming(false); continue; }
-            const nodeName = event.nodeName;
-            if (!nodeName) continue;
-            // Safety filter: skip pseudo-nodes not in the frontend node order
-            if (!NODE_ORDER.includes(nodeName as typeof NODE_ORDER[number])) continue;
-            if (!stepStartTimes[nodeName]) stepStartTimes[nodeName] = Date.now();
 
-            // Merge incoming event into existing steps: preserve 'success' for completed nodes
-            setSteps(prev => {
-              const updated = prev.map(s =>
-                s.name === nodeName
-                  ? { ...s, status: 'success' as StepStatus, data: event.data,
-                      durationMs: Math.round(Date.now() - (stepStartTimes[nodeName] || Date.now())) }
+            // Handle terminal events
+            if (event.type === 'COMPLETED') {
+              setSteps(prev => prev.map(s =>
+                s.status === 'running'
+                  ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
                   : s
-              );
-              // Add new node if it doesn't exist yet
-              if (!updated.find(s => s.name === nodeName)) {
-                updated.push({ id: nodeName, name: nodeName, content: '', status: 'success' as StepStatus,
-                  data: event.data, durationMs: Math.round(Date.now() - (stepStartTimes[nodeName] || Date.now())) });
+              ));
+              setIsStreaming(false);
+              continue;
+            }
+            if (event.type === 'ERROR') {
+              setSteps(prev => prev.map(s =>
+                s.status === 'running'
+                  ? { ...s, status: 'error' as StepStatus }
+                  : s
+              ));
+              setError(event.message || 'Agent execution failed');
+              setIsStreaming(false);
+              continue;
+            }
+
+            // Process per-node completion events
+            const nodeName = event.nodeName;
+            if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
+
+            const nodeIdx = ACTIVE_NODES.indexOf(nodeName);
+            setSteps(prev => prev.map((step, i) => {
+              if (step.name === nodeName) {
+                // This node just completed — show its result
+                return {
+                  ...step,
+                  status: 'success' as StepStatus,
+                  data: event.data,
+                  durationMs: Math.round(Date.now() - stepStartTime),
+                };
               }
-              // Sort by NODE_ORDER to maintain timeline sequence
-              updated.sort((a, b) => {
-                const idxA = NODE_ORDER.indexOf(a.name as typeof NODE_ORDER[number]);
-                const idxB = NODE_ORDER.indexOf(b.name as typeof NODE_ORDER[number]);
-                return idxA - idxB;
-              });
-              return updated;
-            });
-          } catch (e) { /* ignore */ }
+              if (i === nodeIdx + 1 && step.status === 'pending') {
+                // The next expected node is now running
+                return { ...step, status: 'running' as StepStatus };
+              }
+              return step;
+            }));
+          } catch (_) { /* ignore malformed JSON */ }
         }
       }
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
+      setSteps(prev => prev.map(s =>
+        s.status === 'running' ? { ...s, status: 'error' as StepStatus } : s
+      ));
       setError(err.message || 'Connection error');
-    } finally { setIsStreaming(false); abortRef.current = null; }
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
   };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-primary font-bold text-sm font-mono">SQL Agent</span>
-          <span className="text-on-surface-variant/40 text-xs font-mono">v1.0</span>
+          <span className="text-on-surface-variant/40 text-xs font-mono">v2.0</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
