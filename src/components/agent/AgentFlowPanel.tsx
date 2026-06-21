@@ -108,9 +108,8 @@ function ConnectorLine() {
 export default function AgentFlowPanel({
   user, connections, selectedConnId, selectedConfigId, onConnectionChange,
 }: AgentFlowPanelProps) {
-  const { theme } = useSettings();
   const [query, setQuery] = useState('');
-  const [sentQuery, setSentQuery] = useState(''); // Last sent query
+  const [sentQuery, setSentQuery] = useState('');
   const [steps, setSteps] = useState<AgentStep[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
@@ -256,7 +255,6 @@ export default function AgentFlowPanel({
         </div>
       </div>
 
-      {/* Main output */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
         {steps.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center h-full opacity-30">
@@ -296,20 +294,30 @@ export default function AgentFlowPanel({
         )}
       </div>
 
-      {/* Input */}
       <div className="flex-shrink-0 border-t border-outline-variant/20 bg-surface">
         <div className="flex items-start px-4 py-3 gap-3">
           <span className="text-primary font-mono text-sm pt-2 flex-shrink-0">❯</span>
           <div className="flex-1 relative">
             <textarea
-              value={query} onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (query.trim() && !isStreaming) handleSend(); } }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (query.trim() && !isStreaming) handleSend();
+                }
+              }}
               className="w-full bg-transparent text-on-surface text-sm font-mono resize-none outline-none pt-2 placeholder-on-surface-variant/40"
-              placeholder="Ask a question to generate SQL..." rows={2} disabled={isStreaming}
+              placeholder="Ask a question to generate SQL..."
+              rows={2}
+              disabled={isStreaming}
             />
           </div>
-          <button onClick={handleSend} disabled={isStreaming || !query.trim() || !dbConnected}
-            className="text-xs font-mono px-3 py-1.5 rounded text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mt-1 flex-shrink-0">
+          <button
+            onClick={handleSend}
+            disabled={isStreaming || !query.trim() || !dbConnected}
+            className="text-xs font-mono px-3 py-1.5 rounded text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mt-1 flex-shrink-0"
+          >
             {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Run'}
           </button>
         </div>
