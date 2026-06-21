@@ -92,6 +92,7 @@ export default function AgentFlowPanel({
 }: AgentFlowPanelProps) {
   const { theme } = useSettings();
   const [query, setQuery] = useState('');
+  const [sentQuery, setSentQuery] = useState(''); // Last sent query
   const [steps, setSteps] = useState<AgentStep[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
@@ -104,9 +105,11 @@ export default function AgentFlowPanel({
 
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
+    setSentQuery(query); // Persist query for display before clearing input
     setSteps([]); setError(''); setIsStreaming(true);
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
+    setQuery(''); // Clear input after sending
 
     // Reset steps and show "running" for the first node immediately
     setSteps([{ id: 'EVIDENCE_RECALL', name: 'EVIDENCE_RECALL', content: '', status: 'running' as StepStatus }]);
@@ -183,7 +186,7 @@ export default function AgentFlowPanel({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-surface">
+    <div className="flex flex-col h-screen overflow-hidden bg-surface">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -207,7 +210,7 @@ export default function AgentFlowPanel({
       </div>
 
       {/* Main output */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
         {steps.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center h-full opacity-30">
             <div className="text-4xl mb-4">⎈</div>
@@ -219,11 +222,11 @@ export default function AgentFlowPanel({
           </div>
         )}
 
-        {query && steps.length > 0 && (
+        {sentQuery && steps.length > 0 && (
           <div className="mb-3 pb-3 border-b border-outline-variant/20">
             <div className="flex items-start gap-2">
               <span className="text-primary w-5 flex-shrink-0">❯</span>
-              <span className="text-on-surface text-sm">{query}</span>
+              <span className="text-on-surface text-sm">{sentQuery}</span>
             </div>
           </div>
         )}
