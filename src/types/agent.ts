@@ -13,6 +13,9 @@ export interface AgentStep {
   status: StepStatus;
   data?: Record<string, any>;
   durationMs?: number;
+  /** Plan-step cursor for looped nodes (SQL_GENERATION / SQL_EXECUTION / SQL_FIXER).
+   *  Same node name + different step = a distinct card. */
+  step?: number;
 }
 
 /** The order in which nodes appear in the timeline */
@@ -21,8 +24,9 @@ export const NODE_ORDER = [
   'SCHEMA_LINKING',
   'FEASIBILITY_ASSESSMENT',
   'PLANNER',
-  'HITL',
+  'PLAN_DISPATCH',
   'SQL_GENERATION',
   'SQL_EXECUTION',
+  'SQL_FIXER',
   'REPORT',
 ] as const;
