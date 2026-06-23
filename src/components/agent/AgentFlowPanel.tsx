@@ -16,27 +16,37 @@ interface AgentFlowPanelProps {
   onConnectionChange: (connId: number) => void;
 }
 
-/** Phase 3 active nodes — the full set wired into the graph. */
+/** Phase 4 active nodes — the full set wired into the graph. */
 const ACTIVE_NODES = [
   'EVIDENCE_RECALL', 'SCHEMA_LINKING', 'FEASIBILITY_ASSESSMENT',
-  'PLANNER', 'PLAN_DISPATCH', 'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER', 'REPORT',
+  'PLANNER', 'HITL_GATE', 'HITL', 'PLAN_DISPATCH',
+  'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER',
+  'PYTHON_GENERATION', 'PYTHON_EXECUTION', 'PYTHON_ANALYSIS',
+  'REPORT',
 ];
 
 /** Nodes that the PLAN_DISPATCH loop may trigger more than once per session.
  *  These are keyed by (name, step) on the timeline; all others by name alone. */
-const LOOPED_NODES = new Set(['SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER']);
+const LOOPED_NODES = new Set([
+  'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER',
+  'PYTHON_GENERATION', 'PYTHON_EXECUTION', 'PYTHON_ANALYSIS',
+]);
 
 const NODE_ICONS: Record<string, string> = {
   EVIDENCE_RECALL: '🔍', SCHEMA_LINKING: '🔗', FEASIBILITY_ASSESSMENT: '✅',
-  PLANNER: '📋', PLAN_DISPATCH: '🧭', HITL: '👤', SQL_GENERATION: '▷',
-  SQL_EXECUTION: '▶', SQL_FIXER: '🔧', REPORT: '◉',
+  PLANNER: '📋', HITL_GATE: '🚦', HITL: '👤', PLAN_DISPATCH: '🧭',
+  SQL_GENERATION: '▷', SQL_EXECUTION: '▶', SQL_FIXER: '🔧',
+  PYTHON_GENERATION: '🐍', PYTHON_EXECUTION: '⚙', PYTHON_ANALYSIS: '📊',
+  REPORT: '◉',
 };
 const NODE_LABELS: Record<string, string> = {
   EVIDENCE_RECALL: 'Knowledge Recall', SCHEMA_LINKING: 'Schema Linking',
   FEASIBILITY_ASSESSMENT: 'Feasibility Assessment', PLANNER: 'Planning',
-  PLAN_DISPATCH: 'Plan Dispatch', HITL: 'Human Review',
+  HITL_GATE: 'Review Gate', HITL: 'Human Review', PLAN_DISPATCH: 'Plan Dispatch',
   SQL_GENERATION: 'SQL Generation', SQL_EXECUTION: 'SQL Execution',
-  SQL_FIXER: 'SQL Repair', REPORT: 'Report',
+  SQL_FIXER: 'SQL Repair',
+  PYTHON_GENERATION: 'Python Generation', PYTHON_EXECUTION: 'Python Execution',
+  PYTHON_ANALYSIS: 'Python Analysis', REPORT: 'Report',
 };
 
 /** Strip ```markdown ... ``` wrapper if present */
@@ -198,6 +208,60 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
           {step.data?.plan && (
             <PlanView plan={step.data.plan} />
           )}
+          {step.name === 'HITL_GATE' && (() => {
+            const needs = Boolean(step.data?.needsReview);
+            const reason = String(step.data?.reason ?? '').trim();
+            const repair = step.data?.repairCount;
+            return (
+              <div className={`text-xs mt-1 px-2 py-1 rounded border ${
+                needs
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                  : 'bg-[#16a34a]/10 border-[#16a34a]/30 text-[#16a34a]'
+              }`}>
+                {needs ? '⚠ Plan flagged for human review' : '✓ Auto-confirmed, no review needed'}
+                {repair != null && <span className="text-on-surface-variant/60"> (repair {repair})</span>}
+                {reason && <><br/><span className="text-on-surface-variant/70">{reason}</span></>}
+              </div>
+            );
+          })()}
+          {step.name === 'HITL' && (
+            <div className="mt-1 text-xs px-2 py-1.5 rounded border border-amber-500/30 bg-amber-500/5">
+              <div className="text-amber-600 mb-0.5">⏸ Awaiting your confirmation</div>
+              {step.data?.plan && <PlanView plan={String(step.data.plan)} />}
+            </div>
+          )}
+          {step.data?.pythonCode != null && (
+            <details className="mt-1">
+              <summary className="text-xs text-on-surface-variant/70 cursor-pointer select-none">
+                Generated Python (click to expand)
+              </summary>
+              <pre className="text-[10px] text-on-surface bg-surface-container-low rounded px-3 py-2 mt-1 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto border-l-2 border-primary/30">
+                <code>{step.data.pythonCode}</code>
+              </pre>
+            </details>
+          )}
+          {step.data?.pythonResult != null && (() => {
+            let r: any = null;
+            try { r = typeof step.data.pythonResult === 'string' ? JSON.parse(step.data.pythonResult) : step.data.pythonResult; } catch { /* not json */ }
+            if (!r) {
+              return <div className="text-xs text-on-surface-variant/60 mt-1 italic">Python executed.</div>;
+            }
+            const ok = Boolean(r.success);
+            return (
+              <div className={`text-xs mt-1 p-2 rounded border ${ok ? 'border-primary/30 bg-primary/5' : 'border-error/30 bg-error/10'}`}>
+                <span className={ok ? 'text-[#16a34a]' : 'text-error'}>{ok ? '✓ Python succeeded' : '✗ Python failed'}</span>
+                {r.output && (
+                  <pre className="text-[10px] text-on-surface-variant mt-1 whitespace-pre-wrap max-h-40 overflow-y-auto">{String(r.output)}</pre>
+                )}
+                {r.error && (
+                  <pre className="text-[10px] text-error/80 mt-1 whitespace-pre-wrap max-h-32 overflow-y-auto">{String(r.error)}</pre>
+                )}
+              </div>
+            );
+          })()}
+          {step.data?.analysis != null && (
+            <div className="text-xs text-on-surface-variant mt-1 whitespace-pre-wrap">{String(step.data.analysis)}</div>
+          )}
           {step.data?.nextNode && step.name === 'PLAN_DISPATCH' && (
             <div className="text-xs text-on-surface-variant/70 mt-1">
               <span className="text-on-surface-variant/50">dispatch →</span>{' '}
@@ -258,7 +322,9 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
                 && !step.data?.tableRelation && !step.data?.filteredTables
                 && !step.data?.feasibilityResult && !step.data?.plan
                 && !step.data?.sqlExecutionResult && !step.data?.errorMsg
-                && !step.data?.nextNode) {
+                && !step.data?.nextNode && !step.data?.needsReview
+                && !step.data?.pythonCode && !step.data?.pythonResult
+                && !step.data?.analysis) {
               return <pre className="text-xs text-on-surface-variant/60 mt-1 p-2 bg-surface-container-low rounded overflow-x-auto max-h-48">{JSON.stringify(step.data, null, 2)}</pre>;
             }
             // REPORT step completed but no data found — show a minimal indicator
@@ -283,6 +349,15 @@ function ConnectorLine() {
   return <div className="ml-[17px] w-px h-4 bg-outline-variant/30" />;
 }
 
+/** Composite identity for a card: looped nodes are keyed by name#step, others by name. */
+const cardId = (nodeName: string, stepNo: number | null) =>
+  LOOPED_NODES.has(nodeName) && stepNo != null ? `${nodeName}#${stepNo}` : nodeName;
+/** Sort key: (ACTIVE_NODES order, step number) — keeps looped cards chronological. */
+const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] => {
+  const base = ACTIVE_NODES.indexOf(nodeName);
+  return [base < 0 ? 9999 : base, stepNo ?? 0];
+};
+
 export default function AgentFlowPanel({
   user, connections, selectedConnId, selectedConfigId, onConnectionChange,
 }: AgentFlowPanelProps) {
@@ -292,6 +367,22 @@ export default function AgentFlowPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
   const [dbConnected, setDbConnected] = useState(false);
+  // Phase 4 HITL state
+  const autoConfirmKey = `agent_autoconfirm_${user?.id ?? 'default'}`;
+  const [autoConfirm, setAutoConfirm] = useState<boolean>(() => {
+    const saved = localStorage.getItem(autoConfirmKey);
+    return saved == null ? true : saved === 'true';
+  });
+  const toggleAutoConfirm = (v: boolean) => {
+    setAutoConfirm(v);
+    try { localStorage.setItem(autoConfirmKey, String(v)); } catch { /* ignore */ }
+  };
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<string>('');
+  const [repairCount, setRepairCount] = useState<number>(1);
+  const [confirmationFeedback, setConfirmationFeedback] = useState<string>('');
+  const [confirming, setConfirming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -303,6 +394,11 @@ export default function AgentFlowPanel({
     setSentQuery(query);
     setError('');
     setIsStreaming(true);
+    setAwaitingConfirmation(false);
+    setPendingThreadId(null);
+    setPendingPlan('');
+    setRepairCount(1);
+    setConfirmationFeedback('');
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
     const sentText = query;
@@ -328,6 +424,7 @@ export default function AgentFlowPanel({
           connectionId: selectedConnId || null,
           tableNames: [],
           llmConfigId: selectedConfigId,
+          autoConfirm,
         }),
         signal: abortRef.current.signal,
       });
@@ -349,6 +446,7 @@ export default function AgentFlowPanel({
         type BatchItem =
           | { type: 'COMPLETED' }
           | { type: 'ERROR'; message: string }
+          | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
           | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null };
 
         const batch: BatchItem[] = [];
@@ -370,6 +468,15 @@ export default function AgentFlowPanel({
               batch.push({ type: 'ERROR', message: event.message || 'Agent execution failed' });
               continue;
             }
+            if (event.type === 'AWAITING_CONFIRMATION') {
+              batch.push({
+                type: 'AWAITING_CONFIRMATION',
+                threadId: String(event.threadId ?? ''),
+                plan: String(event.plan ?? ''),
+                repairCount: Number(event.repairCount ?? 1),
+              });
+              continue;
+            }
 
             // Per-node completion events
             const nodeName = event.nodeName;
@@ -385,17 +492,9 @@ export default function AgentFlowPanel({
         if (batch.length > 0) {
           let hasCompleted = false;
           let hasError = false;
+          let hasAwaiting = false;
+          let awaitingPayload: { threadId: string; plan: string; repairCount: number } | null = null;
           let errorMsg = '';
-          // Composite identity for a card: looped nodes are keyed by name#step,
-          // other nodes by name alone.
-          const cardId = (nodeName: string, stepNo: number | null) =>
-            LOOPED_NODES.has(nodeName) && stepNo != null ? `${nodeName}#${stepNo}` : nodeName;
-          // Sort key: (ACTIVE_NODES order, step number) — keeps looped cards in
-          // chronological order within their node's section.
-          const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] => {
-            const base = ACTIVE_NODES.indexOf(nodeName);
-            return [base < 0 ? 9999 : base, stepNo ?? 0];
-          };
           setSteps(prev => {
             // Manually chain updates — prev is stable for this updater call
             let current = prev;
@@ -447,6 +546,34 @@ export default function AgentFlowPanel({
                     status: 'running' as StepStatus,
                   }];
                 }
+              } else if (update.type === 'AWAITING_CONFIRMATION') {
+                hasAwaiting = true;
+                awaitingPayload = { threadId: update.threadId, plan: update.plan, repairCount: update.repairCount };
+                // Set any lingering running cards to success (the stream paused normally).
+                current = current.map(s =>
+                  s.status === 'running'
+                    ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
+                    : s
+                );
+                // Insert a HITL card carrying the pending confirmation, keyed by name 'HITL'.
+                if (!current.some(s => s.name === 'HITL')) {
+                  current = [...current, {
+                    id: 'HITL',
+                    name: 'HITL',
+                    content: '',
+                    status: 'success' as StepStatus,
+                    data: {
+                      needsReview: true,
+                      awaitingConfirmation: true,
+                      plan: update.plan,
+                      repairCount: update.repairCount,
+                    },
+                  } as AgentStep];
+                } else {
+                  current = current.map(s => s.name === 'HITL'
+                    ? { ...s, status: 'success' as StepStatus, data: { ...s.data, needsReview: true, awaitingConfirmation: true, plan: update.plan, repairCount: update.repairCount } }
+                    : s);
+                }
               } else if (update.type === 'COMPLETED') {
                 hasCompleted = true;
                 current = current.map(s =>
@@ -472,6 +599,15 @@ export default function AgentFlowPanel({
             return current;
           });
           if (hasCompleted) setIsStreaming(false);
+          if (hasAwaiting && awaitingPayload) {
+            setPendingThreadId(awaitingPayload.threadId);
+            setPendingPlan(awaitingPayload.plan);
+            setRepairCount(awaitingPayload.repairCount);
+            setAwaitingConfirmation(true);
+            // Stream paused (not completed) — keep isStreaming true so the input stays locked
+            // until the user confirms/rejects.
+            setIsStreaming(false);
+          }
           if (hasError) {
             setError(errorMsg);
             setIsStreaming(false);
@@ -490,6 +626,135 @@ export default function AgentFlowPanel({
     }
   };
 
+  /** Phase 4 HITL: submit the human decision and resume the paused run.
+   *  keepSteps=true — existing timeline cards are preserved, resumed events appended. */
+  const handleConfirm = async (approved: boolean) => {
+    if (!pendingThreadId) return;
+    setError('');
+    setConfirming(true);
+    setAwaitingConfirmation(false);
+    const feedback = (confirmationFeedback || '').trim() || (approved ? '用户确认继续执行' : '用户取消本次执行');
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    const stepStartTime = Date.now();
+
+    try {
+      const response = await fetch('/api/v1/agent/sql/continue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        credentials: 'include',
+        body: JSON.stringify({
+          threadId: pendingThreadId,
+          approved,
+          feedback,
+          userId: user?.id || 1,
+        }),
+        signal: abortRef.current.signal,
+      });
+      if (!response.body) throw new Error('No readable stream');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let partial = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = (partial + chunk).split('\n');
+        partial = lines.pop() || '';
+
+        type BatchItem =
+          | { type: 'COMPLETED' }
+          | { type: 'ERROR'; message: string }
+          | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
+          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null };
+        const batch: BatchItem[] = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const dataStr = trimmed.replace(/^data:+/, '').trim();
+          if (!dataStr) continue;
+          try {
+            const event = JSON.parse(dataStr);
+            if (event.type === 'COMPLETED') { batch.push({ type: 'COMPLETED' }); continue; }
+            if (event.type === 'ERROR') { batch.push({ type: 'ERROR', message: event.message || 'Resume failed' }); continue; }
+            if (event.type === 'AWAITING_CONFIRMATION') {
+              batch.push({ type: 'AWAITING_CONFIRMATION', threadId: String(event.threadId ?? ''), plan: String(event.plan ?? ''), repairCount: Number(event.repairCount ?? 1) });
+              continue;
+            }
+            const nodeName = event.nodeName;
+            if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
+            const nodeIdx = ACTIVE_NODES.indexOf(nodeName);
+            const stepNo = event.data?.step != null && LOOPED_NODES.has(nodeName) ? Number(event.data.step) : null;
+            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data, stepNo });
+          } catch { /* ignore */ }
+        }
+
+        if (batch.length > 0) {
+          let hasCompleted = false;
+          let hasError = false;
+          let hasAwaiting = false;
+          let awaitingPayload: { threadId: string; plan: string; repairCount: number } | null = null;
+          let errorMsg = '';
+          setSteps(prev => {
+            let current = prev;
+            for (const update of batch) {
+              if (update.type === 'NODE') {
+                const id = cardId(update.nodeName, update.stepNo);
+                if (!current.some(s => s.id === id)) {
+                  current = [...current, {
+                    id, name: update.nodeName, content: '',
+                    status: 'running' as StepStatus,
+                    step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? 1 : undefined,
+                  } as AgentStep];
+                }
+                current = current.map(step =>
+                  step.id === id
+                    ? { ...step, status: 'success' as StepStatus, data: update.data, step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? step.step : step.step, durationMs: Math.round(Date.now() - stepStartTime) }
+                    : step
+                );
+              } else if (update.type === 'COMPLETED') {
+                hasCompleted = true;
+                current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
+              } else if (update.type === 'AWAITING_CONFIRMATION') {
+                hasAwaiting = true;
+                awaitingPayload = { threadId: update.threadId, plan: update.plan, repairCount: update.repairCount };
+                current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
+                current = current.map(s => s.name === 'HITL'
+                  ? { ...s, status: 'success' as StepStatus, data: { ...s.data, needsReview: true, awaitingConfirmation: true, plan: update.plan, repairCount: update.repairCount } }
+                  : s);
+              } else if (update.type === 'ERROR') {
+                hasError = true;
+                errorMsg = update.message || '';
+                current = current.map(s => s.status === 'running' ? { ...s, status: 'error' as StepStatus } : s);
+              }
+            }
+            current.sort((a, b) => {
+              const [ai, as_] = cardSortKey(a.name, a.step ?? null);
+              const [bi, bs] = cardSortKey(b.name, b.step ?? null);
+              return ai - bi || as_ - bs;
+            });
+            return current;
+          });
+          if (hasAwaiting && awaitingPayload) {
+            setPendingPlan(awaitingPayload.plan);
+            setRepairCount(awaitingPayload.repairCount);
+            setAwaitingConfirmation(true);
+          }
+          if (hasError) { setError(errorMsg); }
+        }
+      }
+      setConfirmationFeedback('');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error' as StepStatus } : s));
+      setError(err.message || 'Connection error');
+    } finally {
+      setConfirming(false);
+      abortRef.current = null;
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
       <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
@@ -498,6 +763,23 @@ export default function AgentFlowPanel({
           <span className="text-on-surface-variant/40 text-xs font-mono">v2.0</span>
         </div>
         <div className="flex items-center gap-3">
+          <label
+            className="flex items-center gap-1.5 cursor-pointer select-none"
+            title={autoConfirm
+              ? 'Auto-confirm ON: plans skip the review gate and execute automatically.'
+              : 'Auto-confirm OFF: the LLM gate decides whether a plan needs your approval before execution.'}
+          >
+            <span className="text-[10px] text-on-surface-variant/70 font-mono">Auto-confirm</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoConfirm}
+              onClick={() => toggleAutoConfirm(!autoConfirm)}
+              className={`relative w-8 h-4 rounded-full transition-colors ${autoConfirm ? 'bg-primary' : 'bg-outline-variant/50'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-surface transition-transform ${autoConfirm ? 'translate-x-4' : ''}`} />
+            </button>
+          </label>
           <div className="flex items-center gap-1.5">
             <Database size={12} className={dbConnected ? 'text-primary' : 'text-on-surface-variant/40'} />
             <select
@@ -541,6 +823,40 @@ export default function AgentFlowPanel({
           </div>
         ))}
 
+        {awaitingConfirmation && pendingThreadId && (
+          <div className="mt-3 p-3 rounded border border-amber-500/40 bg-amber-500/5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-amber-600">👤</span>
+              <span className="text-on-surface text-sm font-semibold">Human Review Required</span>
+              {repairCount > 1 && <span className="text-[10px] text-on-surface-variant/60">(repair #{repairCount})</span>}
+            </div>
+            {pendingPlan && <PlanView plan={pendingPlan} />}
+            <textarea
+              value={confirmationFeedback}
+              onChange={(e) => setConfirmationFeedback(e.target.value)}
+              placeholder="Modification feedback (optional when approving; describe changes when rejecting)"
+              rows={2}
+              className="w-full mt-2 text-xs font-mono bg-surface text-on-surface border border-outline-variant/30 rounded px-2 py-1 outline-none focus:border-primary resize-none"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => handleConfirm(true)}
+                disabled={confirming}
+                className="text-xs font-mono px-3 py-1.5 rounded text-[#16a34a] bg-[#16a34a]/10 border border-[#16a34a]/30 hover:bg-[#16a34a]/20 disabled:opacity-40 flex items-center gap-1"
+              >
+                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✓'} Confirm & Continue
+              </button>
+              <button
+                onClick={() => handleConfirm(false)}
+                disabled={confirming}
+                className="text-xs font-mono px-3 py-1.5 rounded text-error bg-error/10 border border-error/30 hover:bg-error/20 disabled:opacity-40 flex items-center gap-1"
+              >
+                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✗'} Reject & Re-plan
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="mt-3 flex items-start gap-2 text-error text-xs"><span>✗</span><span>{error}</span></div>
         )}
@@ -562,18 +878,18 @@ export default function AgentFlowPanel({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  if (query.trim() && !isStreaming) handleSend();
+                  if (query.trim() && !isStreaming && !awaitingConfirmation && !confirming) handleSend();
                 }
               }}
               className="w-full bg-transparent text-on-surface text-sm font-mono resize-none outline-none pt-2 placeholder-on-surface-variant/40"
               placeholder="Ask a question to generate SQL..."
               rows={2}
-              disabled={isStreaming}
+              disabled={isStreaming || awaitingConfirmation || confirming}
             />
           </div>
           <button
             onClick={handleSend}
-            disabled={isStreaming || !query.trim() || !dbConnected}
+            disabled={isStreaming || awaitingConfirmation || confirming || !query.trim() || !dbConnected}
             className="text-xs font-mono px-3 py-1.5 rounded text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mt-1 flex-shrink-0"
           >
             {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Run'}
