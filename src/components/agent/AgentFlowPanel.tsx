@@ -386,6 +386,16 @@ export default function AgentFlowPanel({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  /** Composite identity for a card: looped nodes are keyed by name#step, other nodes by name alone. */
+  const cardId = (nodeName: string, stepNo: number | null) =>
+    LOOPED_NODES.has(nodeName) && stepNo != null ? `${nodeName}#${stepNo}` : nodeName;
+  /** Sort key: (ACTIVE_NODES order, step number) — keeps looped cards in chronological order.
+   *  (Defined here to be shared by handleSend and handleConfirm.) */
+  const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] => {
+    const base = ACTIVE_NODES.indexOf(nodeName);
+    return [base < 0 ? 9999 : base, stepNo ?? 0];
+  };
+
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
   useEffect(() => { setDbConnected(selectedConnId !== '' && selectedConnId !== null); }, [selectedConnId]);
 
@@ -490,10 +500,13 @@ export default function AgentFlowPanel({
 
         // Apply all batched updates in a SINGLE setSteps call
         if (batch.length > 0) {
+          // Pull AWAITING_CONFIRMATION out of setSteps to avoid TS closure inference issues.
+          const awaitingBatch = batch.find(e => e.type === 'AWAITING_CONFIRMATION') as
+            { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number } | undefined;
+          const hasAwaiting = !!awaitingBatch;
+
           let hasCompleted = false;
           let hasError = false;
-          let hasAwaiting = false;
-          let awaitingPayload: { threadId: string; plan: string; repairCount: number } | null = null;
           let errorMsg = '';
           setSteps(prev => {
             // Manually chain updates — prev is stable for this updater call
@@ -547,8 +560,6 @@ export default function AgentFlowPanel({
                   }];
                 }
               } else if (update.type === 'AWAITING_CONFIRMATION') {
-                hasAwaiting = true;
-                awaitingPayload = { threadId: update.threadId, plan: update.plan, repairCount: update.repairCount };
                 // Set any lingering running cards to success (the stream paused normally).
                 current = current.map(s =>
                   s.status === 'running'
@@ -599,13 +610,11 @@ export default function AgentFlowPanel({
             return current;
           });
           if (hasCompleted) setIsStreaming(false);
-          if (hasAwaiting && awaitingPayload) {
-            setPendingThreadId(awaitingPayload.threadId);
-            setPendingPlan(awaitingPayload.plan);
-            setRepairCount(awaitingPayload.repairCount);
+          if (hasAwaiting && awaitingBatch) {
+            setPendingThreadId(awaitingBatch.threadId);
+            setPendingPlan(awaitingBatch.plan);
+            setRepairCount(awaitingBatch.repairCount);
             setAwaitingConfirmation(true);
-            // Stream paused (not completed) — keep isStreaming true so the input stays locked
-            // until the user confirms/rejects.
             setIsStreaming(false);
           }
           if (hasError) {
@@ -691,10 +700,10 @@ export default function AgentFlowPanel({
         }
 
         if (batch.length > 0) {
+          const awaitingBatch = batch.find(e => e.type === 'AWAITING_CONFIRMATION') as
+            { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number } | undefined;
           let hasCompleted = false;
           let hasError = false;
-          let hasAwaiting = false;
-          let awaitingPayload: { threadId: string; plan: string; repairCount: number } | null = null;
           let errorMsg = '';
           setSteps(prev => {
             let current = prev;
@@ -717,8 +726,6 @@ export default function AgentFlowPanel({
                 hasCompleted = true;
                 current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
               } else if (update.type === 'AWAITING_CONFIRMATION') {
-                hasAwaiting = true;
-                awaitingPayload = { threadId: update.threadId, plan: update.plan, repairCount: update.repairCount };
                 current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
                 current = current.map(s => s.name === 'HITL'
                   ? { ...s, status: 'success' as StepStatus, data: { ...s.data, needsReview: true, awaitingConfirmation: true, plan: update.plan, repairCount: update.repairCount } }
@@ -736,9 +743,9 @@ export default function AgentFlowPanel({
             });
             return current;
           });
-          if (hasAwaiting && awaitingPayload) {
-            setPendingPlan(awaitingPayload.plan);
-            setRepairCount(awaitingPayload.repairCount);
+          if (awaitingBatch) {
+            setPendingPlan(awaitingBatch.plan);
+            setRepairCount(awaitingBatch.repairCount);
             setAwaitingConfirmation(true);
           }
           if (hasError) { setError(errorMsg); }
