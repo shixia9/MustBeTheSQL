@@ -191,7 +191,7 @@ function SqlResultView({ raw }: { raw: string }) {
   );
 }
 
-function StepLine({ step, order }: { step: AgentStep; order: number }) {
+function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: number; isPausedAtHitl: boolean }) {
   const statusChar =
     step.status === 'success' ? '✓' : step.status === 'running' ? '◉' :
     step.status === 'error' ? '✗' : '○';
@@ -248,10 +248,9 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
               </div>
             );
           })()}
-          {step.name === 'HITL' && (
+          {step.name === 'HITL' && isPausedAtHitl && (
             <div className="mt-1 text-xs px-2 py-1.5 rounded border border-amber-500/30 bg-amber-500/5">
-              <div className="text-amber-600 mb-0.5">⏸ Awaiting your confirmation</div>
-              {step.data?.plan && <PlanView plan={String(step.data.plan)} />}
+              <div className="text-amber-600">⏸ Awaiting your confirmation — review the plan below</div>
             </div>
           )}
           {step.data?.pythonCode != null && (
@@ -660,6 +659,13 @@ export default function AgentFlowPanel({
     setError('');
     setConfirming(true);
     setAwaitingConfirmation(false);
+    // Insert a running indicator for the first downstream node so the user sees
+    // the graph resuming. Only the next node, not everything downstream.
+    const resumeNextId = 'PLAN_DISPATCH';
+    setSteps(prev => {
+      if (prev.some(s => s.name === resumeNextId)) return prev;
+      return [...prev, { id: resumeNextId, name: resumeNextId, content: '', status: 'running' as StepStatus }];
+    });
     const feedback = (confirmationFeedback || '').trim() || (approved ? '用户确认继续执行' : '用户取消本次执行');
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
@@ -765,6 +771,11 @@ export default function AgentFlowPanel({
             setPendingPlan(awaitingBatch.plan);
             setRepairCount(awaitingBatch.repairCount);
             setAwaitingConfirmation(true);
+            setIsStreaming(false);
+          }
+          if (hasCompleted) {
+            setAwaitingConfirmation(false);
+            setIsStreaming(false);
           }
           if (hasError) { setError(errorMsg); }
         }
@@ -776,6 +787,7 @@ export default function AgentFlowPanel({
       setError(err.message || 'Connection error');
     } finally {
       setConfirming(false);
+      setAwaitingConfirmation(false);
       abortRef.current = null;
     }
   };
@@ -843,7 +855,7 @@ export default function AgentFlowPanel({
 
         {steps.map((step, idx) => (
           <div key={step.id}>
-            <StepLine step={step} order={idx + 1} />
+            <StepLine step={step} order={idx + 1} isPausedAtHitl={awaitingConfirmation} />
             {idx < steps.length - 1 && <ConnectorLine />}
           </div>
         ))}
