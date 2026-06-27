@@ -1,4 +1,4 @@
-# 📊 Must Be The SQL
+# 📊 Must Be The SQL (Updating)
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-19-blue" />
