@@ -60,3 +60,24 @@ export type AgentEventType =
   | { type: 'ERROR'; message: string }
   | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number; needsReview: boolean }
   | { type: 'NODE'; nodeName: string; data: Record<string, any>; stepNo: number | null };
+
+/** Phase 5 — glossary entry recalled by RAG */
+export interface EvidenceEntry {
+  term: string;
+  description?: string;
+  synonyms?: string;
+  score: number;
+}
+
+/** Phase 5 — few-shot FAQ entry recalled by RAG */
+export interface FaqEntry {
+  question: string;
+  answer: string;
+  score: number;
+}
+
+/** Column descriptor for SQL execution result tables. */
+export interface ResultColumn {
+  name: string;
+  type?: string;
+}

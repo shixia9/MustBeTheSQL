@@ -3,10 +3,14 @@
  * Streams SSE events and displays progressive per-node results as they arrive.
  */
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Database } from 'lucide-react';
+import { Loader2, Database, Table2, BarChart2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AgentStep, StepStatus } from '../../types/agent';
+import SqlCodeBlock from './cards/SqlCodeBlock';
+import EvidenceRecallCard from './cards/EvidenceRecallCard';
+import ResultChart from './cards/ResultChart';
+import ThinkingSection from './cards/ThinkingSection';
 
 interface AgentFlowPanelProps {
   user: any;
@@ -105,10 +109,9 @@ function PlanView({ plan }: { plan: string }) {
   return (
     <div className="mt-1 text-xs">
       {parsed.thought_process && (
-        <details>
-          <summary className="text-on-surface-variant/70 cursor-pointer select-none">Thought process</summary>
-          <p className="text-on-surface-variant/70 mt-1 ml-1 whitespace-pre-wrap">{parsed.thought_process}</p>
-        </details>
+        <ThinkingSection summary="Thought process" defaultOpen={true}>
+          <p className="text-on-surface-variant/70 mt-1 whitespace-pre-wrap">{parsed.thought_process}</p>
+        </ThinkingSection>
       )}
       <div className="mt-1 space-y-0.5">
         {steps.map((s, i) => (
@@ -125,10 +128,11 @@ function PlanView({ plan }: { plan: string }) {
   );
 }
 
-/** Render an SQL execution result as a small table (first 8 rows + count). */
+/** Render an SQL execution result as a small table (first 8 rows + count) with optional chart toggle. */
 function SqlResultView({ raw }: { raw: string }) {
   let parsed: any = null;
   try { parsed = JSON.parse(raw); } catch { /* leave null */ }
+  const [showChart, setShowChart] = useState(false);
   if (!parsed) return null;
   const columns: string[] = Array.isArray(parsed.columns) ? parsed.columns : [];
   const rows: any[] = Array.isArray(parsed.rows) ? parsed.rows : [];
@@ -145,24 +149,44 @@ function SqlResultView({ raw }: { raw: string }) {
   }
   return (
     <div className="mt-1">
-      <div className="text-[10px] text-on-surface-variant/60 mb-0.5">{rowCount} row{rowCount === 1 ? '' : 's'}</div>
-      <div className="overflow-x-auto border border-outline-variant/20 rounded">
-        <table className="text-[10px] w-full border-collapse">
-          <thead>
-            <tr>{columns.map(c => <th key={c} className="px-2 py-1 text-left text-on-surface font-semibold bg-surface-container-low whitespace-nowrap">{c}</th>)}</tr>
-          </thead>
-          <tbody>
-            {showRows.map((r, ri) => (
-              <tr key={ri} className="even:bg-surface-container-low/40">
-                {columns.map(c => <td key={c} className="px-2 py-1 text-on-surface-variant whitespace-nowrap">{r[c] == null ? '—' : String(r[c])}</td>)}
-              </tr>
-            ))}
-            {rows.length > showRows.length && (
-              <tr><td colSpan={columns.length} className="px-2 py-1 text-on-surface-variant/50 italic">… {rows.length - showRows.length} more row(s)</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-0.5">
+        <div className="text-[10px] text-on-surface-variant/60">{rowCount} row{rowCount === 1 ? '' : 's'}</div>
+        <button
+          type="button"
+          onClick={() => setShowChart(v => !v)}
+          className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+            showChart
+              ? 'border-primary/30 bg-primary/10 text-primary'
+              : 'border-outline-variant/30 text-on-surface-variant/60 hover:text-on-surface-variant'
+          }`}
+        >
+          {showChart
+            ? <><Table2 size={10} /> Table</>
+            : <><BarChart2 size={10} /> Chart</>
+          }
+        </button>
       </div>
+      {showChart ? (
+        <ResultChart columns={columns} rows={rows} />
+      ) : (
+        <div className="overflow-x-auto border border-outline-variant/20 rounded">
+          <table className="text-[10px] w-full border-collapse">
+            <thead>
+              <tr>{columns.map(c => <th key={c} className="px-2 py-1 text-left text-on-surface font-semibold bg-surface-container-low whitespace-nowrap">{c}</th>)}</tr>
+            </thead>
+            <tbody>
+              {showRows.map((r, ri) => (
+                <tr key={ri} className="even:bg-surface-container-low/40">
+                  {columns.map(c => <td key={c} className="px-2 py-1 text-on-surface-variant whitespace-nowrap">{r[c] == null ? '—' : String(r[c])}</td>)}
+                </tr>
+              ))}
+              {rows.length > showRows.length && (
+                <tr><td colSpan={columns.length} className="px-2 py-1 text-on-surface-variant/50 italic">… {rows.length - showRows.length} more row(s)</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -231,14 +255,9 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
             </div>
           )}
           {step.data?.pythonCode != null && (
-            <details className="mt-1">
-              <summary className="text-xs text-on-surface-variant/70 cursor-pointer select-none">
-                Generated Python (click to expand)
-              </summary>
-              <pre className="text-[10px] text-on-surface bg-surface-container-low rounded px-3 py-2 mt-1 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto border-l-2 border-primary/30">
-                <code>{step.data.pythonCode}</code>
-              </pre>
-            </details>
+            <ThinkingSection summary="Generated Python" summaryExtra={<span className="text-[9px] text-on-surface-variant/50">{step.data.pythonCode.split('\n').length} lines</span>}>
+              <SqlCodeBlock code={step.data.pythonCode} language="python" />
+            </ThinkingSection>
           )}
           {step.data?.pythonResult != null && (() => {
             let r: any = null;
@@ -268,15 +287,16 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
               <span className="text-primary">{step.data.step != null ? `step ${step.data.step} ` : ''}{step.data.nextNode}</span>
             </div>
           )}
-          {step.data?.rewriteQuery && (
-            <div className="text-on-surface-variant/70 text-xs mb-1">
-              <span className="text-primary">$</span> {step.data.rewriteQuery}
-            </div>
+          {step.data?.rewriteQuery != null && (
+            <EvidenceRecallCard
+              rewriteQuery={step.data.rewriteQuery}
+              evidence={step.data.evidence}
+              evidenceGlossary={step.data.evidenceGlossary}
+              evidenceFaq={step.data.evidenceFaq}
+            />
           )}
           {step.data?.sql && (
-            <pre className="text-xs text-on-surface bg-surface-container-low rounded px-3 py-2 mt-1 overflow-x-auto border-l-2 border-primary/30 whitespace-pre-wrap">
-              <code>{step.data.sql}</code>
-            </pre>
+            <SqlCodeBlock code={step.data.sql} language="sql" />
           )}
           {step.data?.sqlExecutionResult && (
             <SqlResultView raw={step.data.sqlExecutionResult} />
@@ -290,7 +310,7 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
               {'\n'}{step.data.errorMsg}
             </div>
           )}
-          {step.data?.evidence && step.data.evidence !== '' && step.data.evidence !== '无' && (
+          {step.data?.evidence && step.data.evidence !== '' && step.data.evidence !== '无' && !step.data?.rewriteQuery && (
             <div className="text-on-surface-variant/60 text-xs mt-1 italic">{step.data.evidence}</div>
           )}
           {step.data?.filteredTables && Array.isArray(step.data.filteredTables) && step.data.filteredTables.length > 0 && (
@@ -301,14 +321,11 @@ function StepLine({ step, order }: { step: AgentStep; order: number }) {
             </div>
           )}
           {step.data?.tableRelation && (
-            <details className="mt-1">
-              <summary className="text-xs text-on-surface-variant/70 cursor-pointer select-none">
-                Schema Context (click to expand)
-              </summary>
+            <ThinkingSection summary="Schema Context">
               <pre className="text-[10px] text-on-surface-variant/60 mt-1 p-2 bg-surface-container-low rounded overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto">
                 {step.data.tableRelation}
               </pre>
-            </details>
+            </ThinkingSection>
           )}
           {(() => {
             // Report content — try both 'report' (controller-mapped) and 'reportResult' (raw state key)
