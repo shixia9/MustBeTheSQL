@@ -565,10 +565,11 @@ export default function AgentFlowPanel({
                     : step
                 );
                 // Pre-append the next expected node so a running indicator appears,
-                // unless it's a looped node whose step number is unknown at this point.
+                // unless it's a looped node or HITL (HITL only appears when the graph actually
+                // pauses at the interrupt — never pre-insert a fake HITL card).
                 const nextIdx = update.nodeIdx + 1;
                 const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
-                if (nextName && !LOOPED_NODES.has(nextName) && !current.some(s => s.name === nextName)) {
+                if (nextName && nextName !== 'HITL' && !LOOPED_NODES.has(nextName) && !current.some(s => s.name === nextName)) {
                   current = [...current, {
                     id: nextName,
                     name: nextName,
