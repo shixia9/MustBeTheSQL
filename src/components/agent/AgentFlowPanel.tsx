@@ -659,13 +659,6 @@ export default function AgentFlowPanel({
     setError('');
     setConfirming(true);
     setAwaitingConfirmation(false);
-    // Insert a running indicator for the first downstream node so the user sees
-    // the graph resuming. Only the next node, not everything downstream.
-    const resumeNextId = 'PLAN_DISPATCH';
-    setSteps(prev => {
-      if (prev.some(s => s.name === resumeNextId)) return prev;
-      return [...prev, { id: resumeNextId, name: resumeNextId, content: '', status: 'running' as StepStatus }];
-    });
     const feedback = (confirmationFeedback || '').trim() || (approved ? '用户确认继续执行' : '用户取消本次执行');
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
@@ -785,9 +778,9 @@ export default function AgentFlowPanel({
       if (err?.name === 'AbortError') return;
       setSteps(prev => prev.map(s => s.status === 'running' ? { ...s, status: 'error' as StepStatus } : s));
       setError(err.message || 'Connection error');
+      setAwaitingConfirmation(false);
     } finally {
       setConfirming(false);
-      setAwaitingConfirmation(false);
       abortRef.current = null;
     }
   };
@@ -896,6 +889,12 @@ export default function AgentFlowPanel({
 
         {error && (
           <div className="mt-3 flex items-start gap-2 text-error text-xs"><span>✗</span><span>{error}</span></div>
+        )}
+
+        {confirming && (
+          <div className="flex items-center gap-2 text-on-surface-variant/50 text-xs animate-pulse mt-2">
+            <Loader2 className="w-3 h-3 animate-spin" />Resuming execution...
+          </div>
         )}
 
         {isStreaming && steps.length === 0 && (
