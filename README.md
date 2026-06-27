@@ -247,8 +247,9 @@ The frontend communicates with the backend via:
 
 ## 🧪 Project Status
 
-- ✅ **Phase 1**: Basic NL2SQL chat interface
-- ✅ **Phase 2**: Agent timeline with node-level SSE streaming
-- ✅ **Phase 3**: Planner view, SQL/Python execution cards, report rendering
-- ✅ **Phase 4**: HITL approval card, auto-confirm toggle, resume flow
-- ✅ **Phase 5**: Knowledge recall card with RAG results display
+- ✅ **Phase 1**: Single LLM call NL2SQL
+- ✅ **Phase 2**: Schema Linking — FK expansion + LLM table filtering + data sampling
+- ✅ **Phase 3**: Feasibility Assessment + Planner + Plan Dispatch with SQL/Python tool loops
+- ✅ **Phase 4**: Human-in-the-Loop (HITL) — interrupt/resume via StateGraph checkpoints
+- ✅ **Phase 5**: RAG Knowledge — pgvector two-channel retrieval (glossary + few-shot Q/A)
+- 🚧 **Future**: Semantic model integration, multi-turn conversation memory, advanced Python analysis

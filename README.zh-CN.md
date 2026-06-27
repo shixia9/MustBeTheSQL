@@ -247,8 +247,9 @@ npm run preview
 
 ## 🧪 项目阶段
 
-- ✅ **Phase 1**：基础 NL2SQL 对话界面
-- ✅ **Phase 2**：Agent 时间线 + 逐节点 SSE 流式渲染
-- ✅ **Phase 3**：计划视图、SQL/Python 执行卡片、报告渲染
-- ✅ **Phase 4**：HITL 审批卡片、自动确认开关、恢复执行流程
-- ✅ **Phase 5**：知识召回卡片 + RAG 结果展示
+- ✅ **Phase 1**：单次 LLM 调用的 NL2SQL
+- ✅ **Phase 2**：Schema Linking — 外键扩展 + LLM 表过滤 + 数据采样
+- ✅ **Phase 3**：可行性评估 + 计划器 + 计划调度，含 SQL/Python 工具循环
+- ✅ **Phase 4**：人工介入（HITL）— 基于 StateGraph 检查点的中断/恢复
+- ✅ **Phase 5**：RAG 知识库 — pgvector 双通道检索（术语表 + Few-Shot 问答）
+- 🚧 **规划中**：语义模型集成、多轮会话记忆、高级 Python 分析
