@@ -21,7 +21,6 @@ export default function DatabasePage({ user }: DatabasePageProps) {
     port: 3306,
     username: '',
     password: '',
-    dbName: ''
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +59,6 @@ export default function DatabasePage({ user }: DatabasePageProps) {
         port: 3306,
         username: '',
         password: '',
-        dbName: ''
       });
     } else if (selectedId) {
       const conn = connections.find(c => c.id === selectedId);
@@ -72,7 +70,6 @@ export default function DatabasePage({ user }: DatabasePageProps) {
           port: conn.port || 3306,
           username: conn.username || '',
           password: '', // Hidden password
-          dbName: conn.dbName || ''
         });
       }
     }
@@ -322,17 +319,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
                         <Eye className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant cursor-pointer" size={18} />
                       </div>
                     </div>
-                    <div className="md:col-span-2 space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant ml-1">Target Database Schema</label>
-                      <input 
-                        className="w-full px-4 py-3 bg-surface-container-low text-on-surface border-none rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary transition-all disabled:opacity-50" 
-                        type="text" 
-                        value={formData.dbName}
-                        onChange={(e) => setFormData({...formData, dbName: e.target.value})}
-                        disabled={selectedConnIsTest}
-                      />
                     </div>
-                  </div>
 
                   <div className="flex items-center justify-between pt-6 border-t border-outline-variant/10">
                     {selectedId !== 'new' && !selectedConnIsTest ? (

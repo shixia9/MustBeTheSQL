@@ -399,6 +399,12 @@ export default function AgentFlowPanel({
   const [repairCount, setRepairCount] = useState<number>(1);
   const [confirmationFeedback, setConfirmationFeedback] = useState<string>('');
   const [confirming, setConfirming] = useState(false);
+  const [schemas, setSchemas] = useState<string[]>([]);
+  const [selectedSchema, setSelectedSchema] = useState<string>('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyList, setHistoryList] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingSchema, setLoadingSchema] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -414,6 +420,28 @@ export default function AgentFlowPanel({
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
   useEffect(() => { setDbConnected(selectedConnId !== '' && selectedConnId !== null); }, [selectedConnId]);
+
+  // Fetch available schemas when connection changes
+  useEffect(() => {
+    if (!selectedConnId) { setSchemas([]); setSelectedSchema(''); return; }
+    setLoadingSchema(true);
+    fetch(`/api/v1/workspace/schemas?connectionId=${selectedConnId}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: any) => { if (d.code === 200 && Array.isArray(d.data)) { const names = d.data.map((s: any) => s.name); setSchemas(names); if (names.length > 0 && !selectedSchema) setSelectedSchema(names[0]); } })
+      .catch(() => {})
+      .finally(() => setLoadingSchema(false));
+  }, [selectedConnId]);
+
+  // Fetch history when panel is toggled open
+  useEffect(() => {
+    if (!showHistory || !user?.id) return;
+    setLoadingHistory(true);
+    fetch(`/api/v1/agent/history?page=1&size=20`, { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: any) => { if (d.code === 200 && d.data?.records) setHistoryList(d.data.records.map((r: any) => ({ id: r.id, summary: r.summary || '(untitled)', timestamp: r.createTime, status: r.status, input: r.input }))); })
+      .catch(() => {})
+      .finally(() => setLoadingHistory(false));
+  }, [showHistory, user?.id]);
 
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
@@ -451,6 +479,7 @@ export default function AgentFlowPanel({
           tableNames: [],
           llmConfigId: selectedConfigId,
           autoConfirm,
+          schemaContext: selectedSchema || '',
         }),
         signal: abortRef.current.signal,
       });
@@ -785,6 +814,41 @@ export default function AgentFlowPanel({
     }
   };
 
+  /** Load a historical agent session into the timeline. */
+  const loadHistory = async (historyId: number) => {
+    setShowHistory(false);
+    setError('');
+    setAwaitingConfirmation(false);
+    setPendingThreadId(null);
+    try {
+      const execRes = await fetch(`/api/v1/agent/history/${historyId}`, { credentials: 'include' });
+      const execJson = await execRes.json();
+      if (execJson.code !== 200 || !execJson.data) { setError('Failed to load history'); return; }
+      const exec = execJson.data;
+      const stepsRes = await fetch(`/api/v1/agent/history/${historyId}/steps`, { credentials: 'include' });
+      const stepsJson = await stepsRes.json();
+      if (stepsJson.code !== 200) { setError('Failed to load history steps'); return; }
+      const historySteps: any[] = (stepsJson.data || []).map((step: any, i: number) => {
+        let data = {};
+        try { if (step.outputData) data = JSON.parse(step.outputData); } catch {}
+        return {
+          id: `hist-${step.sequenceNo}`,
+          name: step.nodeName,
+          content: '',
+          status: (step.status === 'SUCCESS' ? 'success' : 'error') as StepStatus,
+          data,
+          step: data?.step != null ? data.step : undefined,
+          durationMs: step.durationMs,
+        };
+      });
+      setSteps(historySteps);
+      setSentQuery(exec.input || '');
+      setIsStreaming(false);
+    } catch (e: any) {
+      setError(e.message || 'Failed to load history');
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
       <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
@@ -821,11 +885,48 @@ export default function AgentFlowPanel({
               {connections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
+          <div className="flex items-center gap-1.5">
+            <select
+              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant max-w-[120px]"
+              value={selectedSchema}
+              onChange={(e) => setSelectedSchema(e.target.value)}
+              disabled={!selectedConnId}
+            >
+              <option value="">{loadingSchema ? 'Loading...' : 'Schema'}</option>
+              {schemas.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className="text-on-surface-variant/60 hover:text-on-surface-variant transition-colors"
+            title="Agent History"
+          >⏱</button>
           <div className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-primary' : 'bg-outline-variant'}`} />
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
+      {showHistory && (
+    <div className="border-b border-outline-variant/20 bg-surface-container-low text-xs font-mono">
+      <div className="px-4 py-2 text-on-surface-variant/60 font-bold uppercase tracking-wider">Agent History</div>
+      <div className="max-h-48 overflow-y-auto">
+        {loadingHistory ? (
+          <div className="px-4 py-3 text-on-surface-variant/50">Loading...</div>
+        ) : historyList.length === 0 ? (
+          <div className="px-4 py-3 text-on-surface-variant/50">No history yet.</div>
+        ) : historyList.map((h: any) => (
+          <button
+            key={h.id}
+            onClick={() => loadHistory(h.id)}
+            className="w-full text-left px-4 py-2 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-0"
+          >
+            <div className="text-on-surface text-xs truncate">{h.summary}</div>
+            <div className="text-[10px] text-on-surface-variant/50 mt-0.5">{new Date(h.timestamp).toLocaleString()} {h.status}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )}
+  <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
         {steps.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center h-full opacity-30">
             <div className="text-4xl mb-4">⎈</div>
