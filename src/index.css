@@ -1,65 +1,108 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-headline: "Manrope", sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-primary: #003490;
-  --color-primary-container: #0048c2;
-  --color-surface: #faf8ff;
-  --color-surface-container-low: #f2f3ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-high: #e8e9ff;
-  --color-surface-container-highest: #dae2fd;
-  --color-on-surface: #131b2e;
-  --color-on-surface-variant: #454652;
-  --color-outline-variant: #c6c5d4;
-  --color-error: #ba1a1a;
+  /* Primary */
+  --color-primary: #3568c2;
+  --color-primary-container: #dce6ff;
 
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
+  /* Light theme (default) — soft, eye-friendly */
+  --color-surface: #f5f6f8;
+  --color-surface-container-low: #edeef2;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e4e5ea;
+  --color-surface-container-highest: #dbdce2;
+
+  /* Text */
+  --color-on-surface: #1a1c24;
+  --color-on-surface-variant: #5c5e6a;
+
+  /* Border */
+  --color-outline-variant: #d0d1d8;
+  --color-border: #d0d1d8;
+
+  /* Status */
+  --color-error: #d94545;
+  --color-success: #3b8c5e;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
 }
 
+/* Dark theme override — deeper but not pure-black, comfortable contrast */
 .dark {
-  --color-primary: #a8c7ff;
-  --color-primary-container: #0048c2;
-  --color-surface: #0f1115;
-  --color-surface-container-low: #16181d;
-  --color-surface-container-lowest: #0a0b0e;
-  --color-surface-container-high: #1e2025;
-  --color-surface-container-highest: #2a2c32;
-  --color-on-surface: #e2e2e9;
-  --color-on-surface-variant: #c6c5d4;
-  --color-outline-variant: #3a3c42;
+  --color-primary: #7aadff;
+  --color-primary-container: #1a2d52;
+
+  --color-surface: #16181d;
+  --color-surface-container-low: #1b1d23;
+  --color-surface-container-lowest: #111318;
+  --color-surface-container-high: #212329;
+  --color-surface-container-highest: #282a31;
+
+  --color-on-surface: #d8dae0;
+  --color-on-surface-variant: #9496a0;
+
+  --color-outline-variant: #34363e;
+  --color-border: #34363e;
+
+  --color-error: #f25c5c;
+  --color-success: #4caf7d;
 }
 
 @layer base {
+  *, *::before, *::after {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-outline-variant) transparent;
+  }
+
   body {
-    @apply bg-surface text-on-surface font-sans;
+    @apply bg-surface text-on-surface font-sans antialiased;
+  }
+
+  ::selection {
+    background: rgba(53, 104, 194, 0.15);
+    color: var(--color-on-surface);
   }
 }
 
 @layer components {
-  .diffusion-shadow {
-    box-shadow: 0 12px 32px -4px rgba(19, 27, 46, 0.08);
+  .panel {
+    @apply border border-outline-variant bg-surface-container-low;
   }
 
-  .primary-gradient {
-    background: linear-gradient(135deg, #003490 0%, #0048c2 100%);
+  .input-flat {
+    @apply bg-surface-container-high border border-outline-variant text-on-surface font-mono text-xs px-3 py-1.5 outline-none;
+  }
+  .input-flat:focus {
+    @apply border-primary;
   }
 
-  .glass-panel {
-    background: rgba(218, 226, 253, 0.7);
-    backdrop-filter: blur(12px);
+  .btn-primary {
+    @apply border border-primary text-primary bg-primary/5 px-3 py-1.5 text-xs font-mono hover:bg-primary/10 transition-colors;
+  }
+
+  .btn-danger {
+    @apply border border-error text-error bg-error/5 px-3 py-1.5 text-xs font-mono hover:bg-error/10 transition-colors;
+  }
+
+  .btn-ghost {
+    @apply border border-outline-variant text-on-surface-variant px-3 py-1.5 text-xs font-mono hover:text-on-surface hover:border-on-surface-variant/60 transition-colors;
+  }
+
+  .hr {
+    @apply border-t border-outline-variant;
   }
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -67,10 +110,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c6c5d4;
-  border-radius: 10px;
+  background: var(--color-outline-variant);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a0b0;
+  background: var(--color-on-surface-variant);
 }

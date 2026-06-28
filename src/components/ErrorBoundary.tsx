@@ -51,7 +51,7 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
             </p>
             <button
               onClick={this.handleRetry}
-              className="px-4 py-2 text-xs font-bold primary-gradient text-white rounded-lg shadow-md active:scale-95 transition-transform"
+              className="px-4 py-2 text-xs font-mono border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
             >
               Retry
             </button>

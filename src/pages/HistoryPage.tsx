@@ -183,13 +183,12 @@ export default function HistoryPage({ user }: { user: any }) {
   };
 
   return (
-    <main className="ml-64 pt-14 min-h-screen flex bg-surface-container-low">
+    <main className="ml-[180px] pt-11 min-h-screen flex bg-surface">
       {/* Query Management Table Area */}
       <section className="flex-1 p-8 overflow-hidden flex flex-col gap-8">
         <div className="flex items-end justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant/70 block mb-1">Architecture Overview</span>
-            <h1 className="text-3xl font-extrabold font-headline text-on-surface tracking-tight">Query Ledger</h1>
+            <h1 className="text-sm font-mono font-semibold text-on-surface">Query History</h1>
           </div>
           <div className="flex gap-4">
             <div className="px-4 py-2 bg-surface-container-highest/30 rounded-lg flex flex-col items-end">
@@ -374,7 +373,7 @@ export default function HistoryPage({ user }: { user: any }) {
           >
             <div className="p-6 border-b border-outline-variant/10 flex items-center justify-between">
               <div>
-                <h2 className="font-headline font-bold text-lg text-on-surface leading-tight">Query Detail</h2>
+                <h2 className="font-mono font-bold text-lg text-on-surface leading-tight">Query Detail</h2>
                 <p className="text-[10px] font-bold uppercase text-primary tracking-widest">ID: {selectedQuery.id}</p>
               </div>
               <button 
@@ -463,7 +462,7 @@ export default function HistoryPage({ user }: { user: any }) {
             <div className="p-6 bg-surface-container-highest/20 border-t border-outline-variant/10 grid grid-cols-2 gap-3">
               <button 
                 onClick={() => handleReRun(selectedQuery)}
-                className="flex items-center justify-center gap-2 py-2.5 primary-gradient text-white rounded-md font-bold text-xs uppercase tracking-widest shadow-md active:scale-95 transition-all"
+                className="flex items-center justify-center gap-2 py-2 border border-primary text-primary bg-primary/5 text-xs font-mono hover:bg-primary/10 transition-colors"
               >
                 <RefreshCw size={14} />
                 Re-run

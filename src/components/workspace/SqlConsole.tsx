@@ -182,7 +182,7 @@ export default function SqlConsole({ tab }: SqlConsoleProps) {
           <button
             disabled={isExecuting || !tab.content?.trim()}
             onClick={() => executeSql('all')}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold primary-gradient text-white rounded transition-all hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             title="Execute All (Ctrl+Enter)"
           >
             {isExecuting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}

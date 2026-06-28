@@ -69,7 +69,7 @@ export default function TableCell({ value, maxWidth = 200 }: TableCellProps) {
               className="relative w-full max-w-2xl bg-surface rounded-2xl shadow-2xl overflow-hidden border border-outline-variant/20 flex flex-col max-h-[80vh]"
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/20 bg-surface-container-lowest">
-                <h3 className="text-sm font-bold text-on-surface font-headline tracking-wide uppercase">Cell Content</h3>
+                <h3 className="text-sm font-bold text-on-surface font-mono tracking-wide uppercase">Cell Content</h3>
                 <button 
                   onClick={() => setIsModalOpen(false)}
                   className="p-1.5 rounded-md text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors"

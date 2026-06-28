@@ -127,33 +127,29 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   };
 
   return (
-    <main className="ml-64 pt-14 min-h-screen bg-surface-container-low">
+    <main className="ml-[180px] pt-11 min-h-screen bg-surface">
       <div className="max-w-5xl mx-auto px-8 py-10">
         
         {/* Header */}
-        <div className="mb-8">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant/70 block mb-1">Account Management</span>
-          <h1 className="text-3xl font-extrabold font-headline text-on-surface tracking-tight">Personal Center</h1>
+        <div className="mb-6">
+          <h1 className="text-sm font-mono font-semibold text-on-surface">Profile</h1>
+          <p className="text-xs text-on-surface-variant mt-0.5 font-mono">account settings and security</p>
         </div>
 
         {/* Global Message */}
         {message && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-error/10 text-error border border-error/20'}`}
-          >
-            {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-            <span className="text-sm font-medium">{message.text}</span>
-          </motion.div>
+          <div className={'mb-6 p-3 border text-xs font-mono flex items-center gap-2 ' + (message.type === 'success' ? 'border-success/40 text-success bg-success/5' : 'border-error/40 text-error bg-error/5')}>
+            {message.type === 'success' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            <span>{message.text}</span>
+          </div>
         )}
 
         <div className="grid grid-cols-12 gap-6 pb-24">
           {/* Left Column: Avatar & Status */}
           <div className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="bg-surface-container-lowest p-8 rounded-xl border border-outline-variant/10 flex flex-col items-center">
-              <div className="relative group cursor-pointer mb-6" onClick={() => fileInputRef.current?.click()}>
-                <div className="w-32 h-32 rounded-full overflow-hidden bg-surface-container-highest flex items-center justify-center border-4 border-surface-container-low transition-transform group-hover:scale-105">
+            <div className="border border-outline-variant bg-surface-container-lowest p-6 flex flex-col items-center">
+              <div className="relative group cursor-pointer mb-4" onClick={() => fileInputRef.current?.click()}>
+                <div className="w-24 h-24 border border-outline-variant bg-surface-container-high flex items-center justify-center group-hover:border-primary/40 transition-colors">
                   {user?.avatar ? (
                     <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -171,11 +167,10 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
                   onChange={handleAvatarUpload}
                 />
               </div>
-              <h2 className="text-xl font-bold font-headline text-on-surface">{user?.username}</h2>
-              <p className="text-sm font-medium text-on-surface-variant mt-1 mb-6">{user?.email || 'No email provided'}</p>
-              
-              <div className="w-full pt-6 border-t border-outline-variant/10 flex justify-between items-center">
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider font-label">Account Status</span>
+              <h2 className="text-sm font-mono font-semibold text-on-surface">{user?.username}</h2>
+              <p className="text-xs text-on-surface-variant mt-0.5 mb-4">{user?.email || 'no email'}</p>
+              <div className="w-full pt-4 border-t border-outline-variant flex justify-between items-center">
+                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider font-mono">Account Status</span>
                 <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-md ${
                   user?.status === 1 ? 'bg-primary/10 text-primary' : 
                   user?.status === 2 ? 'bg-orange-500/10 text-orange-500' : 
@@ -191,17 +186,17 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
           <div className="col-span-12 lg:col-span-8 space-y-6">
             
             {/* Basic Info Form */}
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+            <div className="bg-surface-container-lowest p-6 border border-outline-variant/10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-primary/10 p-2 rounded-lg text-primary">
                   <User size={20} />
                 </div>
-                <h2 className="text-lg font-bold font-headline">Basic Information</h2>
+                <h2 className="text-lg font-bold font-mono">Basic Information</h2>
               </div>
               <form onSubmit={handleUpdateProfile} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label mb-2">Username</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono mb-2">Username</label>
                     <input 
                       type="text" 
                       value={username}
@@ -211,7 +206,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label mb-2">Email Address</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono mb-2">Email Address</label>
                     <input 
                       type="email" 
                       value={email}
@@ -234,17 +229,17 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
             </div>
 
             {/* Security Form */}
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+            <div className="bg-surface-container-lowest p-6 border border-outline-variant/10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-primary/10 p-2 rounded-lg text-primary">
                   <Shield size={20} />
                 </div>
-                <h2 className="text-lg font-bold font-headline">Security Settings</h2>
+                <h2 className="text-lg font-bold font-mono">Security Settings</h2>
               </div>
               <form onSubmit={handleUpdatePassword} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label mb-2">Current Password</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono mb-2">Current Password</label>
                     <input 
                       type="password" 
                       value={oldPassword}
@@ -253,7 +248,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label mb-2">New Password</label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono mb-2">New Password</label>
                     <input 
                       type="password" 
                       value={newPassword}
@@ -276,13 +271,13 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
             </div>
 
             {/* Danger Zone */}
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-error/20 relative overflow-hidden">
+            <div className="bg-surface-container-lowest p-6 border border-outline-variant border border-error/20 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-error/80"></div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="bg-error/10 p-2 rounded-lg text-error">
                   <AlertTriangle size={20} />
                 </div>
-                <h2 className="text-lg font-bold font-headline text-error">Danger Zone</h2>
+                <h2 className="text-lg font-bold font-mono text-error">Danger Zone</h2>
               </div>
               <p className="text-sm font-medium text-on-surface-variant mb-6 pl-12">
                 Once you cancel your account, you will be logged out immediately and your status will be frozen. 

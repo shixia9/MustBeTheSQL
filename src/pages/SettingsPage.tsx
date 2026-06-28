@@ -136,28 +136,23 @@ export default function SettingsPage({ user }: { user: any }) {
   const placeholders = providerPlaceholders[formData.providerType] || providerPlaceholders.OPENAI_COMPATIBLE;
 
   return (
-    <main className="ml-64 pt-14 min-h-screen bg-surface">
+    <main className="ml-[180px] pt-11 min-h-screen bg-surface">
       <div className="max-w-6xl mx-auto px-8 py-10">
-        <div className="mb-10">
-          <h1 className="text-3xl font-extrabold font-headline text-on-surface tracking-tight">System Configuration</h1>
-          <p className="text-on-surface-variant mt-1 text-sm font-medium">Fine-tune the Must Be the SQL parameters and security protocols.</p>
+        <div className="mb-6">
+          <h1 className="text-sm font-mono font-semibold text-on-surface">Settings</h1>
+          <p className="text-xs text-on-surface-variant mt-0.5 font-mono">api configs and preferences</p>
         </div>
 
         <div className="grid grid-cols-12 gap-6 pb-24">
           {/* Left: Configuration Sections */}
           <section className="col-span-12 lg:col-span-8 space-y-6">
             {/* LLM Configs Section */}
-            <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/20 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                    <Sliders size={20} />
-                  </div>
-                  <h2 className="text-lg font-bold font-headline">LLM API Configurations</h2>
-                </div>
+            <div className="border border-outline-variant bg-surface-container-lowest p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xs font-mono font-semibold text-on-surface">LLM API Configs</h2>
                 <button
                   onClick={startAdd}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-mono text-primary border border-primary hover:bg-primary/10 transition-colors"
                 >
                   <Plus size={14} />
                   Add Config
@@ -272,7 +267,7 @@ export default function SettingsPage({ user }: { user: any }) {
                     <button
                       onClick={handleSaveConfig}
                       disabled={isSaving}
-                      className={`primary-gradient text-white px-6 py-2 rounded-lg text-xs font-bold shadow-lg shadow-primary/30 active:scale-95 transition-all flex items-center gap-2 ${isSaving ? 'opacity-80 cursor-not-allowed' : ''}`}
+                      className={`border border-primary text-primary bg-primary/5 px-6 py-2 text-xs font-mono hover:bg-primary/10 transition-all flex items-center gap-2 ${isSaving ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
                       {isSaving ? (
                         <>
@@ -290,7 +285,7 @@ export default function SettingsPage({ user }: { user: any }) {
               {/* Config List */}
               <div className="space-y-3">
                 {configs.filter(c => c.status === 1).map(config => (
-                  <div key={config.id} className="flex items-center justify-between bg-surface-container-low rounded-lg px-4 py-3 border border-outline-variant/10 hover:border-primary/20 transition-colors">
+                  <div key={config.id} className="flex items-center justify-between border border-outline-variant bg-surface-container-high px-3 py-2 hover:border-on-surface-variant/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-on-surface truncate">{config.configName}</span>
@@ -368,12 +363,12 @@ export default function SettingsPage({ user }: { user: any }) {
                 <div className="bg-primary/10 p-2 rounded-lg text-primary">
                   <Palette size={20} />
                 </div>
-                <h2 className="text-lg font-bold font-headline">Interface Preferences</h2>
+                <h2 className="text-lg font-bold font-mono">Interface Preferences</h2>
               </div>
 
               <div className="flex flex-wrap gap-12">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label">Theme Mode</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">Theme Mode</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setTheme('light')}
@@ -401,7 +396,7 @@ export default function SettingsPage({ user }: { user: any }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-label">Editor Font Size</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">Editor Font Size</label>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setFontSize(Math.max(10, fontSize - 1))}
@@ -422,59 +417,16 @@ export default function SettingsPage({ user }: { user: any }) {
             </div>
           </section>
 
-          {/* Right: Security Sidebar */}
-          <aside className="col-span-12 lg:col-span-4 space-y-6">
-            <div className="bg-primary-container text-white rounded-xl p-6 relative overflow-hidden shadow-lg">
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <CheckCircle2 className="text-white" size={20} />
-                  <h3 className="font-bold font-headline text-white tracking-tight">Security Best Practices</h3>
-                </div>
-                <ul className="space-y-3">
-                  <li className="flex gap-3 items-start">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/70 mt-1.5 shrink-0"></div>
-                    <p className="text-xs text-white/90 leading-relaxed"><span className="font-bold">Credential Masking:</span> All keys are encrypted at rest (AES) and masked in UI.</p>
-                  </li>
-                  <li className="flex gap-3 items-start">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/70 mt-1.5 shrink-0"></div>
-                    <p className="text-xs text-white/90 leading-relaxed"><span className="font-bold">Read-Only Access:</span> We recommend using read-only credentials for query generation.</p>
-                  </li>
-                  <li className="flex gap-3 items-start">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white/70 mt-1.5 shrink-0"></div>
-                    <p className="text-xs text-white/90 leading-relaxed"><span className="font-bold">SSRF Protection:</span> Base URLs are validated to prevent internal network access.</p>
-                  </li>
-                </ul>
-              </div>
-              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
-            </div>
-
-            <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/20 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold font-headline text-sm uppercase tracking-tight">Session Protection</h3>
-                <Clock className="text-outline-variant" size={20} />
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-on-surface-variant font-medium">Auto-logout timeout</span>
-                  <select className="bg-transparent border-none text-xs font-bold text-primary focus:ring-0 cursor-pointer">
-                    <option>30 Minutes</option>
-                    <option>1 Hour</option>
-                    <option>Never</option>
-                  </select>
-                </div>
-                <div className="pt-4 border-t border-outline-variant/20">
-                  <button className="w-full py-2.5 rounded text-xs font-bold text-error border border-error/20 hover:bg-error/5 transition-colors">
-                    Revoke All Active Sessions
-                  </button>
-                </div>
+          {/* Right: minimal */}
+          <aside className="col-span-12 lg:col-span-4 space-y-4">
+            <div className="border border-outline-variant bg-surface-container-lowest p-4">
+              <div className="text-xs font-mono font-semibold text-on-surface mb-2">About</div>
+              <div className="text-[10px] text-on-surface-variant font-mono leading-relaxed">
+                API keys are encrypted at rest (AES). Use read-only credentials for query generation.
               </div>
             </div>
           </aside>
         </div>
-      </div>
-
-      <div className="fixed bottom-4 right-6 pointer-events-none select-none opacity-5">
-        <span className="font-mono text-8xl font-black">LOGIC.SQL</span>
       </div>
     </main>
   );

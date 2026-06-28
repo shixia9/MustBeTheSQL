@@ -12,15 +12,12 @@ interface WorkspacePageProps {
 export default function WorkspacePage({ user }: WorkspacePageProps) {
   const [connections, setConnections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const { activeConnectionId, setActiveConnectionId } = useWorkspaceStore();
 
   useEffect(() => {
     const fetchConnections = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
+      if (!user?.id) { setLoading(false); return; }
       try {
         const json = await api.get(`/database/list?userId=${user.id}`);
         if (json.code === 200) {
@@ -40,27 +37,27 @@ export default function WorkspacePage({ user }: WorkspacePageProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-surface text-secondary">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div className="flex h-screen items-center justify-center bg-surface">
+        <Loader2 className="w-6 h-6 animate-spin text-on-surface-variant" />
       </div>
     );
   }
 
   return (
-    <div className="ml-64 pt-14 flex h-screen overflow-hidden bg-surface text-on-surface">
-      {/* Sidebar for Connections and Tree */}
-      <div className="w-72 border-r border-outline-variant/30 flex flex-col bg-surface-container-low flex-shrink-0">
-        <div className="p-4 border-b border-outline-variant/30">
-          <div className="flex items-center gap-2 mb-3 text-on-surface-variant text-sm font-medium">
-            <Database className="w-4 h-4" />
-            <span>Connection</span>
+    <div className="ml-[180px] pt-11 flex h-screen overflow-hidden bg-surface">
+      {/* Schema tree sidebar */}
+      <div className="w-56 border-r border-outline-variant flex flex-col bg-surface-container-lowest flex-shrink-0">
+        <div className="p-3 border-b border-outline-variant">
+          <div className="flex items-center gap-1.5 mb-2 text-on-surface-variant text-[10px] font-mono uppercase tracking-wider">
+            <Database className="w-3 h-3" />
+            <span>connection</span>
           </div>
           <select
-            className="w-full bg-surface-container-highest border border-outline-variant/30 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-2 py-1 outline-none focus:border-primary"
             value={activeConnectionId || ''}
             onChange={(e) => setActiveConnectionId(Number(e.target.value))}
           >
-            <option value="" disabled>Select a connection...</option>
+            <option value="" disabled>Select connection</option>
             {connections.map((conn) => (
               <option key={conn.id} value={conn.id}>
                 {conn.name} ({conn.dbType})
@@ -68,20 +65,19 @@ export default function WorkspacePage({ user }: WorkspacePageProps) {
             ))}
           </select>
         </div>
-        
-        {/* Tree Component */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+
+        <div className="flex-1 overflow-y-auto p-1">
           {activeConnectionId ? (
-             <WorkspaceTree connectionId={activeConnectionId} />
+            <WorkspaceTree connectionId={activeConnectionId} />
           ) : (
-            <div className="text-center text-on-surface-variant text-sm mt-10">
-              Please select a connection to view workspace.
+            <div className="text-center text-on-surface-variant/50 text-xs font-mono mt-8">
+              select a connection
             </div>
           )}
         </div>
       </div>
 
-      {/* Main Editor Area */}
+      {/* Editor area */}
       <div className="flex-1 flex flex-col min-w-0 bg-surface">
         <WorkspaceEditor />
       </div>
