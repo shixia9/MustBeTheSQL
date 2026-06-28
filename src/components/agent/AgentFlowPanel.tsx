@@ -2,8 +2,8 @@
  * AgentFlowPanel — terminal/CLI-style Agent timeline.
  * Streams SSE events and displays progressive per-node results as they arrive.
  */
-import { useState, useRef, useEffect } from 'react';
-import { Loader2, Database, Table2, BarChart2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Loader2, Database, Table2, BarChart2, History, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AgentStep, StepStatus } from '../../types/agent';
@@ -403,6 +403,11 @@ export default function AgentFlowPanel({
   const [selectedSchema, setSelectedSchema] = useState<string>('');
   const [showHistory, setShowHistory] = useState(false);
   const [historyList, setHistoryList] = useState<any[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historySize, setHistorySize] = useState(8);
+  const [historyKeyword, setHistoryKeyword] = useState('');
+  const [historySearchInput, setHistorySearchInput] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -432,16 +437,49 @@ export default function AgentFlowPanel({
       .finally(() => setLoadingSchema(false));
   }, [selectedConnId]);
 
-  // Fetch history when panel is toggled open
+  // Fetch history (paged + searchable) whenever the modal opens or its
+  // pagination / query params change.
+  const fetchHistory = useCallback((page: number, kw: string) => {
+    setLoadingHistory(true);
+    const qs = new URLSearchParams({ page: String(page), size: String(historySize) });
+    if (kw.trim()) qs.set('keyword', kw.trim());
+    fetch(`/api/v1/agent/history?${qs.toString()}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: any) => {
+        if (d.code === 200 && d.data) {
+          const recs: any[] = d.data.records || [];
+          setHistoryList(recs.map((r: any) => ({
+            id: r.id,
+            summary: r.summary || '(untitled)',
+            input: r.input || '',
+            timestamp: r.createTime,
+            status: r.status,
+          })));
+          setHistoryTotal(d.data.total ?? recs.length);
+          setHistoryPage(page);
+        } else {
+          setHistoryList([]); setHistoryTotal(0);
+        }
+      })
+      .catch(() => { setHistoryList([]); setHistoryTotal(0); })
+      .finally(() => setLoadingHistory(false));
+  }, [historySize]);
+
+  // Fetch history when the modal is toggled open
   useEffect(() => {
     if (!showHistory || !user?.id) return;
-    setLoadingHistory(true);
-    fetch(`/api/v1/agent/history?page=1&size=20`, { credentials: 'include' })
-      .then(r => r.json())
-      .then((d: any) => { if (d.code === 200 && d.data?.records) setHistoryList(d.data.records.map((r: any) => ({ id: r.id, summary: r.summary || '(untitled)', timestamp: r.createTime, status: r.status, input: r.input }))); })
-      .catch(() => {})
-      .finally(() => setLoadingHistory(false));
+    setHistorySearchInput(historyKeyword);
+    fetchHistory(1, historyKeyword);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showHistory, user?.id]);
+
+  // Close the history modal on Escape
+  useEffect(() => {
+    if (!showHistory) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowHistory(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showHistory]);
 
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
@@ -829,7 +867,7 @@ export default function AgentFlowPanel({
       const stepsJson = await stepsRes.json();
       if (stepsJson.code !== 200) { setError('Failed to load history steps'); return; }
       const historySteps: any[] = (stepsJson.data || []).map((step: any, i: number) => {
-        let data = {};
+        let data: any = {};
         try { if (step.outputData) data = JSON.parse(step.outputData); } catch {}
         return {
           id: `hist-${step.sequenceNo}`,
@@ -849,21 +887,40 @@ export default function AgentFlowPanel({
     }
   };
 
+  /** Delete a historical session (and its steps) permanently. */
+  const deleteHistory = async (historyId: number) => {
+    if (!window.confirm('Delete this session permanently? This cannot be undone.')) return;
+    const kw = historyKeyword;
+    const prevPage = historyPage;
+    try {
+      const res = await fetch(`/api/v1/agent/history/${historyId}`, {
+        method: 'DELETE', credentials: 'include',
+      });
+      const j = await res.json();
+      if (j.code !== 200) { setError(j.message || 'Failed to delete'); return; }
+      // Refresh the current view; if we deleted the last item on a page >1, step back.
+      let pageToFetch = prevPage;
+      const remainingEstimate = historyTotal - 1;
+      const lastPage = Math.max(1, Math.ceil(remainingEstimate / historySize));
+      if (pageToFetch > lastPage) pageToFetch = lastPage;
+      fetchHistory(pageToFetch, kw);
+    } catch (e: any) {
+      setError(e.message || 'Failed to delete');
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
-      <div className="flex items-center justify-between px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-primary font-bold text-sm font-mono">SQL Agent</span>
-          <span className="text-on-surface-variant/40 text-xs font-mono">v2.0</span>
-        </div>
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
+        {/* Left: controls — Auto-confirm, database, schema */}
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
           <label
             className="flex items-center gap-1.5 cursor-pointer select-none"
             title={autoConfirm
               ? 'Auto-confirm ON: plans skip the review gate and execute automatically.'
               : 'Auto-confirm OFF: the LLM gate decides whether a plan needs your approval before execution.'}
           >
-            <span className="text-[10px] text-on-surface-variant/70 font-mono">Auto-confirm</span>
+            <span className="text-[10px] text-on-surface-variant/70 font-mono uppercase tracking-wider">Auto-confirm</span>
             <button
               type="button"
               role="switch"
@@ -874,10 +931,11 @@ export default function AgentFlowPanel({
               <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-surface transition-transform ${autoConfirm ? 'translate-x-4' : ''}`} />
             </button>
           </label>
+          <span className="w-px h-4 bg-outline-variant/30" />
           <div className="flex items-center gap-1.5">
             <Database size={12} className={dbConnected ? 'text-primary' : 'text-on-surface-variant/40'} />
             <select
-              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant"
+              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant cursor-pointer"
               value={selectedConnId}
               onChange={(e) => onConnectionChange(e.target.value ? Number(e.target.value) : 0)}
             >
@@ -887,7 +945,7 @@ export default function AgentFlowPanel({
           </div>
           <div className="flex items-center gap-1.5">
             <select
-              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant max-w-[120px]"
+              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant max-w-[120px] cursor-pointer"
               value={selectedSchema}
               onChange={(e) => setSelectedSchema(e.target.value)}
               disabled={!selectedConnId}
@@ -896,37 +954,131 @@ export default function AgentFlowPanel({
               {schemas.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <button
-            onClick={() => setShowHistory(v => !v)}
-            className="text-on-surface-variant/60 hover:text-on-surface-variant transition-colors"
-            title="Agent History"
-          >⏱</button>
-          <div className={`w-2 h-2 rounded-full ${dbConnected ? 'bg-primary' : 'bg-outline-variant'}`} />
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dbConnected ? 'bg-primary' : 'bg-outline-variant'}`}
+            title={dbConnected ? 'Connected' : 'Not connected'} />
         </div>
+
+        {/* Right: history button (prominent, labelled) */}
+        <button
+          onClick={() => setShowHistory(true)}
+          className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant/30 hover:border-primary/40 transition-colors"
+          title="Agent History"
+        >
+          <History size={13} />
+          <span className="hidden sm:inline uppercase tracking-wider">History</span>
+        </button>
       </div>
 
       {showHistory && (
-    <div className="border-b border-outline-variant/20 bg-surface-container-low text-xs font-mono">
-      <div className="px-4 py-2 text-on-surface-variant/60 font-bold uppercase tracking-wider">Agent History</div>
-      <div className="max-h-48 overflow-y-auto">
-        {loadingHistory ? (
-          <div className="px-4 py-3 text-on-surface-variant/50">Loading...</div>
-        ) : historyList.length === 0 ? (
-          <div className="px-4 py-3 text-on-surface-variant/50">No history yet.</div>
-        ) : historyList.map((h: any) => (
-          <button
-            key={h.id}
-            onClick={() => loadHistory(h.id)}
-            className="w-full text-left px-4 py-2 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-0"
-          >
-            <div className="text-on-surface text-xs truncate">{h.summary}</div>
-            <div className="text-[10px] text-on-surface-variant/50 mt-0.5">{new Date(h.timestamp).toLocaleString()} {h.status}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  )}
-  <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowHistory(false); }}
+        >
+          <div className="w-[640px] max-w-[92vw] max-h-[80vh] flex flex-col bg-surface border border-outline-variant/40 rounded-lg shadow-2xl font-mono overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/20 bg-surface-container-low">
+              <div className="flex items-center gap-2">
+                <History size={14} className="text-primary" />
+                <span className="text-sm text-on-surface font-semibold uppercase tracking-wider">Agent History</span>
+                <span className="text-[10px] text-on-surface-variant/50">({historyTotal} session{historyTotal === 1 ? '' : 's'})</span>
+              </div>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-on-surface-variant/60 hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-container-highest"
+                title="Close (Esc)"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Search bar */}
+            <div className="px-4 py-2.5 border-b border-outline-variant/10 bg-surface">
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/40" />
+                <input
+                  type="text"
+                  value={historySearchInput}
+                  onChange={(e) => setHistorySearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setHistoryKeyword(historySearchInput);
+                      fetchHistory(1, historySearchInput);
+                    }
+                  }}
+                  placeholder="Search sessions by title or query…  (Enter to search)"
+                  className="w-full bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 rounded pl-8 pr-3 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
+                />
+              </div>
+            </div>
+
+            {/* Sessions list */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {loadingHistory ? (
+                <div className="px-4 py-6 text-center text-on-surface-variant/50 text-xs flex items-center justify-center gap-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+                </div>
+              ) : historyList.length === 0 ? (
+                <div className="px-4 py-10 text-center text-on-surface-variant/50 text-xs">
+                  No history found<span className="text-on-surface-variant/30">.</span>
+                </div>
+              ) : historyList.map((h: any) => (
+                <div
+                  key={h.id}
+                  className="group w-full text-left px-4 py-2.5 hover:bg-primary/5 border-b border-outline-variant/10 last:border-0 transition-colors flex items-start gap-2"
+                >
+                  <span className="text-primary/50 flex-shrink-0 mt-0.5 cursor-pointer" onClick={() => loadHistory(h.id)}>❯</span>
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => loadHistory(h.id)}>
+                    <div className="flex items-center gap-2">
+                      {h.status && (
+                        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${h.status === 'COMPLETED' ? 'bg-[#16a34a]' : 'bg-amber-500'}`} />
+                      )}
+                      <span className="text-on-surface text-xs truncate group-hover:text-primary transition-colors">{h.summary}</span>
+                    </div>
+                    {h.input && h.input !== h.summary && (
+                      <div className="text-[10px] text-on-surface-variant/40 mt-0.5 truncate">{h.input}</div>
+                    )}
+                    <div className="text-[10px] text-on-surface-variant/40 mt-0.5">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</div>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteHistory(h.id); }}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-on-surface-variant/40 hover:text-error hover:bg-error/10 rounded p-1 transition-all"
+                    title="Delete session"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination footer */}
+            <div className="flex items-center justify-between px-4 py-2 border-t border-outline-variant/20 bg-surface-container-low">
+              <span className="text-[10px] text-on-surface-variant/50">
+                Page {historyPage} of {Math.max(1, Math.ceil(historyTotal / historySize))}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { const p = Math.max(1, historyPage - 1); fetchHistory(p, historyKeyword); }}
+                  disabled={historyPage <= 1 || loadingHistory}
+                  className="p-1 rounded text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Previous page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  onClick={() => { const last = Math.ceil(historyTotal / historySize); const p = Math.min(last, historyPage + 1); fetchHistory(p, historyKeyword); }}
+                  disabled={historyPage >= Math.ceil(historyTotal / historySize) || loadingHistory}
+                  className="p-1 rounded text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Next page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 p-4 font-mono text-sm leading-relaxed" style={{ scrollBehavior: 'smooth' }}>
         {steps.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center h-full opacity-30">
             <div className="text-4xl mb-4">⎈</div>
