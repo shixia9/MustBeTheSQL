@@ -61,11 +61,11 @@ export default function WorkspaceEditor() {
   return (
     <div className="flex flex-col h-full bg-surface w-full overflow-hidden">
       {/* Tabs Header */}
-      <div className="flex bg-surface-container-low border-b border-outline-variant/30 overflow-x-auto custom-scrollbar">
+      <div className="flex bg-surface-container-low border-b border-outline-variant overflow-x-auto custom-scrollbar">
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`flex items-center min-w-0 max-w-[200px] px-4 py-2 text-sm border-r border-outline-variant/30 cursor-pointer select-none
+            className={`flex items-center min-w-0 max-w-[200px] px-4 py-2 text-sm border-r border-outline-variant cursor-pointer select-none
               ${activeTabId === tab.id ? 'bg-surface text-primary border-t-2 border-t-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-highest'}`}
             onClick={() => setActiveTabId(tab.id)}
           >
@@ -95,7 +95,7 @@ export default function WorkspaceEditor() {
               {activeTab.type === 'table' && (
                 <button 
                   onClick={() => fetchTablePreview(activeTab.connectionId, activeTab.schemaName, activeTab.tableName)}
-                  className="flex items-center gap-1 px-3 py-1 bg-surface-container-low hover:bg-primary/10 hover:text-primary rounded-md text-sm transition-colors border border-outline-variant/30"
+                  className="flex items-center gap-1 px-3 py-1 bg-surface-container-low hover:bg-primary/10 hover:text-primary  text-sm transition-colors border border-outline-variant/30"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
                 </button>
@@ -109,13 +109,13 @@ export default function WorkspaceEditor() {
             )}
 
             {activeTab.type === 'query' && (
-              <div className="flex-1 bg-surface-container-lowest rounded-md p-4 overflow-auto border border-outline-variant/30">
+              <div className="flex-1 bg-surface-container-lowest  p-4 overflow-auto border border-outline-variant/30">
                 <ReactMarkdown
                   components={{
                     code({ node, inline, className, children, ...props }: any) {
                       const match = /language-(\w+)/.exec(className || 'language-sql');
                       return !inline ? (
-                        <pre className="bg-[#1e1e1e] p-4 rounded-md overflow-x-auto font-mono text-sm leading-relaxed text-gray-300 shadow-inner">
+                        <pre className="bg-[#1e1e1e] border border-outline-variant/30 p-4  overflow-x-auto font-mono text-sm leading-relaxed text-gray-300 ">
                           <code className={className} {...props}>
                             {children}
                           </code>
@@ -134,10 +134,10 @@ export default function WorkspaceEditor() {
             )}
 
             {activeTab.type === 'table' && (
-              <div className="flex-1 overflow-auto rounded-xl border border-outline-variant/30 relative bg-surface-container-lowest shadow-sm">
+              <div className="flex-1 overflow-auto border border-outline-variant relative bg-surface-container-lowest">
                 {loading && (
-                  <div className="absolute inset-0 bg-surface/50 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl transition-all">
-                    <div className="bg-surface-container-highest p-3 rounded-full shadow-lg mb-3">
+                  <div className="absolute inset-0 bg-surface/50  z-10 flex flex-col items-center justify-center rounded-xl transition-all">
+                    <div className="bg-surface-container-highest p-3 mb-3">
                       <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                     </div>
                     <span className="text-sm font-medium text-on-surface-variant tracking-wide">Loading Data...</span>
@@ -145,7 +145,7 @@ export default function WorkspaceEditor() {
                 )}
                 {tableData.length > 0 ? (
                   <table className="w-full text-left border-collapse text-sm">
-                    <thead className="bg-surface-container-low sticky top-0 z-20 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                    <thead className="bg-surface-container-low sticky top-0 z-20 ">
                       <tr>
                         <th className="py-3 px-4 border-b border-outline-variant/30 font-bold text-on-surface-variant w-12 text-center">#</th>
                         {columns.map((col, i) => (

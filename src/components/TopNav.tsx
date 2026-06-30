@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, User as UserIcon, LogOut, Zap } from 'lucide-react';
+import { ChevronDown, User as UserIcon, LogOut, Zap, Database, Activity } from 'lucide-react';
 import { api } from '../api/client';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
 
@@ -39,21 +39,21 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
   };
 
   return (
-    <header className="bg-surface-container-lowest flex justify-between items-center w-full pl-[180px] pr-4 h-11 z-50 fixed top-0 border-b border-outline-variant">
+    <header className="bg-surface-container-lowest flex justify-between items-center w-full pl-[200px] pr-5 h-12 z-50 fixed top-0 border-b border-outline-variant">
       {/* Left: model selector */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <div className="relative" ref={modelDropdownRef}>
           <button
-            className="flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors"
+            className="flex items-center gap-2 text-sm font-mono text-on-surface-variant hover:text-on-surface transition-colors border border-outline-variant px-3 py-1"
             onClick={() => setShowModelDropdown(!showModelDropdown)}
           >
-            <Zap size={12} className="text-primary" />
-            <span>{selectedConfig ? selectedConfig.configName : 'system'}</span>
-            <ChevronDown size={12} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+            <Zap size={14} className="text-primary" />
+            <span>{selectedConfig ? selectedConfig.configName : 'system default'}</span>
+            <ChevronDown size={13} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           {showModelDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-64 bg-surface-container-high border border-outline-variant py-1 z-50 max-h-72 overflow-y-auto font-mono text-xs">
+            <div className="absolute top-full left-0 mt-1.5 w-64 bg-surface-container-high border border-outline-variant py-1 z-50 max-h-72 overflow-y-auto font-mono text-sm">
               <div className="px-3 py-1.5 text-[10px] text-on-surface-variant/60 uppercase tracking-wider">API Configs</div>
               {configs.filter(c => c.status === 1).map(config => (
                 <button
@@ -87,28 +87,38 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
             </div>
           )}
         </div>
+
+        {/* Middle: status indicator */}
+        <div className="text-xs font-mono text-on-surface-variant/50 flex items-center gap-2 border-l border-outline-variant pl-4">
+          <span className="w-2 h-2 bg-primary inline-block" />
+          <span>{configs.find(c => c.id === selectedConfigId)?.modelName || 'active'}</span>
+        </div>
       </div>
 
       {/* Right: user */}
       <div className="flex items-center gap-3">
+        <div className="text-xs font-mono text-on-surface-variant/50 hidden sm:block">
+          <Activity size={14} className="inline mr-1" />
+          <span>token quota: {Math.max(0, user?.tokenQuota || 0).toLocaleString()}</span>
+        </div>
         <div className="relative">
           <button
-            className="flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors"
+            className="flex items-center gap-2 text-sm font-mono text-on-surface-variant hover:text-on-surface transition-colors"
             onClick={() => setShowDropdown(!showDropdown)}
           >
-            <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center border border-primary/20">
+            <div className="w-7 h-7 bg-primary-container flex items-center justify-center border border-primary/20">
               {user?.avatar ? (
-                <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                <img src={user.avatar} alt="" className="w-full h-full object-cover" />
               ) : (
-                <UserIcon size={13} className="text-primary" />
+                <UserIcon size={15} className="text-primary" />
               )}
             </div>
             <span>{user?.username ?? 'user'}</span>
-            <ChevronDown size={12} />
+            <ChevronDown size={13} />
           </button>
 
           {showDropdown && (
-            <div className="absolute right-0 mt-1 w-40 bg-surface-container-high border border-outline-variant py-1 z-50 font-mono text-xs">
+            <div className="absolute right-0 mt-1.5 w-40 bg-surface-container-high border border-outline-variant py-1 z-50 font-mono text-sm">
               <button
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-on-surface hover:bg-surface-container-highest transition-colors"
                 onClick={() => {
@@ -116,14 +126,14 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                   window.dispatchEvent(new CustomEvent('navigate', { detail: 'profile' }));
                 }}
               >
-                <UserIcon size={13} />
+                <UserIcon size={14} />
                 Profile
               </button>
               <button
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-on-surface hover:bg-surface-container-highest transition-colors"
                 onClick={handleLogout}
               >
-                <LogOut size={13} className="text-error" />
+                <LogOut size={14} className="text-error" />
                 Logout
               </button>
             </div>

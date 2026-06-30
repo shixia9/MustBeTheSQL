@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Database, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { api } from '../api/client';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface DatabasePageProps { user?: any; }
 
@@ -12,6 +13,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => { if (user.id) load(); }, [user]);
 
@@ -22,9 +24,9 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const toast_ = (m: string, t: 'ok' | 'err' = 'ok') => { setToast({ msg: m, type: t }); setTimeout(() => setToast(null), 3000); };
   const testConn = async () => { setTesting(true); try { const p: any = { ...f, userId: user.id }; if (sid !== 'new') p.id = sid; const d = await api.post('/database/test', p); toast_(d.code === 200 && d.data === true ? 'OK' : (d.message || 'Failed'), d.code === 200 && d.data === true ? 'ok' : 'err'); } catch { toast_('Error', 'err'); } finally { setTesting(false); } };
   const saveConn = async () => { setSaving(true); try { const p: any = { ...f, userId: user.id }; const upd = sid !== 'new'; if (upd) p.id = sid; const d = upd ? await api.put('/database/update?userId=' + user.id, p) : await api.post('/database/add', p); if (d.code === 200) { toast_(upd ? 'Updated' : 'Created', 'ok'); await load(); if (!upd) setSid(d.data.id); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } finally { setSaving(false); } };
-  const delConn = async () => { if (sid === 'new') return; if (!confirm('Delete connection?')) return; try { const d = await api.delete('/database/delete/' + sid + '?userId=' + user.id); if (d.code === 200) { toast_('Deleted', 'ok'); setSid(null); load(); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } };
+  const delConn = async () => { if (sid === 'new') return; setConfirmDelete(false); try { const d = await api.delete('/database/delete/' + sid + '?userId=' + user.id); if (d.code === 200) { toast_('Deleted', 'ok'); setSid(null); load(); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } };
   const isTest = sid !== 'new' && conns.find(c => c.id === sid)?.isTest === 1;  return (
-    <main className="ml-[180px] pt-11 min-h-screen bg-surface">
+    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
       <div className="max-w-7xl mx-auto p-6">
         <header className="mb-6">
           <h1 className="text-sm font-mono font-semibold text-on-surface">Database Connections</h1>
@@ -111,7 +113,7 @@ export default function DatabasePage({ user }: DatabasePageProps) {
 
                   <div className="flex items-center justify-between pt-5 border-t border-outline-variant">
                     {sid !== 'new' && !isTest ? (
-                      <button onClick={delConn}
+                      <button onClick={() => setConfirmDelete(true)}
                         className="px-4 py-2 border border-error/50 text-error text-xs font-mono hover:bg-error/10 transition-colors flex items-center gap-1.5">
                         <Trash2 size={13} /> Delete
                       </button>
@@ -136,12 +138,24 @@ export default function DatabasePage({ user }: DatabasePageProps) {
           </section>
         </div>
 
+
         {toast && (
           <div className={'fixed bottom-6 right-6 z-50 px-4 py-3 border text-xs font-mono flex items-center gap-2 ' + (toast.type === 'ok' ? 'border-success/40 text-success bg-success/10' : 'border-error/40 text-error bg-error/10')}>
             <span>{toast.msg}</span>
             <button onClick={() => setToast(null)} className="ml-2 opacity-60 hover:opacity-100"><X size={13} /></button>
           </div>
         )}
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete Connection"
+          message="Delete this connection permanently? All associated data will be lost."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={delConn}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
       </div>
     </main>
   );

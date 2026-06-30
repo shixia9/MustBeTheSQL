@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { User, Mail, Shield, AlertTriangle, Camera, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { api, apiFetch } from '../api/client';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface ProfilePageProps {
   user: any;
@@ -19,7 +20,8 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  
+
+  const [confirmStep, setConfirmStep] = useState<0 | 1 | 2>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -108,12 +110,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   };
 
   const handleCancelAccount = async () => {
-    const confirm1 = window.confirm("Are you sure you want to cancel your account? This action will freeze your access.");
-    if (!confirm1) return;
-    
-    const confirm2 = window.confirm("Final warning: Your account will be marked as cancelled. Continue?");
-    if (!confirm2) return;
-
+    setConfirmStep(0);
     try {
       const data = await api.post(`/user/cancelAccount?userId=${user.id}`);
       if (data.code === 200) {
@@ -127,7 +124,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   };
 
   return (
-    <main className="ml-[180px] pt-11 min-h-screen bg-surface">
+    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
       <div className="max-w-5xl mx-auto px-8 py-10">
         
         {/* Header */}
@@ -284,9 +281,9 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
                 Your historical data will be retained for audit purposes.
               </p>
               <div className="pl-12">
-                <button 
-                  onClick={handleCancelAccount}
-                  className="px-6 py-2.5 bg-error text-white rounded-lg text-sm font-bold hover:bg-error/90 transition-colors"
+                <button
+                  onClick={() => setConfirmStep(1)}
+                  className="px-4 py-1.5 text-xs font-mono border border-error/60 text-error hover:bg-error/10 transition-colors"
                 >
                   Cancel Account
                 </button>
@@ -296,6 +293,27 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
           </div>
         </div>
       </div>
+
+      {confirmStep === 1 && (
+        <ConfirmDialog
+          title="Cancel Account"
+          message="Are you sure you want to cancel your account? This action will freeze your access."
+          confirmLabel="Continue"
+          variant="danger"
+          onConfirm={() => setConfirmStep(2)}
+          onCancel={() => setConfirmStep(0)}
+        />
+      )}
+      {confirmStep === 2 && (
+        <ConfirmDialog
+          title="Final Warning"
+          message="Your account will be marked as cancelled. This cannot be undone. Continue?"
+          confirmLabel="Yes, Cancel My Account"
+          variant="danger"
+          onConfirm={handleCancelAccount}
+          onCancel={() => setConfirmStep(0)}
+        />
+      )}
     </main>
   );
 }

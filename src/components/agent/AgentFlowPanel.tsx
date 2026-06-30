@@ -11,6 +11,7 @@ import SqlCodeBlock from './cards/SqlCodeBlock';
 import EvidenceRecallCard from './cards/EvidenceRecallCard';
 import ResultChart from './cards/ResultChart';
 import ThinkingSection from './cards/ThinkingSection';
+import ConfirmDialog from '../ConfirmDialog';
 
 interface AgentFlowPanelProps {
   user: any;
@@ -410,6 +411,7 @@ export default function AgentFlowPanel({
   const [historySearchInput, setHistorySearchInput] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -889,7 +891,7 @@ export default function AgentFlowPanel({
 
   /** Delete a historical session (and its steps) permanently. */
   const deleteHistory = async (historyId: number) => {
-    if (!window.confirm('Delete this session permanently? This cannot be undone.')) return;
+    setConfirmDeleteId(null);
     const kw = historyKeyword;
     const prevPage = historyPage;
     try {
@@ -911,7 +913,7 @@ export default function AgentFlowPanel({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
-      <div className="flex items-center justify-between gap-3 px-4 py-2 bg-surface-container-low border-b border-outline-variant/20 flex-shrink-0">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 bg-surface-container-low border-b border-outline-variant flex-shrink-0">
         {/* Left: controls — Auto-confirm, database, schema */}
         <div className="flex items-center gap-3 flex-wrap min-w-0">
           <label
@@ -926,16 +928,16 @@ export default function AgentFlowPanel({
               role="switch"
               aria-checked={autoConfirm}
               onClick={() => toggleAutoConfirm(!autoConfirm)}
-              className={`relative w-8 h-4 rounded-full transition-colors ${autoConfirm ? 'bg-primary' : 'bg-outline-variant/50'}`}
+              className={`relative w-7 h-3.5 transition-colors ${autoConfirm ? 'bg-primary' : 'bg-outline-variant/50'}`}
             >
-              <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-surface transition-transform ${autoConfirm ? 'translate-x-4' : ''}`} />
+              <span className={`absolute top-0.5 left-0.5 w-2.5 h-2.5 bg-surface transition-transform ${autoConfirm ? 'translate-x-3.5' : ''}`} />
             </button>
           </label>
           <span className="w-px h-4 bg-outline-variant/30" />
           <div className="flex items-center gap-1.5">
-            <Database size={12} className={dbConnected ? 'text-primary' : 'text-on-surface-variant/40'} />
+            <Database size={14} className={dbConnected ? 'text-primary' : 'text-on-surface-variant/40'} />
             <select
-              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant cursor-pointer"
+              className="bg-surface-container-high text-xs font-mono text-on-surface border border-outline-variant px-3 py-1.5 outline-none focus:border-primary cursor-pointer"
               value={selectedConnId}
               onChange={(e) => onConnectionChange(e.target.value ? Number(e.target.value) : 0)}
             >
@@ -945,7 +947,7 @@ export default function AgentFlowPanel({
           </div>
           <div className="flex items-center gap-1.5">
             <select
-              className="bg-transparent text-xs font-mono text-on-surface-variant border border-outline-variant/30 rounded px-2 py-0.5 outline-none focus:border-outline-variant max-w-[120px] cursor-pointer"
+              className="bg-surface-container-high text-xs font-mono text-on-surface border border-outline-variant px-3 py-1.5 w-40 outline-none focus:border-primary cursor-pointer"
               value={selectedSchema}
               onChange={(e) => setSelectedSchema(e.target.value)}
               disabled={!selectedConnId}
@@ -954,14 +956,14 @@ export default function AgentFlowPanel({
               {schemas.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dbConnected ? 'bg-primary' : 'bg-outline-variant'}`}
+          <div className={'w-1.5 h-1.5 ' + (dbConnected ? 'bg-primary' : 'bg-outline-variant/50')}
             title={dbConnected ? 'Connected' : 'Not connected'} />
         </div>
 
         {/* Right: history button (prominent, labelled) */}
         <button
           onClick={() => setShowHistory(true)}
-          className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant/30 hover:border-primary/40 transition-colors"
+          className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant hover:border-primary/40 transition-colors"
           title="Agent History"
         >
           <History size={13} />
@@ -1040,7 +1042,7 @@ export default function AgentFlowPanel({
                     <div className="text-[10px] text-on-surface-variant/40 mt-0.5">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</div>
                   </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); deleteHistory(h.id); }}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(h.id); }}
                     className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-on-surface-variant/40 hover:text-error hover:bg-error/10 rounded p-1 transition-all"
                     title="Delete session"
                   >
@@ -1188,6 +1190,17 @@ export default function AgentFlowPanel({
           <p className="px-4 pb-2 text-[10px] text-error font-mono">Select a database connection before running queries.</p>
         )}
       </div>
+
+      {confirmDeleteId !== null && (
+        <ConfirmDialog
+          title="Delete Session"
+          message="Delete this session permanently? This cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={() => deleteHistory(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   );
 }

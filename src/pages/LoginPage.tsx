@@ -60,68 +60,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <div className="min-h-screen flex bg-surface">
-      {/* Left: Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-3">
-              <Terminal size={20} className="text-primary" />
-              <span className="font-mono text-sm font-semibold text-primary tracking-tight">MustBeTheSQL</span>
-            </div>
-            <h2 className="font-mono text-base text-on-surface font-semibold mb-1">
-              {isLoginMode ? 'login' : 'register'}
-            </h2>
-            <p className="text-xs text-on-surface-variant font-mono">
-              {isLoginMode ? 'authenticate to continue' : 'create a new account'}
-            </p>
-          </div>
-
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {error && (
-              <div className="px-3 py-2 border border-error text-error text-xs font-mono">{error}</div>
-            )}
-
-            {!isLoginMode && (
-              <div>
-                <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">username</label>
-                <input className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary placeholder-on-surface-variant/40"
-                  placeholder="username" type="text" value={username}
-                  onChange={(e) => setUsername(e.target.value)} required={!isLoginMode} />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">email</label>
-              <input className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary placeholder-on-surface-variant/40"
-                placeholder="name@example.com" type="email" value={email}
-                onChange={(e) => setEmail(e.target.value)} required />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">password</label>
-              <input className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary placeholder-on-surface-variant/40"
-                placeholder="..." type="password" value={password}
-                onChange={(e) => setPassword(e.target.value)} required />
-            </div>
-
-            <button
-              className="w-full py-2 border border-primary text-primary text-xs font-mono hover:bg-primary/10 transition-colors disabled:opacity-40"
-              type="submit" disabled={isLoading}>
-              {isLoading ? '...' : isLoginMode ? 'login' : 'register'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <button type="button" onClick={() => { setIsLoginMode(!isLoginMode); setError(''); }}
-              className="text-xs font-mono text-on-surface-variant hover:text-primary transition-colors">
-              {isLoginMode ? 'create account' : 'sign in'}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Right: Terminal Animation */}
-      <div className="hidden lg:flex lg:w-[45%] bg-surface-container-lowest border-l border-outline-variant items-center justify-center relative overflow-hidden">
+      {/* Left: Terminal Animation */}
+      <div className="hidden lg:flex lg:w-[45%] bg-surface-container-lowest border-r border-outline-variant items-center justify-center relative overflow-hidden">
         {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'linear-gradient(var(--color-outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--color-outline-variant) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
@@ -156,6 +96,65 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 <div className="text-[9px] font-mono text-on-surface-variant/50">{s.sub}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Login Form */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              <Terminal size={20} className="text-primary" />
+              <span className="font-mono text-sm font-semibold text-primary tracking-tight">MustBeTheSQL</span>
+            </div>
+            <h2 className="font-mono text-base text-on-surface font-semibold mb-1">
+              {isLoginMode ? 'login' : 'register'}
+            </h2>
+            <p className="text-xs text-on-surface-variant font-mono">
+              {isLoginMode ? 'authenticate to continue' : 'create a new account'}
+            </p>
+          </div>
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {error && (
+              <div className="px-3 py-2 border border-error text-error text-xs font-mono">{error}</div>
+            )}
+
+            {!isLoginMode && (
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">username</label>
+                <input type="text" placeholder="username"
+                  className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary"
+                  value={username} onChange={(e) => setUsername(e.target.value)} required={!isLoginMode} />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">email</label>
+              <input type="email" placeholder="name@example.com"
+                className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary"
+                value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-on-surface-variant mb-1 ml-0.5">password</label>
+              <input type="password" placeholder="..."
+                className="w-full bg-surface-container-high border border-outline-variant text-on-surface text-xs font-mono px-3 py-2 outline-none focus:border-primary"
+                value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+
+            <button type="submit" disabled={isLoading}
+              className="w-full py-2 border border-primary text-primary text-xs font-mono hover:bg-primary/10 transition-colors disabled:opacity-40">
+              {isLoading ? '...' : isLoginMode ? 'login' : 'register'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button type="button" onClick={() => { setIsLoginMode(!isLoginMode); setError(''); }}
+              className="text-xs font-mono text-on-surface-variant hover:text-primary transition-colors">
+              {isLoginMode ? 'create account' : 'sign in'}
+            </button>
           </div>
         </div>
       </div>

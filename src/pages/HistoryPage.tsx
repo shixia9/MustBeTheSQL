@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, X, RefreshCw, Share2, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+
 import { QueryRecord } from '../types';
 import { api } from '../api/client';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function HistoryPage({ user }: { user: any }) {
   const { configs } = useLlmConfig();
@@ -21,6 +22,7 @@ export default function HistoryPage({ user }: { user: any }) {
   
   // Lineage State
   const [lineage, setLineage] = useState<any[]>([]);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [isLoadingLineage, setIsLoadingLineage] = useState(false);
 
   // Copy Feedback State
@@ -114,26 +116,16 @@ export default function HistoryPage({ user }: { user: any }) {
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this query history?')) return;
-    
+  const doDelete = async (id: string) => {
+    setConfirmId(null);
     try {
       const data = await api.delete(`/history/${id}`);
       if (data.code === 200) {
-        if (selectedQuery?.id === id) {
-          setSelectedQuery(null);
-        }
-        // If it's the last item on the page and not page 1, go back a page
-        if (queries.length === 1 && page > 1) {
-          setPage(p => p - 1);
-        } else {
-          fetchHistory();
-        }
+        if (selectedQuery?.id === id) { setSelectedQuery(null); }
+        if (queries.length === 1 && page > 1) { setPage(p => p - 1); }
+        else { fetchHistory(); }
       }
-    } catch (e) {
-      console.error('Failed to delete history', e);
-    }
+    } catch (e) { console.error('Failed to delete history', e); }
   };
 
   const handleCopy = async (text: string, id: string, e?: React.MouseEvent) => {
@@ -183,7 +175,7 @@ export default function HistoryPage({ user }: { user: any }) {
   };
 
   return (
-    <main className="ml-[180px] pt-11 min-h-screen flex bg-surface">
+    <main className="ml-[200px] pt-12 min-h-screen flex bg-surface">
       {/* Query Management Table Area */}
       <section className="flex-1 p-8 overflow-hidden flex flex-col gap-8">
         <div className="flex items-end justify-between">
@@ -191,11 +183,11 @@ export default function HistoryPage({ user }: { user: any }) {
             <h1 className="text-sm font-mono font-semibold text-on-surface">Query History</h1>
           </div>
           <div className="flex gap-4">
-            <div className="px-4 py-2 bg-surface-container-highest/30 rounded-lg flex flex-col items-end">
+            <div className="px-4 py-2 bg-surface-container-highest/30 border border-outline-variant/50 flex flex-col items-end">
               <span className="text-[10px] font-bold uppercase text-primary/70">Total Queries</span>
             <span className="font-mono text-lg font-bold">{isLoading ? '-' : total}</span>
           </div>
-            <div className="px-4 py-2 bg-surface-container-highest/30 rounded-lg flex flex-col items-end">
+            <div className="px-4 py-2 bg-surface-container-highest/30 border border-outline-variant/50 flex flex-col items-end">
               <span className="text-[10px] font-bold uppercase text-primary/70">Avg Latency</span>
               <span className="font-mono text-lg font-bold">
                 {isLoading ? '-' : (queries.filter(q => q.latency !== '-').length > 0 
@@ -207,11 +199,11 @@ export default function HistoryPage({ user }: { user: any }) {
         </div>
 
         {/* Toolbar / Filters */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-wrap items-center gap-4 border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-4 border border-outline-variant  flex flex-wrap items-center gap-4 border border-outline-variant/10">
           <div className="relative flex-1 min-w-[300px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={18} />
             <input 
-              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-md focus:ring-2 focus:ring-primary/20 text-sm text-on-surface" 
+              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none  focus:ring-2 focus:ring-primary/20 text-sm text-on-surface" 
               placeholder="Search prompt excerpts or snippets..." 
               type="text"
               value={keyword}
@@ -223,7 +215,7 @@ export default function HistoryPage({ user }: { user: any }) {
           </div>
           <div className="flex items-center gap-3">
             <select 
-              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8 rounded-md focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
+              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8  focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
               value={dbType}
               onChange={(e) => {
                 setDbType(e.target.value);
@@ -235,7 +227,7 @@ export default function HistoryPage({ user }: { user: any }) {
               <option value="PostgreSQL">PostgreSQL</option>
             </select>
             <select
-              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8 rounded-md focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
+              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8  focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
               value={model}
               onChange={(e) => {
                 setModel(e.target.value);
@@ -247,7 +239,7 @@ export default function HistoryPage({ user }: { user: any }) {
                 <option key={config.id} value={config.configName}>{config.configName}</option>
               ))}
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest transition-colors rounded-md text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest transition-colors  text-xs font-bold uppercase tracking-widest text-on-surface-variant">
               <Calendar size={14} />
               Date Range
             </button>
@@ -255,9 +247,9 @@ export default function HistoryPage({ user }: { user: any }) {
         </div>
 
         {/* Data Table */}
-        <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col border border-outline-variant/10">
+        <div className="bg-surface-container-lowest border border-outline-variant  overflow-hidden flex flex-col border border-outline-variant/10">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-container-high/50 border-b border-outline-variant/10">
+            <thead className="bg-surface-container-high border-b border-outline-variant/10">
               <tr>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Prompt Excerpt</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">SQL Snippet</th>
@@ -284,15 +276,15 @@ export default function HistoryPage({ user }: { user: any }) {
                   <td className="px-6 py-5">
                     <p className="text-sm font-medium text-on-surface truncate max-w-xs">{q.prompt}</p>
                     <span className="text-[10px] text-primary font-bold uppercase flex items-center gap-1 mt-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> {q.database}
+                      <div className="w-1.5 h-1.5  bg-primary"></div> {q.database}
                     </span>
                   </td>
                   <td className="px-6 py-5">
-                    <code className="text-[11px] font-mono bg-inverse-surface/5 text-primary px-2 py-1 rounded truncate block max-w-[200px]">{q.sql}</code>
+                    <code className="text-[11px] font-mono bg-inverse-surface/5 text-primary px-2 py-1  truncate block max-w-[200px]">{q.sql}</code>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-surface-container-highest text-primary text-[10px] font-bold rounded uppercase">{q.model}</span>
+                      <span className="px-2 py-0.5 bg-surface-container-highest text-primary text-[10px] font-bold  uppercase">{q.model}</span>
                       <span className="text-[10px] text-on-surface-variant font-medium">{q.latency}</span>
                     </div>
                   </td>
@@ -304,28 +296,28 @@ export default function HistoryPage({ user }: { user: any }) {
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button 
                         onClick={(e) => handleReRun(q, e)}
-                        className="p-1.5 hover:bg-primary/10 text-primary rounded" 
+                        className="p-1.5 hover:bg-primary/10 text-primary " 
                         title="Re-run in Dashboard"
                       >
                         <Play size={16} />
                       </button>
                       <button 
                         onClick={(e) => handleCopy(q.sql, q.id, e)}
-                        className="p-1.5 hover:bg-primary/10 text-primary rounded"
+                        className="p-1.5 hover:bg-primary/10 text-primary "
                         title="Copy SQL"
                       >
                         {copiedId === q.id ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedQuery(q); }}
-                        className="p-1.5 hover:bg-primary/10 text-primary rounded"
+                        className="p-1.5 hover:bg-primary/10 text-primary "
                         title="View Details"
                       >
                         <Dock size={16} />
                       </button>
                       <button 
-                        onClick={(e) => handleDelete(q.id, e)}
-                        className="p-1.5 hover:bg-error/10 text-error rounded"
+                        onClick={(e) => { e.stopPropagation(); setConfirmId(q.id); }}
+                        className="p-1.5 hover:bg-error/10 text-error "
                         title="Delete Record"
                       >
                         <Trash2 size={16} />
@@ -337,7 +329,7 @@ export default function HistoryPage({ user }: { user: any }) {
             </tbody>
           </table>
           
-          <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low/30">
+          <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
             <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">
               Showing {queries.length > 0 ? (page - 1) * size + 1 : 0} - {Math.min(page * size, total)} of {total} queries
             </span>
@@ -345,15 +337,15 @@ export default function HistoryPage({ user }: { user: any }) {
               <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1 text-on-surface-variant hover:bg-surface-container-high  transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={18} />
               </button>
-              <button className="px-3 py-1 bg-primary text-white text-xs font-bold rounded">{page}</button>
+              <button className="px-3 py-1 bg-primary text-white text-xs font-bold ">{page}</button>
               <button 
                 onClick={() => setPage(p => p + 1)}
                 disabled={page * size >= total}
-                className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1 text-on-surface-variant hover:bg-surface-container-high  transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={18} />
               </button>
@@ -363,14 +355,9 @@ export default function HistoryPage({ user }: { user: any }) {
       </section>
 
       {/* Detail Sidebar View */}
-      <AnimatePresence>
+      
         {selectedQuery && (
-          <motion.aside 
-            initial={{ x: 400 }}
-            animate={{ x: 0 }}
-            exit={{ x: 400 }}
-            className="w-96 border-l border-outline-variant/20 bg-surface-container-low flex flex-col shadow-2xl z-10"
-          >
+          <aside className="w-96 border-l border-outline-variant bg-surface-container-low flex flex-col z-10">
             <div className="p-6 border-b border-outline-variant/10 flex items-center justify-between">
               <div>
                 <h2 className="font-mono font-bold text-lg text-on-surface leading-tight">Query Detail</h2>
@@ -378,7 +365,7 @@ export default function HistoryPage({ user }: { user: any }) {
               </div>
               <button 
                 onClick={() => setSelectedQuery(null)}
-                className="p-2 hover:bg-surface-container-high rounded-full transition-colors"
+                className="p-2 hover:bg-surface-container-high  transition-colors"
               >
                 <X size={20} />
               </button>
@@ -387,7 +374,7 @@ export default function HistoryPage({ user }: { user: any }) {
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 block">Natural Language Prompt</span>
-                <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/10">
+                <div className="bg-surface-container-lowest p-4 border border-outline-variant  border border-outline-variant/10">
                   <p className="text-sm text-on-surface leading-relaxed italic">"{selectedQuery.prompt}"</p>
                 </div>
               </div>
@@ -395,9 +382,9 @@ export default function HistoryPage({ user }: { user: any }) {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Generated SQL</span>
-                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded">{selectedQuery.model}</span>
+                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold ">{selectedQuery.model}</span>
                 </div>
-                <div className="bg-[#1e2433] rounded-xl overflow-hidden shadow-xl border border-white/5">
+                <div className="bg-[#1e2433] border border-outline-variant overflow-hidden  border border-white/5">
                   <div className="px-4 py-2 bg-slate-800/50 border-b border-white/5 flex justify-between items-center">
                     <span className="text-[10px] text-slate-400 font-mono uppercase">{selectedQuery.database}</span>
                     <button 
@@ -423,7 +410,7 @@ export default function HistoryPage({ user }: { user: any }) {
                     { label: 'Rows', value: selectedQuery.rows },
                     { label: 'Cost', value: `$${selectedQuery.cost}` },
                   ].map((stat) => (
-                    <div key={stat.label} className="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/10">
+                    <div key={stat.label} className="bg-surface-container-lowest p-3 border border-outline-variant/10">
                       <p className="text-[10px] text-on-surface-variant/60 font-bold uppercase">{stat.label}</p>
                       <p className="font-mono text-sm font-bold">{stat.value}</p>
                     </div>
@@ -441,7 +428,7 @@ export default function HistoryPage({ user }: { user: any }) {
                       const isCurrent = item.id.toString() === selectedQuery.id;
                       return (
                         <div key={item.id} className="relative pl-8">
-                          <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-4 border-surface-container-low ${isCurrent ? 'bg-primary' : 'bg-outline-variant'}`}></div>
+                          <div className={`absolute left-0 top-1 w-4 h-4  border-4 border-surface-container-low ${isCurrent ? 'bg-primary' : 'bg-outline-variant'}`}></div>
                           <p className={`text-[11px] font-bold ${isCurrent ? 'text-primary' : 'text-on-surface'}`}>
                             {index === 0 ? 'Original Query' : 'Derived Query (Re-run)'}
                             {isCurrent && ' (Current)'}
@@ -459,7 +446,7 @@ export default function HistoryPage({ user }: { user: any }) {
               </div>
             </div>
 
-            <div className="p-6 bg-surface-container-highest/20 border-t border-outline-variant/10 grid grid-cols-2 gap-3">
+            <div className="p-6 bg-surface-container-highest border-t border-outline-variant/10 grid grid-cols-2 gap-3">
               <button 
                 onClick={() => handleReRun(selectedQuery)}
                 className="flex items-center justify-center gap-2 py-2 border border-primary text-primary bg-primary/5 text-xs font-mono hover:bg-primary/10 transition-colors"
@@ -467,41 +454,33 @@ export default function HistoryPage({ user }: { user: any }) {
                 <RefreshCw size={14} />
                 Re-run
               </button>
-              <button className="flex items-center justify-center gap-2 py-2.5 border border-outline-variant text-on-surface rounded-md font-bold text-xs uppercase tracking-widest hover:bg-surface-container-high transition-colors active:scale-95">
+              <button className="flex items-center justify-center gap-2 py-2.5 border border-outline-variant text-on-surface  font-bold text-xs uppercase tracking-widest hover:bg-surface-container-high transition-colors active:scale-95">
                 <Share2 size={14} />
                 Share
               </button>
             </div>
-          </motion.aside>
+          </aside>
         )}
-      </AnimatePresence>
+      
 
       {/* Re-run Modal */}
-      <AnimatePresence>
+      
         {isReRunModalOpen && reRunQueryData && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setIsReRunModalOpen(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-surface-container-low border border-outline-variant/30 rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
-            >
+          <div
+            className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+            onClick={() => setIsReRunModalOpen(false)}>
+            <div
+              className="bg-surface-container-low border border-outline-variant w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface-container-highest/20">
+              <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface-container-highest">
                 <h2 className="text-lg font-bold flex items-center gap-2 text-on-surface">
                   <Play size={18} className="text-primary" />
                   Re-Run Query Results
                 </h2>
                 <button 
                   onClick={() => setIsReRunModalOpen(false)}
-                  className="p-1.5 hover:bg-surface-container-high rounded-lg text-on-surface-variant transition-colors"
+                  className="p-1.5 hover:bg-surface-container-high border border-outline-variant/50 text-on-surface-variant transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -511,7 +490,7 @@ export default function HistoryPage({ user }: { user: any }) {
               <div className="flex-1 overflow-auto p-6 bg-surface custom-scrollbar">
                 <div className="mb-6">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">Executing SQL</span>
-                  <div className="bg-[#1e2433] p-4 rounded-xl border border-white/5 font-mono text-sm text-slate-200 overflow-x-auto">
+                  <div className="bg-[#1e2433] p-4 border border-white/5 font-mono text-sm text-slate-200 overflow-x-auto">
                     <code>{reRunQueryData.sql}</code>
                   </div>
                 </div>
@@ -524,12 +503,12 @@ export default function HistoryPage({ user }: { user: any }) {
                     <p className="text-sm font-medium">Executing query on {reRunQueryData.database}...</p>
                   </div>
                 ) : reRunError ? (
-                  <div className="bg-error/10 border border-error/20 rounded-xl p-4 text-error">
+                  <div className="bg-error/10 border border-error/20 border border-outline-variant p-4 text-error">
                     <p className="font-bold text-sm mb-1">Execution Failed</p>
                     <p className="text-xs font-mono whitespace-pre-wrap">{reRunError}</p>
                   </div>
                 ) : reRunResult ? (
-                  <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm">
+                  <div className="bg-surface-container-lowest border border-outline-variant/30 overflow-hidden ">
                     {reRunResult.resultType === 'UPDATE' ? (
                       <div className="p-6 flex flex-col items-center justify-center text-on-surface">
                         <CheckCircle2 className="w-12 h-12 text-primary mb-3" />
@@ -555,7 +534,7 @@ export default function HistoryPage({ user }: { user: any }) {
                             {reRunResult.rows.map((row: any, i: number) => (
                               <tr 
                                 key={i} 
-                                className={`hover:bg-primary/5 transition-colors border-b border-outline-variant/20 last:border-0 ${i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface-container-low/30'}`}
+                                className={`hover:bg-primary/5 transition-colors border-b border-outline-variant/20 last:border-0 ${i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface-container-low'}`}
                               >
                                 <td className="py-2.5 px-4 whitespace-nowrap text-on-surface-variant/50 text-center font-sans text-xs">
                                   {i + 1}
@@ -578,10 +557,20 @@ export default function HistoryPage({ user }: { user: any }) {
                   </div>
                 ) : null}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+
+      {confirmId && (
+        <ConfirmDialog
+          title="Delete Query"
+          message="Are you sure you want to delete this query history?"
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={() => doDelete(confirmId)}
+          onCancel={() => setConfirmId(null)}
+        />
+      )}
     </main>
   );
 }

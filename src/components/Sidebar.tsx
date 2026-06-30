@@ -20,11 +20,11 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-full flex flex-col pt-11 pb-3 z-40 bg-surface-container-lowest border-r border-outline-variant w-[180px]">
-      {/* App identity — minimal */}
-      <div className="px-4 mb-4 mt-2">
-        <span className="text-xs font-mono font-semibold text-primary tracking-tight">MustBeTheSQL</span>
-        <span className="text-[9px] text-on-surface-variant/50 ml-1 font-mono">v2</span>
+    <aside className="fixed left-0 top-0 h-full flex flex-col pt-12 pb-3 z-40 bg-surface-container-lowest border-r border-outline-variant w-[200px]">
+      {/* App identity */}
+      <div className="px-5 mb-5 mt-3">
+        <div className="text-sm font-mono font-semibold text-primary tracking-tight">MustBeTheSQL</div>
+        <div className="text-[10px] text-on-surface-variant/50 font-mono">v2 · sql-engine</div>
       </div>
 
       {/* Navigation */}
@@ -36,13 +36,13 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
             <button
               key={item.id}
               onClick={() => onPageChange(item.id as Page)}
-              className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs font-mono transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-mono transition-colors ${
                 isActive
                   ? 'text-primary bg-primary/10 border border-primary/20'
                   : 'text-on-surface-variant hover:text-on-surface border border-transparent hover:bg-surface-container-high'
               }`}
             >
-              <Icon size={14} />
+              <Icon size={16} />
               <span>{item.label}</span>
             </button>
           );
@@ -51,8 +51,7 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
 
       {/* Status & New Query */}
       <div className="px-3 mt-auto space-y-3">
-        {/* Minimal quota display */}
-        <div className="text-[10px] font-mono text-on-surface-variant/60 px-1">
+        <div className="text-xs font-mono text-on-surface-variant/60 px-2">
           {hasCustomConfig
             ? <span>keys: <span className="text-primary">{configs.filter(c => c.status === 1).length}</span></span>
             : <span>quota: <span className="text-on-surface-variant">{Math.max(0, user?.tokenQuota || 0).toLocaleString()}</span></span>
@@ -64,7 +63,7 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
             onPageChange('dashboard');
             window.dispatchEvent(new CustomEvent('new-query'));
           }}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 border border-primary text-primary text-xs font-mono hover:bg-primary/10 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2 border border-primary text-primary text-xs font-mono hover:bg-primary/10 transition-colors"
         >
           <Plus size={14} />
           New Query
