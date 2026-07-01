@@ -16,6 +16,7 @@ export interface AgentStep {
   /** Plan-step cursor for looped nodes (SQL_GENERATION / SQL_EXECUTION / SQL_FIXER).
    *  Same node name + different step = a distinct card. */
   step?: number;
+  sequenceNo?: number;
 }
 
 /** The order in which nodes appear in the timeline */

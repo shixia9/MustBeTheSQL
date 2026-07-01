@@ -14,7 +14,7 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
   const hasCustomConfig = configs.filter(c => c.status === 1).length > 0;
   const navItems = [
     { id: 'dashboard', label: 'Chat', icon: MessageSquare },
-    { id: 'schema-browser', label: 'SQL Console', icon: Activity },
+    { id: 'schema-browser', label: 'Console', icon: Activity },
     { id: 'workspace-manage', label: 'Workspaces', icon: Building2 },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'history', label: 'History', icon: History },

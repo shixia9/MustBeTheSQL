@@ -371,12 +371,14 @@ function ConnectorLine() {
 }
 
 /** Composite identity for a card: looped nodes are keyed by name#step, others by name. */
-const cardId = (nodeName: string, stepNo: number | null) =>
-  LOOPED_NODES.has(nodeName) && stepNo != null ? `${nodeName}#${stepNo}` : nodeName;
-/** Sort key: (ACTIVE_NODES order, step number) — keeps looped cards chronological. */
-const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] => {
+const cardId = (nodeName: string, stepNo: number | null, seqNo?: number) =>
+  LOOPED_NODES.has(nodeName) && stepNo != null
+    ? seqNo != null ? `${nodeName}#${stepNo}-${seqNo}` : `${nodeName}#${stepNo}`
+    : nodeName;
+/** Sort key: (ACTIVE_NODES order, step number, sequenceNo) — keeps looped cards chronological. */
+const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number): [number, number, number] => {
   const base = ACTIVE_NODES.indexOf(nodeName);
-  return [base < 0 ? 9999 : base, stepNo ?? 0];
+  return [base < 0 ? 9999 : base, stepNo ?? 0, seqNo ?? 0];
 };
 
 export default function AgentFlowPanel({
@@ -423,14 +425,17 @@ export default function AgentFlowPanel({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  /** Composite identity for a card: looped nodes are keyed by name#step, other nodes by name alone. */
-  const cardId = (nodeName: string, stepNo: number | null) =>
-    LOOPED_NODES.has(nodeName) && stepNo != null ? `${nodeName}#${stepNo}` : nodeName;
-  /** Sort key: (ACTIVE_NODES order, step number) — keeps looped cards in chronological order.
+  /** Composite identity for a card: looped nodes are keyed by name#step-seq, other nodes by name alone.
+   *  When seqNo is omitted, falls back to name#step (backward compat for loaded history). */
+  const cardId = (nodeName: string, stepNo: number | null, seqNo?: number) =>
+    LOOPED_NODES.has(nodeName) && stepNo != null
+      ? seqNo != null ? `${nodeName}#${stepNo}-${seqNo}` : `${nodeName}#${stepNo}`
+      : nodeName;
+  /** Sort key: (ACTIVE_NODES order, step number, seqNo) — keeps looped cards in chronological order.
    *  (Defined here to be shared by handleSend and handleConfirm.) */
-  const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] => {
+  const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number): [number, number, number] => {
     const base = ACTIVE_NODES.indexOf(nodeName);
-    return [base < 0 ? 9999 : base, stepNo ?? 0];
+    return [base < 0 ? 9999 : base, stepNo ?? 0, seqNo ?? 0];
   };
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
@@ -551,7 +556,7 @@ export default function AgentFlowPanel({
           | { type: 'COMPLETED' }
           | { type: 'ERROR'; message: string }
           | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
-          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null };
+          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number };
 
         const batch: BatchItem[] = [];
 
@@ -587,8 +592,9 @@ export default function AgentFlowPanel({
             if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
             const nodeIdx = ACTIVE_NODES.indexOf(nodeName);
             const stepNo = event.data?.step != null ? Number(event.data.step) : null;
+            const sequenceNo = event.sequenceNo != null ? Number(event.sequenceNo) : 0;
 
-            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data, stepNo });
+            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data, stepNo, sequenceNo });
           } catch (_) { /* ignore malformed JSON */ }
         }
 
@@ -608,14 +614,14 @@ export default function AgentFlowPanel({
 
             for (const update of batch) {
               if (update.type === 'NODE') {
-                const id = cardId(update.nodeName, update.stepNo);
+                const id = cardId(update.nodeName, update.stepNo, update.sequenceNo);
                 // Ensure this card exists — insert in (order, step) position.
                 if (!current.some(s => s.id === id)) {
-                  const [oi, os] = cardSortKey(update.nodeName, update.stepNo);
+                  const [oi, os, oq] = cardSortKey(update.nodeName, update.stepNo, update.sequenceNo);
                   let targetPos = 0;
                   for (let i = 0; i < current.length; i++) {
-                    const [ci, cs] = cardSortKey(current[i].name, current[i].step ?? null);
-                    if (ci < oi || (ci === oi && cs <= os)) targetPos = i + 1;
+                    const [ci, cs, cq] = cardSortKey(current[i].name, current[i].step ?? null, current[i].sequenceNo ?? 0);
+                    if (ci < oi || (ci === oi && cs < os) || (ci === oi && cs === os && cq <= oq)) targetPos = i + 1;
                   }
                   current = [
                     ...current.slice(0, targetPos),
@@ -624,7 +630,7 @@ export default function AgentFlowPanel({
                       name: update.nodeName,
                       content: '',
                       status: 'running' as StepStatus,
-                      step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? 1 : undefined,
+                      step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? 1 : undefined, sequenceNo: update.sequenceNo,
                     } as AgentStep,
                     ...current.slice(targetPos),
                   ];
@@ -771,7 +777,7 @@ export default function AgentFlowPanel({
           | { type: 'COMPLETED' }
           | { type: 'ERROR'; message: string }
           | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
-          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null };
+          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number };
         const batch: BatchItem[] = [];
         for (const line of lines) {
           const trimmed = line.trim();
@@ -790,7 +796,8 @@ export default function AgentFlowPanel({
             if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
             const nodeIdx = ACTIVE_NODES.indexOf(nodeName);
             const stepNo = event.data?.step != null && LOOPED_NODES.has(nodeName) ? Number(event.data.step) : null;
-            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data, stepNo });
+            const seqNo = event.sequenceNo != null ? Number(event.sequenceNo) : 0;
+            batch.push({ type: 'NODE', nodeName, nodeIdx, data: event.data, stepNo, sequenceNo: seqNo });
           } catch { /* ignore */ }
         }
 
@@ -804,12 +811,12 @@ export default function AgentFlowPanel({
             let current = prev;
             for (const update of batch) {
               if (update.type === 'NODE') {
-                const id = cardId(update.nodeName, update.stepNo);
+                const id = cardId(update.nodeName, update.stepNo, update.sequenceNo);
                 if (!current.some(s => s.id === id)) {
                   current = [...current, {
                     id, name: update.nodeName, content: '',
                     status: 'running' as StepStatus,
-                    step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? 1 : undefined,
+                    step: LOOPED_NODES.has(update.nodeName) ? update.stepNo ?? 1 : undefined, sequenceNo: update.sequenceNo,
                   } as AgentStep];
                 }
                 current = current.map(step =>

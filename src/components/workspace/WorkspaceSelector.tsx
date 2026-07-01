@@ -58,30 +58,31 @@ export default function WorkspaceSelector() {
       {open && (
         <div className="absolute left-3 right-3 top-full mt-1 z-50
           bg-surface-container border border-outline-variant/30 rounded shadow-lg
-          max-h-60 overflow-y-auto">
+          max-h-60 overflow-y-auto"
+        >
           <div className="p-1">
-            <button
-              onClick={() => { setSelectedWorkspaceId(null); setOpen(false); }}
-              className={`w-full text-left px-2 py-1.5 rounded text-xs
-                ${!selectedWorkspaceId ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
-            >
-              All (Personal)
-            </button>
-            {workspaces.map(w => (
               <button
-                key={w.id}
-                onClick={() => { setSelectedWorkspaceId(w.id); setOpen(false); }}
-                className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2
-                  ${selectedWorkspaceId === w.id ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+                onClick={() => { setSelectedWorkspaceId(null); setOpen(false); }}
+                className={`w-full text-left px-2 py-1.5 rounded text-xs
+                  ${!selectedWorkspaceId ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
               >
-                <span className="flex-1 truncate">{w.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${roleClass[w.role] || ''}`}>
-                  {w.role}
-                </span>
+                All (Personal)
               </button>
-            ))}
+              {workspaces.map(w => (
+                <button
+                  key={w.id}
+                  onClick={() => { setSelectedWorkspaceId(w.id); setOpen(false); }}
+                  className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2
+                    ${selectedWorkspaceId === w.id ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+                >
+                  <span className="flex-1 truncate">{w.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${roleClass[w.role] || ''}`}>
+                    {w.role}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
       )}
     </div>
   );

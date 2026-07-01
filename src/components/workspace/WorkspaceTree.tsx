@@ -87,7 +87,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
   const fetchSchemas = async () => {
     setLoading(true);
     try {
-      const json = await api.get(`/workspace/schemas?connectionId=${connectionId}`);
+      const json = await api.get(`/schema/schemas?connectionId=${connectionId}`);
       if (json.code === 200 && json.data) {
         const schemaNodes = json.data.map((s: any) => createSchemaNode(s.name, connectionId));
         setSchemas(schemaNodes);
@@ -130,7 +130,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
         hasChildren: true,
         level: 1,
         loadChildren: async () => {
-          const json = await api.get(`/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
+          const json = await api.get(`/schema/tables?connectionId=${connId}&schemaName=${schemaName}`);
           if (json.code !== 200 || !json.data) return [];
           return json.data
             .filter((t: any) => t.type === 'TABLE')
@@ -145,7 +145,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
         hasChildren: true,
         level: 1,
         loadChildren: async () => {
-          const json = await api.get(`/workspace/tables?connectionId=${connId}&schemaName=${schemaName}`);
+          const json = await api.get(`/schema/tables?connectionId=${connId}&schemaName=${schemaName}`);
           if (json.code !== 200 || !json.data) return [];
           return json.data
             .filter((t: any) => t.type === 'VIEW')
@@ -174,8 +174,8 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
     },
     loadChildren: async () => {
       const [colsJson, idxsJson] = await Promise.all([
-        api.get(`/workspace/columns?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`),
-        api.get(`/workspace/indexes?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`)
+        api.get(`/schema/columns?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`),
+        api.get(`/schema/indexes?connectionId=${connId}&schemaName=${schemaName}&tableName=${tableName}`)
       ]);
 
       const nodes: TreeNodeProps[] = [];
@@ -254,7 +254,7 @@ export default function WorkspaceTree({ connectionId }: { connectionId: number }
     const tableName = parts.slice(2).join('-'); // handles tables with '-' in name
 
     try {
-      const json = await api.get(`/workspace/ddl?connectionId=${connectionId}&schemaName=${schemaName}&tableName=${tableName}`);
+      const json = await api.get(`/schema/ddl?connectionId=${connectionId}&schemaName=${schemaName}&tableName=${tableName}`);
       if (json.code === 200 && json.data) {
         addTab({
           id: `tab-ddl-${schemaName}-${tableName}`,

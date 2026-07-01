@@ -85,7 +85,7 @@ export default function WorkspaceManagePage({ user }: Props) {
   const selected = workspaces.find(w => w.id === selectedWs);
 
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="ml-[200px] pt-12 min-h-screen bg-surface p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-lg font-semibold text-on-surface">Workspace Management</h1>
