@@ -7,8 +7,12 @@ import { Loader2, Database, Table2, BarChart2, History, Search, ChevronLeft, Che
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AgentStep, StepStatus } from '../../types/agent';
+import { nodeCategoryOf, CATEGORY_STYLES, messageCategoryForNode, formatDuration } from '../../types/agent';
+import { useWorkspaceStore } from '../../stores/workspaceStore';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import EvidenceRecallCard from './cards/EvidenceRecallCard';
+import FeasibilityCard from './cards/FeasibilityCard';
+import TraceCard from './cards/TraceCard';
 import ResultChart from './cards/ResultChart';
 import ThinkingSection from './cards/ThinkingSection';
 import ConfirmDialog from '../ConfirmDialog';
@@ -198,10 +202,12 @@ function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: num
     step.status === 'error' ? '✗' : '○';
   const icon = NODE_ICONS[step.name] || '•';
   const label = NODE_LABELS[step.name] || step.name;
-  const isAnalysis = String(step.data?.feasibilityResult || '').includes('《数据分析》');
+  const category = nodeCategoryOf(step.name);
+  const catStyle = CATEGORY_STYLES[category];
+  const msgType = messageCategoryForNode(step.name);
 
   return (
-    <div className="font-mono">
+    <div className={`font-mono border-l-2 ${catStyle.border} ${step.status === 'running' ? catStyle.tint : ''} pl-2 -ml-2 rounded-r transition-colors`}>
       <div className="flex items-start gap-2 py-1">
         <span className={`w-5 flex-shrink-0 text-sm ${
           step.status === 'success' ? 'text-[#16a34a]' :
@@ -214,21 +220,19 @@ function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: num
         </span>
         <span className="text-on-surface-variant/60 text-xs w-6 flex-shrink-0">[{order}]</span>
         <span className="text-on-surface text-sm">{icon} {label}{step.step != null ? ` #${step.step}` : ''}</span>
+        <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${catStyle.badge}`}>{msgType}</span>
         {step.durationMs != null && step.status === 'success' && (
-          <span className="text-on-surface-variant/50 text-xs ml-2">({step.durationMs}ms)</span>
+          <span className="text-on-surface-variant/50 text-xs ml-2">({formatDuration(step.durationMs)})</span>
+        )}
+        {step.status === 'running' && (
+          <span className="text-primary/60 text-xs ml-2 animate-pulse">running…</span>
         )}
       </div>
 
       {step.status === 'success' && (
         <div className="ml-14 pb-2">
           {step.data?.feasibilityResult && (
-            <div className={`text-xs mt-1 px-2 py-1 rounded border ${
-              isAnalysis
-                ? 'bg-[#16a34a]/10 border-[#16a34a]/30 text-[#16a34a]'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
-            }`}>
-              <pre className="whitespace-pre-wrap font-sans">{step.data.feasibilityResult}</pre>
-            </div>
+            <FeasibilityCard result={String(step.data.feasibilityResult)} />
           )}
           {step.data?.plan && (
             <PlanView plan={step.data.plan} />
@@ -378,6 +382,7 @@ const cardSortKey = (nodeName: string, stepNo: number | null): [number, number] 
 export default function AgentFlowPanel({
   user, connections, selectedConnId, selectedConfigId, onConnectionChange,
 }: AgentFlowPanelProps) {
+  const { selectedWorkspaceId } = useWorkspaceStore();
   const [query, setQuery] = useState('');
   const [sentQuery, setSentQuery] = useState('');
   const [steps, setSteps] = useState<AgentStep[]>([]);
@@ -400,6 +405,9 @@ export default function AgentFlowPanel({
   const [repairCount, setRepairCount] = useState<number>(1);
   const [confirmationFeedback, setConfirmationFeedback] = useState<string>('');
   const [confirming, setConfirming] = useState(false);
+  // Phase A3: trace view toggle + aggregate trace stats from a loaded historical run.
+  const [showTraceView, setShowTraceView] = useState(false);
+  const [traceMeta, setTraceMeta] = useState<{ totalTokens?: number; totalDurationMs?: number; modelCalls?: number } | null>(null);
   const [schemas, setSchemas] = useState<string[]>([]);
   const [selectedSchema, setSelectedSchema] = useState<string>('');
   const [showHistory, setShowHistory] = useState(false);
@@ -432,7 +440,7 @@ export default function AgentFlowPanel({
   useEffect(() => {
     if (!selectedConnId) { setSchemas([]); setSelectedSchema(''); return; }
     setLoadingSchema(true);
-    fetch(`/api/v1/workspace/schemas?connectionId=${selectedConnId}`, { credentials: 'include' })
+    fetch(`/api/v1/schema/schemas?connectionId=${selectedConnId}`, { credentials: 'include' })
       .then(r => r.json())
       .then((d: any) => { if (d.code === 200 && Array.isArray(d.data)) { const names = d.data.map((s: any) => s.name); setSchemas(names); if (names.length > 0 && !selectedSchema) setSelectedSchema(names[0]); } })
       .catch(() => {})
@@ -520,6 +528,7 @@ export default function AgentFlowPanel({
           llmConfigId: selectedConfigId,
           autoConfirm,
           schemaContext: selectedSchema || '',
+          workspaceId: selectedWorkspaceId,
         }),
         signal: abortRef.current.signal,
       });
@@ -879,9 +888,22 @@ export default function AgentFlowPanel({
           data,
           step: data?.step != null ? data.step : undefined,
           durationMs: step.durationMs,
+          // Phase A3: preserve raw trace fields for the TraceCard view.
+          sequenceNo: step.sequenceNo,
+          latencyMs: step.latencyMs,
+          inputTokens: step.inputTokens,
+          outputTokens: step.outputTokens,
+          nodeType: step.nodeType,
+          rawStatus: step.status,
         };
       });
       setSteps(historySteps);
+      // Phase A3: capture aggregate trace stats from the execution record.
+      setTraceMeta({
+        totalTokens: exec.totalTokens,
+        totalDurationMs: exec.totalDurationMs,
+        modelCalls: exec.modelCalls,
+      });
       setSentQuery(exec.input || '');
       setIsStreaming(false);
     } catch (e: any) {
@@ -1097,16 +1119,37 @@ export default function AgentFlowPanel({
             <div className="flex items-start gap-2">
               <span className="text-primary w-5 flex-shrink-0">❯</span>
               <span className="text-on-surface text-sm">{sentQuery}</span>
+              {/* Phase A3: trace view toggle (only meaningful for loaded historical runs). */}
+              {!isStreaming && (
+                <button
+                  onClick={() => setShowTraceView(v => !v)}
+                  className={`ml-auto text-[10px] px-2 py-0.5 rounded border transition-colors
+                    ${showTraceView ? 'bg-primary/10 text-primary border-primary/30' : 'text-on-surface-variant/60 border-outline-variant/40 hover:text-on-surface-variant'}`}
+                  title="Toggle trace view"
+                >
+                  {showTraceView ? 'Timeline' : 'Trace'}
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {steps.map((step, idx) => (
-          <div key={step.id}>
-            <StepLine step={step} order={idx + 1} isPausedAtHitl={awaitingConfirmation} />
-            {idx < steps.length - 1 && <ConnectorLine />}
-          </div>
-        ))}
+        {/* Phase A3: Trace view — shows token/timing breakdown per node. */}
+        {showTraceView && steps.length > 0 ? (
+          <TraceCard
+            steps={steps as any}
+            totalTokens={traceMeta?.totalTokens}
+            totalDurationMs={traceMeta?.totalDurationMs}
+            modelCalls={traceMeta?.modelCalls}
+          />
+        ) : (
+          steps.map((step, idx) => (
+            <div key={step.id}>
+              <StepLine step={step} order={idx + 1} isPausedAtHitl={awaitingConfirmation} />
+              {idx < steps.length - 1 && <ConnectorLine />}
+            </div>
+          ))
+        )}
 
         {awaitingConfirmation && pendingThreadId && (
           <div className="mt-3 p-3 rounded border border-amber-500/40 bg-amber-500/5">

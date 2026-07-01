@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Sliders, Palette, ShieldCheck, Plus, Clock, ChevronDown, Sun, Moon, CheckCircle2, RefreshCw, Trash2, Star, Edit, Eye, EyeOff, X } from 'lucide-react';
+import { Sliders, Palette, ShieldCheck, Plus, Clock, ChevronDown, Sun, Moon, CheckCircle2, RefreshCw, Trash2, Star, Edit, Eye, EyeOff, X, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
-import { api } from '../api/client';
+import { api, llmConfigApi } from '../api/client';
 import { LlmConfig } from '../types';
 
 interface LlmConfigFormState {
@@ -48,6 +48,25 @@ export default function SettingsPage({ user }: { user: any }) {
   const [formData, setFormData] = useState<LlmConfigFormState>(defaultFormState);
   const [showApiKey, setShowApiKey] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Phase A4: per-config connection test state — keyed by configId.
+  const [testing, setTesting] = useState<Record<number, boolean>>({});
+  const [testResult, setTestResult] = useState<Record<number, { success: boolean; latencyMs: number; message?: string }>>({});
+
+  const handleTestConnection = async (configId: number) => {
+    setTesting(prev => ({ ...prev, [configId]: true }));
+    try {
+      const res = await llmConfigApi.test(configId);
+      if (res.code === 200 && res.data) {
+        setTestResult(prev => ({ ...prev, [configId]: res.data }));
+      } else {
+        setTestResult(prev => ({ ...prev, [configId]: { success: false, latencyMs: 0, message: res.message || 'Failed' } }));
+      }
+    } catch (e: any) {
+      setTestResult(prev => ({ ...prev, [configId]: { success: false, latencyMs: 0, message: e?.message || 'Network error' } }));
+    } finally {
+      setTesting(prev => ({ ...prev, [configId]: false }));
+    }
+  };
 
   const providerLabel = (type: string) => {
     switch (type) {
@@ -299,6 +318,27 @@ export default function SettingsPage({ user }: { user: any }) {
                       <div className="text-[10px] text-on-surface-variant/60 mt-0.5 font-mono">{config.apiKeyMasked}</div>
                     </div>
                     <div className="flex items-center gap-1.5 ml-3">
+                      {/* Phase A4: health status dot */}
+                      {testResult[config.id] && (
+                        <span
+                          className={`w-2 h-2 rounded-full ${testResult[config.id].success ? 'bg-emerald-500' : 'bg-red-500'}`}
+                          title={testResult[config.id].message || (testResult[config.id].success ? 'Connected' : 'Failed')}
+                        />
+                      )}
+                      {testResult[config.id]?.success && testResult[config.id].latencyMs > 0 && (
+                        <span className="text-[10px] text-on-surface-variant/60 mr-1">{testResult[config.id].latencyMs}ms</span>
+                      )}
+                      {/* Phase A4: test connection button */}
+                      <button
+                        onClick={() => handleTestConnection(config.id)}
+                        disabled={testing[config.id]}
+                        className="p-1.5 text-on-surface-variant hover:text-amber-400 transition-colors disabled:opacity-50"
+                        title="Test connection"
+                      >
+                        {testing[config.id]
+                          ? <RefreshCw size={14} className="animate-spin" />
+                          : <Zap size={14} />}
+                      </button>
                       {!config.isDefault && (
                         <button
                           onClick={() => handleSetDefault(config.id)}

@@ -54,6 +54,73 @@ export const AGENT_NODE = {
   REPORT: 'REPORT',
 } as const;
 
+/** Message categories for visual differentiation of SSE events. */
+export type MessageType = 'THINKING' | 'TOOL_CALL' | 'TOOL_RESULT' | 'REPORT' | 'STATUS';
+
+/** Node category for tint colors and left-border accent. */
+export type NodeCategory = 'planning' | 'execution' | 'gate' | 'report';
+
+/** Map a node name to its message type (matches backend messageTypeForNode). */
+export function messageCategoryForNode(nodeName: string): MessageType {
+  switch (nodeName) {
+    case 'SQL_GENERATION':
+    case 'PYTHON_GENERATION':
+      return 'TOOL_CALL';
+    case 'SQL_EXECUTION':
+    case 'PYTHON_EXECUTION':
+      return 'TOOL_RESULT';
+    case 'REPORT':
+      return 'REPORT';
+    case 'HITL_GATE':
+    case 'HITL':
+    case 'PLAN_DISPATCH':
+      return 'STATUS';
+    default:
+      return 'THINKING';
+  }
+}
+
+/** Map a node name to its visual category for tint colors. */
+export function nodeCategoryOf(nodeName: string): NodeCategory {
+  switch (nodeName) {
+    case 'EVIDENCE_RECALL':
+    case 'SCHEMA_LINKING':
+    case 'FEASIBILITY_ASSESSMENT':
+    case 'PLANNER':
+    case 'SQL_FIXER':
+    case 'PYTHON_ANALYSIS':
+      return 'planning';
+    case 'SQL_GENERATION':
+    case 'SQL_EXECUTION':
+    case 'PYTHON_GENERATION':
+    case 'PYTHON_EXECUTION':
+      return 'execution';
+    case 'HITL_GATE':
+    case 'HITL':
+    case 'PLAN_DISPATCH':
+      return 'gate';
+    case 'REPORT':
+      return 'report';
+    default:
+      return 'planning';
+  }
+}
+
+/** Tailwind class fragments per node category. */
+export const CATEGORY_STYLES: Record<NodeCategory, { tint: string; border: string; badge: string }> = {
+  planning: { tint: 'bg-blue-500/5', border: 'border-l-blue-500/50', badge: 'text-blue-400 bg-blue-400/10' },
+  execution: { tint: 'bg-emerald-500/5', border: 'border-l-emerald-500/50', badge: 'text-emerald-400 bg-emerald-400/10' },
+  gate: { tint: 'bg-amber-500/5', border: 'border-l-amber-500/50', badge: 'text-amber-400 bg-amber-400/10' },
+  report: { tint: 'bg-primary/5', border: 'border-l-primary/50', badge: 'text-primary bg-primary/10' },
+};
+
+/** Format a duration in ms as a human string. */
+export function formatDuration(ms?: number): string {
+  if (ms == null || ms <= 0) return '';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 /** Terminal SSE event types emitted by the agent controller */
 export type AgentEventType =
   | { type: 'COMPLETED' }
@@ -61,7 +128,7 @@ export type AgentEventType =
   | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number; needsReview: boolean }
   | { type: 'NODE'; nodeName: string; data: Record<string, any>; stepNo: number | null };
 
-/** Phase 5 — glossary entry recalled by RAG */
+/** Glossary entry recalled by RAG */
 export interface EvidenceEntry {
   term: string;
   description?: string;
@@ -69,7 +136,7 @@ export interface EvidenceEntry {
   score: number;
 }
 
-/** Phase 5 — few-shot FAQ entry recalled by RAG */
+/** Few-shot FAQ entry recalled by RAG */
 export interface FaqEntry {
   question: string;
   answer: string;

@@ -24,6 +24,14 @@
 
 const BASE_URL = '/api/v1';
 
+interface WorkspaceMeta {
+  id: number; name: string; description?: string; ownerId: number;
+  role: 'OWNER'|'ADMIN'|'MEMBER'|'VIEWER'; memberCount: number;
+}
+interface WorkspaceMemberMeta {
+  id: number; workspaceId: number; userId: number; role: string; createTime: string;
+}
+
 export async function apiFetch<T = any>(
   path: string,
   options: RequestInit = {}
@@ -63,4 +71,29 @@ export const api = {
 
   delete: <T = any>(path: string) =>
     apiFetch<T>(path, { method: 'DELETE' }),
+};
+
+export const workspaceApi = {
+  list: () =>
+    api.get<WorkspaceMeta[]>('/workspaces'),
+  create: (data: { name: string; description?: string }) =>
+    api.post<WorkspaceMeta>('/workspaces', data),
+  update: (id: number, data: { name: string; description?: string }) =>
+    api.put<WorkspaceMeta>(`/workspaces/${id}`, data),
+  delete: (id: number) =>
+    api.delete<void>(`/workspaces/${id}`),
+  listMembers: (id: number) =>
+    api.get<WorkspaceMemberMeta[]>(`/workspaces/${id}/members`),
+  addMember: (id: number, data: { userId: number; role: string }) =>
+    api.post<void>(`/workspaces/${id}/members`, data),
+  updateMember: (id: number, memberUserId: number, data: { role: string }) =>
+    api.put<void>(`/workspaces/${id}/members/${memberUserId}`, data),
+  removeMember: (id: number, memberUserId: number) =>
+    api.delete<void>(`/workspaces/${id}/members/${memberUserId}`),
+};
+
+/** Phase A4: LLM provider test connection helper. */
+export const llmConfigApi = {
+  test: (configId: number) =>
+    api.post<{ success: boolean; latencyMs: number; message?: string }>(`/llm-config/${configId}/test`, {}),
 };

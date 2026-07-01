@@ -5,7 +5,7 @@
  */
 import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 
 interface Props {
   summary: string;
@@ -13,9 +13,11 @@ interface Props {
   defaultOpen?: boolean;
   /** Optional inline content shown next to the summary when collapsed. */
   summaryExtra?: ReactNode;
+  /** Phase A2: when true, shows a spinner to indicate in-progress thinking. */
+  running?: boolean;
 }
 
-export default function ThinkingSection({ summary, children, defaultOpen = false, summaryExtra }: Props) {
+export default function ThinkingSection({ summary, children, defaultOpen = false, summaryExtra, running }: Props) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
@@ -31,6 +33,7 @@ export default function ThinkingSection({ summary, children, defaultOpen = false
           className={`transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`}
         />
         <span>{summary}</span>
+        {running && <Loader2 size={11} className="animate-spin text-primary/70 ml-1" />}
         {!open && summaryExtra && (
           <span className="ml-1 text-on-surface-variant/50 truncate">{summaryExtra}</span>
         )}

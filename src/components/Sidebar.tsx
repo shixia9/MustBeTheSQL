@@ -1,6 +1,7 @@
-import { Database, Settings, History, MessageSquare, Plus, Activity } from 'lucide-react';
+import { Database, Settings, History, MessageSquare, Plus, Activity, Building2 } from 'lucide-react';
 import { Page } from '../types';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
+import WorkspaceSelector from './workspace/WorkspaceSelector';
 
 interface SidebarProps {
   currentPage: Page;
@@ -13,7 +14,8 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
   const hasCustomConfig = configs.filter(c => c.status === 1).length > 0;
   const navItems = [
     { id: 'dashboard', label: 'Chat', icon: MessageSquare },
-    { id: 'workspace', label: 'Workspace', icon: Activity },
+    { id: 'schema-browser', label: 'SQL Console', icon: Activity },
+    { id: 'workspace-manage', label: 'Workspaces', icon: Building2 },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'history', label: 'History', icon: History },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -26,6 +28,9 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
         <div className="text-sm font-mono font-semibold text-primary tracking-tight">MustBeTheSQL</div>
         <div className="text-[10px] text-on-surface-variant/50 font-mono">v2 · sql-engine</div>
       </div>
+
+      {/* Workspace selector */}
+      <WorkspaceSelector />
 
       {/* Navigation */}
       <nav className="flex-1 px-2 space-y-0.5">

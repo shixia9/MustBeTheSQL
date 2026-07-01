@@ -12,8 +12,9 @@ import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import DatabasePage from './pages/DatabasePage';
 import SettingsPage from './pages/SettingsPage';
+import WorkspaceManagePage from './pages/WorkspaceManagePage';
 import ProfilePage from './pages/ProfilePage.tsx';
-import WorkspacePage from './pages/WorkspacePage';
+import SchemaBrowserPage from './pages/SchemaBrowserPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
@@ -112,8 +113,10 @@ function AppContent() {
           return <LoginPage onLogin={handleLogin} />;
         case 'dashboard':
           return <DashboardPage user={user} />;
-        case 'workspace':
-          return <WorkspacePage user={user} />;
+        case 'schema-browser':
+          return <SchemaBrowserPage user={user} />;
+        case 'workspace-manage':
+          return <WorkspaceManagePage user={user} />;
         case 'history':
           return <HistoryPage user={user} />;
         case 'database':
