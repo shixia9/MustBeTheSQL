@@ -73,6 +73,12 @@ export const api = {
     apiFetch<T>(path, { method: 'DELETE' }),
 };
 
+interface InvitationMeta {
+  id: number; workspaceId: number; workspaceName?: string; creatorId: number; creatorName?: string;
+  token: string; role: string; expiresAt: string; maxUses: number | null; useCount: number;
+  isActive: boolean; link?: string; createTime: string;
+}
+
 export const workspaceApi = {
   list: () =>
     api.get<WorkspaceMeta[]>('/workspaces'),
@@ -90,6 +96,16 @@ export const workspaceApi = {
     api.put<void>(`/workspaces/${id}/members/${memberUserId}`, data),
   removeMember: (id: number, memberUserId: number) =>
     api.delete<void>(`/workspaces/${id}/members/${memberUserId}`),
+  createInvitation: (id: number, data: { role: string; expiresInHours: number }) =>
+    api.post<InvitationMeta>(`/workspaces/${id}/invitations`, data),
+  listInvitations: (id: number) =>
+    api.get<InvitationMeta[]>(`/workspaces/${id}/invitations`),
+  revokeInvitation: (id: number, invitationId: number) =>
+    api.delete<void>(`/workspaces/${id}/invitations/${invitationId}`),
+  getInvitationByToken: (token: string) =>
+    api.get<InvitationMeta>(`/workspaces/invitations/${token}`),
+  acceptInvitation: (token: string) =>
+    api.post<void>(`/workspaces/invitations/${token}/accept`),
 };
 
 /** Phase A4: LLM provider test connection helper. */

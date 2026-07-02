@@ -15,6 +15,7 @@ import SettingsPage from './pages/SettingsPage';
 import WorkspaceManagePage from './pages/WorkspaceManagePage';
 import ProfilePage from './pages/ProfilePage.tsx';
 import SchemaBrowserPage from './pages/SchemaBrowserPage';
+import JoinWorkspacePage from './pages/JoinWorkspacePage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
@@ -41,6 +42,7 @@ function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -77,6 +79,29 @@ function AppContent() {
           memoryUtils.user = null;
         }
       }
+      // Check for invite token in URL params
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        setInviteToken(urlToken);
+        // Clean up URL bar
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+        if (localUser) {
+          setCurrentPage('invite');
+        }
+      }
+
+      // Check for invite redirect token stored by login page
+      const redirectToken = localStorage.getItem('invite_redirect');
+      if (redirectToken) {
+        setInviteToken(redirectToken);
+        localStorage.removeItem('invite_redirect');
+        if (localUser) {
+          setCurrentPage('invite');
+        }
+      }
+
       setLoading(false);
     };
     init();
@@ -96,6 +121,16 @@ function AppContent() {
     setIsLoggedIn(true);
     memoryUtils.user = userData;
     storageUtils.saveUser(userData);
+
+    // Check for invite redirect
+    const redirectToken = localStorage.getItem('invite_redirect');
+    if (redirectToken) {
+      setInviteToken(redirectToken);
+      localStorage.removeItem('invite_redirect');
+      setCurrentPage('invite');
+      return;
+    }
+
     setCurrentPage('dashboard');
   };
 
@@ -125,6 +160,8 @@ function AppContent() {
           return <SettingsPage user={user} />;
         case 'profile':
           return <ProfilePage user={user} onUserUpdate={handleUserUpdate} />;
+        case 'invite':
+          return <JoinWorkspacePage token={inviteToken || ''} user={user} onPageChange={setCurrentPage} />;
         default:
           return <DashboardPage user={user} />;
       }

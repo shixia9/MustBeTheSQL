@@ -5,6 +5,7 @@ import {
   Shield, Crown, User, Mail, MoreVertical,
   CheckCircle2, AlertTriangle, RefreshCw,
   Loader2, LogOut, UserCog, Eye, Hash, Edit3, ChevronDown,
+  Link2, Copy, Clock,
 } from 'lucide-react';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { workspaceApi } from '../api/client';
@@ -55,6 +56,16 @@ function MemberAvatar({ initial, role }: { initial: string; role: string }) {
   );
 }
 
+function formatExpiry(expiresAt: string): string {
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (diff <= 0) return 'Expired';
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  if (hours > 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 function EmptyState({ icon: Icon, title, desc, action }: { icon: any; title: string; desc: string; action?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -82,6 +93,12 @@ export default function WorkspaceManagePage({ user }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ wsId: number; userId: number; name: string } | null>(null);
   const [showDeleteWs, setShowDeleteWs] = useState<number | null>(null);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [showInviteLinks, setShowInviteLinks] = useState(false);
+  const [newInviteRole, setNewInviteRole] = useState('MEMBER');
+  const [newInviteHours, setNewInviteHours] = useState(72);
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null);
 
   const toast = (text: string, type: 'ok' | 'err' = 'ok') => {
@@ -105,7 +122,45 @@ export default function WorkspaceManagePage({ user }: Props) {
   useEffect(() => { reload(); }, []);
   useEffect(() => {
     if (selectedWs) loadMembers(selectedWs); else setMembers([]);
-  }, [selectedWs]);
+    if (selectedWs && showInviteLinks) loadInvitations(selectedWs);
+  }, [selectedWs, showInviteLinks]);
+
+  const loadInvitations = (wsId: number) => {
+    workspaceApi.listInvitations(wsId).then(res => {
+      if (res.code === 200 && Array.isArray(res.data)) setInvitations(res.data);
+    }).catch(() => {});
+  };
+
+  const handleCreateInvitationLink = async () => {
+    if (!selectedWs) return;
+    setCreatingLink(true);
+    const res = await workspaceApi.createInvitation(selectedWs, { role: newInviteRole, expiresInHours: newInviteHours });
+    if (res.code === 200) {
+      loadInvitations(selectedWs);
+      toast('Invitation link created');
+    } else {
+      toast(res.message || 'Failed to create link', 'err');
+    }
+    setCreatingLink(false);
+  };
+
+  const handleRevokeInvitation = async (invitationId: number) => {
+    if (!selectedWs) return;
+    const res = await workspaceApi.revokeInvitation(selectedWs, invitationId);
+    if (res.code === 200) {
+      loadInvitations(selectedWs);
+      toast('Invitation revoked');
+    } else {
+      toast(res.message || 'Failed to revoke', 'err');
+    }
+  };
+
+  const handleCopyLink = (token: string) => {
+    const link = `${window.location.origin}/invite?token=${token}`;
+    navigator.clipboard.writeText(link);
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -267,6 +322,32 @@ export default function WorkspaceManagePage({ user }: Props) {
 
                 {/* Members Section */}
                 <div className="p-4">
+                  {/* Tab Switch */}
+                  <div className="flex items-center border-b border-outline-variant mb-4">
+                    <button
+                      onClick={() => setShowInviteLinks(false)}
+                      className={`px-3 py-2 text-[10px] font-mono font-semibold border-b-2 transition-colors ${
+                        !showInviteLinks
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-on-surface-variant/60 hover:text-on-surface-variant'
+                      }`}
+                    >
+                      <Users size={12} className="inline mr-1" /> Members ({members.length})
+                    </button>
+                    <button
+                      onClick={() => { setShowInviteLinks(true); if (selectedWs) loadInvitations(selectedWs); }}
+                      className={`px-3 py-2 text-[10px] font-mono font-semibold border-b-2 transition-colors ${
+                        showInviteLinks
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-on-surface-variant/60 hover:text-on-surface-variant'
+                      }`}
+                    >
+                      <Link2 size={12} className="inline mr-1" /> Invite Links ({invitations.length})
+                    </button>
+                  </div>
+
+                  {!showInviteLinks && (
+                  <>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-xs font-mono font-semibold text-on-surface flex items-center gap-1.5">
                       <Users size={14} className="text-on-surface-variant/70" />
@@ -392,6 +473,122 @@ export default function WorkspaceManagePage({ user }: Props) {
                       );
                     })}
                   </div>
+                  </>
+                  )}
+
+                  {/* Invitation Links Tab */}
+                  {showInviteLinks && (
+                  <div>
+                    {/* Create Invitation Link */}
+                    <div className="mb-4 border border-primary/20 bg-surface-container-high p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider font-mono">Create Invite Link</span>
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div>
+                          <label className="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider font-mono">Role</label>
+                          <div className="relative">
+                            <select
+                              className="bg-surface-container-low border-none px-2.5 py-1.5 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 appearance-none pr-6"
+                              value={newInviteRole}
+                              onChange={e => setNewInviteRole(e.target.value)}
+                            >
+                              <option value="ADMIN">Admin</option>
+                              <option value="MEMBER">Member</option>
+                              <option value="VIEWER">Viewer</option>
+                            </select>
+                            <ChevronDown size={12} className="absolute right-1.5 top-2 pointer-events-none text-on-surface-variant" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold text-on-surface-variant/60 uppercase tracking-wider font-mono">Expires in</label>
+                          <select
+                            className="bg-surface-container-low border-none px-2.5 py-1.5 text-xs text-on-surface focus:ring-2 focus:ring-primary/30 appearance-none pr-6"
+                            value={newInviteHours}
+                            onChange={e => setNewInviteHours(parseInt(e.target.value))}
+                          >
+                            <option value={1}>1 hour</option>
+                            <option value={24}>24 hours</option>
+                            <option value={72}>3 days</option>
+                            <option value={168}>7 days</option>
+                            <option value={720}>30 days</option>
+                          </select>
+                        </div>
+                        <button
+                          onClick={handleCreateInvitationLink}
+                          disabled={creatingLink}
+                          className="px-3 py-1.5 text-[11px] font-mono font-semibold flex items-center gap-1.5
+                            border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors active:bg-primary/15 disabled:opacity-40"
+                        >
+                          {creatingLink ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
+                          Generate
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Invitation Links List */}
+                    <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                      {invitations.length === 0 ? (
+                        <div className="text-center py-8 text-on-surface-variant/50 text-xs font-mono">
+                          No invitation links yet. Generate one to share with collaborators.
+                        </div>
+                      ) : invitations.map(inv => {
+                        const expired = new Date(inv.expiresAt).getTime() <= Date.now();
+                        return (
+                          <div
+                            key={inv.id}
+                            className={`flex items-center justify-between px-3 py-2 bg-surface-container-high/30 hover:bg-surface-container-high/50 transition-colors border ${
+                              !inv.isActive || expired ? 'border-outline-variant/5 opacity-50' : 'border-outline-variant/10'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-mono font-semibold ${inv.isActive && !expired ? 'text-on-surface' : 'text-on-surface-variant/50'}`}>
+                                  {inv.role}
+                                </span>
+                                {!inv.isActive && (
+                                  <span className="text-[9px] font-mono text-error/60">Revoked</span>
+                                )}
+                                {expired && inv.isActive && (
+                                  <span className="text-[9px] font-mono text-amber-500/60">Expired</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-0.5">
+                                <span className="text-[9px] font-mono text-on-surface-variant/40 flex items-center gap-1">
+                                  <Clock size={9} />
+                                  {formatExpiry(inv.expiresAt)}
+                                </span>
+                                <span className="text-[9px] font-mono text-on-surface-variant/40">
+                                  Used: {inv.useCount}{inv.maxUses ? `/${inv.maxUses}` : ''}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {inv.isActive && !expired && (
+                                <>
+                                  <button
+                                    onClick={() => handleCopyLink(inv.token)}
+                                    className="p-1.5 text-on-surface-variant/40 hover:text-primary transition-colors"
+                                    title="Copy link"
+                                  >
+                                    {copiedToken === inv.token ? <CheckCircle2 size={12} className="text-success" /> : <Copy size={12} />}
+                                  </button>
+                                  <button
+                                    onClick={() => handleRevokeInvitation(inv.id)}
+                                    className="p-1.5 text-on-surface-variant/40 hover:text-error transition-colors"
+                                    title="Revoke"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  )}
                 </div>
 
                 {/* Footer Info */}
