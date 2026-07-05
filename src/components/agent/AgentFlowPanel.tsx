@@ -458,6 +458,7 @@ export default function AgentFlowPanel({
     setLoadingHistory(true);
     const qs = new URLSearchParams({ page: String(page), size: String(historySize) });
     if (kw.trim()) qs.set('keyword', kw.trim());
+    if (selectedWorkspaceId) qs.set('workspaceId', String(selectedWorkspaceId));
     fetch(`/api/v1/agent/history?${qs.toString()}`, { credentials: 'include' })
       .then(r => r.json())
       .then((d: any) => {
@@ -478,7 +479,7 @@ export default function AgentFlowPanel({
       })
       .catch(() => { setHistoryList([]); setHistoryTotal(0); })
       .finally(() => setLoadingHistory(false));
-  }, [historySize]);
+  }, [historySize, selectedWorkspaceId]);
 
   // Fetch history when the modal is toggled open
   useEffect(() => {

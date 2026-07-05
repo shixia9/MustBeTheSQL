@@ -40,7 +40,7 @@ export function LlmConfigProvider({ children }: { children: React.ReactNode }) {
 
   // Persist selected config to localStorage
   useEffect(() => {
-    if (selectedConfigId !== null) {
+    if (selectedConfigId !== null && selectedConfigId !== 0) {
       localStorage.setItem('selected_llm_config_id', String(selectedConfigId));
     } else {
       localStorage.removeItem('selected_llm_config_id');
@@ -49,6 +49,7 @@ export function LlmConfigProvider({ children }: { children: React.ReactNode }) {
 
   // Compute the effective selected config
   const selectedConfig: LlmConfig | null =
+    selectedConfigId === 0 ? null :
     configs.find(c => c.id === selectedConfigId && c.status === 1) ||
     configs.find(c => c.isDefault && c.status === 1) ||
     configs.find(c => c.status === 1) ||

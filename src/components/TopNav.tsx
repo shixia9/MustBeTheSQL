@@ -78,9 +78,9 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
               <div className="border-t border-outline-variant my-1" />
               <button
                 className={`w-full text-left px-3 py-1.5 hover:bg-surface-container-highest transition-colors ${
-                  selectedConfigId === null ? 'text-primary' : 'text-on-surface-variant'
+                  selectedConfigId === 0 ? 'text-primary' : 'text-on-surface-variant'
                 }`}
-                onClick={() => { setSelectedConfigId(null); setShowModelDropdown(false); }}
+                onClick={() => { setSelectedConfigId(0); setShowModelDropdown(false); }}
               >
                 System Default
               </button>
