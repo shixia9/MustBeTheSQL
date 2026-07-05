@@ -200,6 +200,7 @@ export default function WorkspaceManagePage({ user }: Props) {
   };
 
   const selected = workspaces.find(w => w.id === selectedWs);
+  const canManage = selected?.role === 'OWNER' || selected?.role === 'ADMIN';
   const totalMembers = workspaces.reduce((sum, w) => sum + (w.memberCount || 0), 0);
 
   return (
@@ -284,12 +285,14 @@ export default function WorkspaceManagePage({ user }: Props) {
                             <RoleBadge role={w.role} />
                           </div>
                         </div>
+                        {w.role === 'OWNER' && (
                         <button
                           onClick={e => { e.stopPropagation(); setShowDeleteWs(w.id); }}
                           className="p-1.5 text-on-surface-variant/40 hover:text-error transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 size={14} />
                         </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -334,6 +337,7 @@ export default function WorkspaceManagePage({ user }: Props) {
                     >
                       <Users size={12} className="inline mr-1" /> Members ({members.length})
                     </button>
+                    {canManage && (
                     <button
                       onClick={() => { setShowInviteLinks(true); if (selectedWs) loadInvitations(selectedWs); }}
                       className={`px-3 py-2 text-[10px] font-mono font-semibold border-b-2 transition-colors ${
@@ -344,6 +348,7 @@ export default function WorkspaceManagePage({ user }: Props) {
                     >
                       <Link2 size={12} className="inline mr-1" /> Invite Links ({invitations.length})
                     </button>
+                    )}
                   </div>
 
                   {!showInviteLinks && (
@@ -353,6 +358,7 @@ export default function WorkspaceManagePage({ user }: Props) {
                       <Users size={14} className="text-on-surface-variant/70" />
                       Members ({members.length})
                     </h4>
+                    {canManage && (
                     <button
                       onClick={() => setInviting(true)}
                       className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-mono font-semibold
@@ -360,11 +366,12 @@ export default function WorkspaceManagePage({ user }: Props) {
                     >
                       <UserPlus size={12} /> Invite
                     </button>
+                    )}
                   </div>
 
-                  {/* Invite Form */}
+                  {/* Invite Form — only visible to users with manage permission */}
                   <AnimatePresence>
-                    {inviting && (
+                    {inviting && canManage && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -446,7 +453,7 @@ export default function WorkspaceManagePage({ user }: Props) {
                               <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border font-mono ${mRole?.bg} ${mRole?.text} ${mRole?.border}`}>
                                 Owner
                               </span>
-                            ) : (
+                            ) : canManage ? (
                               <div className="relative">
                                 <select
                                   className="bg-surface-container-low border border-outline-variant/30 text-[10px] text-on-surface py-0.5 pl-1.5 pr-5 appearance-none cursor-pointer focus:ring-1 focus:ring-primary/30 font-mono"
@@ -459,8 +466,10 @@ export default function WorkspaceManagePage({ user }: Props) {
                                 </select>
                                 <ChevronDown size={10} className="absolute right-1 top-1 pointer-events-none text-on-surface-variant/60" />
                               </div>
+                            ) : (
+                              <RoleBadge role={m.role} />
                             )}
-                            {!isOwner && (
+                            {!isOwner && canManage && (
                               <button
                                 onClick={() => setConfirmRemove({ wsId: selectedWs, userId: m.userId, name: m.username || `User #${m.userId}` })}
                                 className="p-1 text-on-surface-variant/40 hover:text-error transition-colors"

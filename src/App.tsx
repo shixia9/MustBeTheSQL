@@ -89,15 +89,18 @@ function AppContent() {
         window.history.replaceState({}, '', cleanUrl);
         if (localUser) {
           setCurrentPage('invite');
+        } else {
+          // Not logged in — save token so handleLogin can redirect after auth
+          localStorage.setItem('invite_redirect', urlToken);
         }
       }
 
-      // Check for invite redirect token stored by login page
+      // Check for invite redirect token — used when returning from login page
       const redirectToken = localStorage.getItem('invite_redirect');
       if (redirectToken) {
         setInviteToken(redirectToken);
-        localStorage.removeItem('invite_redirect');
         if (localUser) {
+          localStorage.removeItem('invite_redirect');
           setCurrentPage('invite');
         }
       }
