@@ -85,7 +85,7 @@ export default function SettingsPage({ user }: { user: any }) {
           configId: editingConfig.id,
           configName: formData.configName || undefined,
           providerType: formData.providerType || undefined,
-          baseUrl: formData.baseUrl || undefined,
+          baseUrl: formData.baseUrl,
           apiKey: formData.apiKey || undefined,
           modelName: formData.modelName || undefined,
           isDefault: formData.isDefault || undefined,
@@ -94,7 +94,7 @@ export default function SettingsPage({ user }: { user: any }) {
         await api.post('/llm-config/create', {
           configName: formData.configName,
           providerType: formData.providerType,
-          baseUrl: formData.baseUrl || undefined,
+          baseUrl: formData.baseUrl,
           apiKey: formData.apiKey,
           modelName: formData.modelName || undefined,
           isDefault: formData.isDefault || undefined,
