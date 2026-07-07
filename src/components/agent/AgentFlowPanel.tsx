@@ -931,6 +931,7 @@ export default function AgentFlowPanel({
         return {
           id: `hist-${step.sequenceNo}`,
           name: step.nodeName,
+          nodeName: step.nodeName,
           content: '',
           status: (step.status === 'SUCCESS' ? 'success' : 'error') as StepStatus,
           data,
