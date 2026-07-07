@@ -12,6 +12,7 @@ import { useWorkspaceStore } from '../../stores/workspaceStore';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import EvidenceRecallCard from './cards/EvidenceRecallCard';
 import FeasibilityCard from './cards/FeasibilityCard';
+import type { TraceStep } from '../../types/agent';
 import TraceCard from './cards/TraceCard';
 import ResultChart from './cards/ResultChart';
 import ThinkingSection from './cards/ThinkingSection';
@@ -557,7 +558,8 @@ export default function AgentFlowPanel({
           | { type: 'COMPLETED' }
           | { type: 'ERROR'; message: string }
           | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
-          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number };
+          | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number }
+          | { type: 'NODE_STARTED'; nodeName: string; nodeIdx: number };
 
         const batch: BatchItem[] = [];
 
@@ -588,6 +590,15 @@ export default function AgentFlowPanel({
               continue;
             }
 
+            // Per-node STARTED events (Phase B): mark the node as running before it finishes.
+            if (event.outputType === 'STARTED') {
+              const snName = event.nodeName;
+              if (snName && ACTIVE_NODES.includes(snName)) {
+                batch.push({ type: 'NODE_STARTED', nodeName: snName, nodeIdx: ACTIVE_NODES.indexOf(snName) });
+              }
+              continue;
+            }
+
             // Per-node completion events
             const nodeName = event.nodeName;
             if (!nodeName || !ACTIVE_NODES.includes(nodeName)) continue;
@@ -614,6 +625,34 @@ export default function AgentFlowPanel({
             let current = prev;
 
             for (const update of batch) {
+              if (update.type === 'NODE_STARTED') {
+                // Ensure a running placeholder card exists for this node.
+                const id = cardId(update.nodeName, null, 0);
+                if (!current.some(st => st.id === id)) {
+                  const [oi, os, oq] = cardSortKey(update.nodeName, null, 0);
+                  let targetPos = 0;
+                  for (let i = 0; i < current.length; i++) {
+                    const [ci, cs, cq] = cardSortKey(current[i].name, current[i].step ?? null, current[i].sequenceNo ?? 0);
+                    if (ci < oi || (ci === oi && cs < os) || (ci === oi && cs === os && cq <= oq)) targetPos = i + 1;
+                  }
+                  current = [
+                    ...current.slice(0, targetPos),
+                    {
+                      id,
+                      name: update.nodeName,
+                      content: '',
+                      status: 'running' as StepStatus,
+                      step: undefined,
+                      sequenceNo: 0,
+                    } as AgentStep,
+                    ...current.slice(targetPos),
+                  ];
+                } else {
+                  current = current.map(st => st.id === id && st.status !== 'success'
+                    ? { ...st, status: 'running' as StepStatus } : st);
+                }
+                continue;
+              }
               if (update.type === 'NODE') {
                 const id = cardId(update.nodeName, update.stepNo, update.sequenceNo);
                 // Ensure this card exists — insert in (order, step) position.
@@ -1145,7 +1184,7 @@ export default function AgentFlowPanel({
         {/* Phase A3: Trace view — shows token/timing breakdown per node. */}
         {showTraceView && steps.length > 0 ? (
           <TraceCard
-            steps={steps as any}
+            steps={steps as unknown as TraceStep[]}
             totalTokens={traceMeta?.totalTokens}
             totalDurationMs={traceMeta?.totalDurationMs}
             modelCalls={traceMeta?.modelCalls}

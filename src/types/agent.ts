@@ -19,6 +19,19 @@ export interface AgentStep {
   sequenceNo?: number;
 }
 
+/** A per-step trace row (latency/tokens/type) used by the Trace view.
+ *  Populated from the agent_execution_step DB row when loading history. */
+export interface TraceStep {
+  nodeName: string;
+  sequenceNo: number;
+  status: string;
+  durationMs?: number;
+  latencyMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  nodeType?: string;
+}
+
 /** The order in which nodes appear in the timeline */
 export const NODE_ORDER = [
   'EVIDENCE_RECALL',
