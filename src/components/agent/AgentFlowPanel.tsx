@@ -626,6 +626,7 @@ export default function AgentFlowPanel({
 
             for (const update of batch) {
               if (update.type === 'NODE_STARTED') {
+                if (LOOPED_NODES.has(update.nodeName)) continue;
                 // Ensure a running placeholder card exists for this node.
                 const id = cardId(update.nodeName, null, 0);
                 if (!current.some(st => st.id === id)) {
