@@ -13,7 +13,6 @@ export default function WorkspaceSelector() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (workspaces.length > 0) return;
     setLoadingWorkspaces(true);
     workspaceApi.list()
       .then(res => { if (res.code === 200 && Array.isArray(res.data)) setWorkspaces(res.data); })

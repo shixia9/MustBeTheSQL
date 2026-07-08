@@ -42,17 +42,22 @@ export interface WorkspaceState {
   setSelectedWorkspaceId: (id: number | null) => void;
   setWorkspaces: (workspaces: WorkspaceMeta[]) => void;
   setLoadingWorkspaces: (loading: boolean) => void;
+  resetState: () => void;
 }
 
-export const useWorkspaceStore = create<WorkspaceState>((set) => ({
+const initialState = {
   activeConnectionId: null,
   activeSchema: null,
-  expandedKeys: new Set(),
+  expandedKeys: new Set<string>(),
   tabs: [],
   activeTabId: null,
   selectedWorkspaceId: null,
-  workspaces: [],
+  workspaces: [] as WorkspaceMeta[],
   loadingWorkspaces: false,
+};
+
+export const useWorkspaceStore = create<WorkspaceState>((set) => ({
+  ...initialState,
 
   setActiveConnectionId: (id) => set({ activeConnectionId: id }),
   setActiveSchema: (schema) => set({ activeSchema: schema }),
@@ -96,4 +101,5 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setSelectedWorkspaceId: (id) => set({ selectedWorkspaceId: id }),
   setWorkspaces: (workspaces) => set({ workspaces }),
   setLoadingWorkspaces: (loading) => set({ loadingWorkspaces: loading }),
+  resetState: () => set({ ...initialState }),
 }));

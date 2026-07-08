@@ -24,6 +24,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import storageUtils from './utils/storageUtils.ts'
 import memoryUtils from './utils/memoryUtils.ts';
 import { api } from './api/client.ts';
+import { useWorkspaceStore } from './stores/workspaceStore';
+import { useLlmConfig } from './contexts/LlmConfigContext';
 
 export default function App() {
   return (
@@ -43,6 +45,7 @@ function AppContent() {
   const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const { clearConfigs } = useLlmConfig();
 
   useEffect(() => {
     const init = async () => {
@@ -172,16 +175,16 @@ function AppContent() {
 
   const handleLogout = async () => {
     try {
-      // Notify backend to invalidate the Sa-Token session
       await api.post('/user/logout');
     } catch (e) {
-      // Even if backend logout fails, clear local state
       console.warn('Backend logout failed:', e);
     }
     setUser(null);
     setIsLoggedIn(false);
     memoryUtils.user = null;
     storageUtils.deleteUser();
+    useWorkspaceStore.getState().resetState();
+    clearConfigs();
     setCurrentPage('login');
   };
 

@@ -8,6 +8,7 @@ interface LlmConfigContextType {
   selectedConfig: LlmConfig | null;
   setSelectedConfigId: (id: number | null) => void;
   refreshConfigs: () => Promise<void>;
+  clearConfigs: () => void;
   loading: boolean;
 }
 
@@ -32,6 +33,12 @@ export function LlmConfigProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const clearConfigs = useCallback(() => {
+    setConfigs([]);
+    setSelectedConfigId(null);
+    localStorage.removeItem('selected_llm_config_id');
   }, []);
 
   useEffect(() => {
@@ -62,6 +69,7 @@ export function LlmConfigProvider({ children }: { children: React.ReactNode }) {
       selectedConfig,
       setSelectedConfigId,
       refreshConfigs,
+      clearConfigs,
       loading
     }}>
       {children}
