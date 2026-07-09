@@ -16,9 +16,12 @@ import WorkspaceManagePage from './pages/WorkspaceManagePage';
 import ProfilePage from './pages/ProfilePage.tsx';
 import SchemaBrowserPage from './pages/SchemaBrowserPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
+import AgentStudioPage from './pages/AgentStudioPage';
+import MemoryPage from './pages/MemoryPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
+import { I18nProvider, useI18n } from './i18n';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import storageUtils from './utils/storageUtils.ts'
@@ -29,17 +32,20 @@ import { useLlmConfig } from './contexts/LlmConfigContext';
 
 export default function App() {
   return (
-    <SettingsProvider>
-      <LlmConfigProvider>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
-      </LlmConfigProvider>
-    </SettingsProvider>
+    <I18nProvider>
+      <SettingsProvider>
+        <LlmConfigProvider>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </LlmConfigProvider>
+      </SettingsProvider>
+    </I18nProvider>
   );
 }
 
 function AppContent() {
+  const { t } = useI18n();
   const [currentPage, setCurrentPage] = useState<Page>('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
@@ -154,6 +160,10 @@ function AppContent() {
           return <LoginPage onLogin={handleLogin} />;
         case 'dashboard':
           return <DashboardPage user={user} />;
+        case 'agent-studio':
+          return <AgentStudioPage user={user} />;
+        case 'memory':
+          return <MemoryPage />;
         case 'schema-browser':
           return <SchemaBrowserPage user={user} />;
         case 'workspace-manage':
@@ -191,7 +201,7 @@ function AppContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
-        <div className="text-on-surface-variant text-sm">Loading...</div>
+        <div className="text-on-surface-variant text-sm">{t('app.loading')}</div>
       </div>
     );
   }

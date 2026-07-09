@@ -8,6 +8,7 @@
   /* Primary */
   --color-primary: #3568c2;
   --color-primary-container: #dce6ff;
+  --color-on-primary: #ffffff;
 
   /* Light theme (default) — soft, eye-friendly */
   --color-surface: #f5f6f8;
@@ -38,6 +39,7 @@
 .dark {
   --color-primary: #7aadff;
   --color-primary-container: #1a2d52;
+  --color-on-primary: #0d1117;
 
   --color-surface: #16181d;
   --color-surface-container-low: #1b1d23;
@@ -97,6 +99,46 @@
 
   .hr {
     @apply border-t border-outline-variant;
+  }
+
+  /* ── Terminal-style custom checkbox ── */
+  .term-checkbox {
+    @apply relative inline-flex items-center justify-center w-4 h-4 border border-outline-variant bg-transparent cursor-pointer flex-shrink-0;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .term-checkbox:hover {
+    @apply border-primary/60;
+  }
+  .term-checkbox:checked {
+    @apply border-primary bg-primary;
+  }
+  .term-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 12px;
+    height: 12px;
+    background-color: #fff;
+    clip-path: polygon(14% 44%, 0% 58%, 35% 88%, 88% 26%, 74% 14%, 35% 62%);
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+  }
+  .term-checkbox:focus-visible {
+    @apply border-primary;
+    box-shadow: 0 0 0 2px var(--color-primary);
+    outline: none;
+  }
+  .term-checkbox:active {
+    transform: scale(0.9);
+  }
+
+  /* ── Terminal toggle button — selected state ── */
+  .tool-toggle-on {
+    @apply border-primary/60 bg-primary/[0.08] text-on-surface;
+    box-shadow: inset 2px 0 0 0 var(--color-primary);
   }
 }
 

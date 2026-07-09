@@ -113,3 +113,31 @@ export const llmConfigApi = {
   test: (configId: number) =>
     api.post<{ success: boolean; latencyMs: number; message?: string }>(`/llm-config/${configId}/test`, {}),
 };
+
+/** Phase B (B1): LLM HA strategy + metrics. */
+export const llmStrategyApi = {
+  updateStrategy: (configId: number, body: { strategyType: string; fallbackChain?: number[] }) =>
+    api.put(`/llm-config/${configId}/strategy`, body),
+  getMetrics: (configId: number) =>
+    api.get<{ successRate?: number; avgLatencyMs?: number; circuitState?: string; totalRequests?: number }>(`/llm-config/${configId}/metrics`),
+};
+
+/** Phase B (B4): Agent Studio CRUD. */
+export const agentEntityApi = {
+  list: () => api.get<any[]>('/agent-entity/list'),
+  get: (id: number) => api.get<any>(`/agent-entity/${id}`),
+  create: (body: any) => api.post<any>('/agent-entity', body),
+  update: (id: number, body: any) => api.put<any>(`/agent-entity/${id}`, body),
+  setDefault: (id: number) => api.put<void>(`/agent-entity/${id}/default`, {}),
+  delete: (id: number) => api.delete<void>(`/agent-entity/${id}`),
+};
+
+/** Phase B (B3): memory management + manual extraction trigger. */
+export const memoryApi = {
+  list: (type?: string) => api.get<any[]>(`/memory/list${type ? `?type=${type}` : ''}`),
+  create: (body: { type: string; content: string; importance?: number; tags?: string[] }) =>
+    api.post<any>('/memory', body),
+  delete: (id: number) => api.delete<void>(`/memory/${id}`),
+  extract: (body: { userInput: string; summary: string; threadId?: string }) =>
+    api.post<void>('/memory/extract', body),
+};

@@ -3,12 +3,13 @@
  * Streams SSE events and displays progressive per-node results as they arrive.
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Loader2, Database, Table2, BarChart2, History, Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Loader2, Database, Table2, BarChart2, History, Search, ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AgentStep, StepStatus } from '../../types/agent';
 import { nodeCategoryOf, CATEGORY_STYLES, messageCategoryForNode, formatDuration } from '../../types/agent';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
+import { useI18n } from '../../i18n';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import EvidenceRecallCard from './cards/EvidenceRecallCard';
 import FeasibilityCard from './cards/FeasibilityCard';
@@ -198,6 +199,7 @@ function SqlResultView({ raw }: { raw: string }) {
 }
 
 function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: number; isPausedAtHitl: boolean }) {
+  const { t } = useI18n();
   const statusChar =
     step.status === 'success' ? '✓' : step.status === 'running' ? '◉' :
     step.status === 'error' ? '✗' : '○';
@@ -360,7 +362,7 @@ function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: num
 
       {step.status === 'running' && (
         <div className="ml-14 pb-2">
-          <span className="text-on-surface-variant/50 text-xs animate-pulse">Processing...</span>
+          <span className="text-on-surface-variant/50 text-xs animate-pulse">{t('chat.processing')}</span>
         </div>
       )}
     </div>
@@ -385,6 +387,7 @@ const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number): [
 export default function AgentFlowPanel({
   user, connections, selectedConnId, selectedConfigId, onConnectionChange,
 }: AgentFlowPanelProps) {
+  const { t } = useI18n();
   const { selectedWorkspaceId } = useWorkspaceStore();
   const [query, setQuery] = useState('');
   const [sentQuery, setSentQuery] = useState('');
@@ -392,6 +395,10 @@ export default function AgentFlowPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
   const [dbConnected, setDbConnected] = useState(false);
+  // Phase B (B5): multi-turn conversation id. Null on a fresh chat; the backend
+  // creates a conversation on the first turn and returns its id in the COMPLETED
+  // event, which we echo on follow-up turns so prior context is injected.
+  const [conversationId, setConversationId] = useState<number | null>(null);
   // Phase 4 HITL state
   const autoConfirmKey = `agent_autoconfirm_${user?.id ?? 'default'}`;
   const [autoConfirm, setAutoConfirm] = useState<boolean>(() => {
@@ -498,6 +505,21 @@ export default function AgentFlowPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [showHistory]);
 
+  const startNewConversation = () => {
+    setConversationId(null);
+    setSteps([]);
+    setQuery('');
+    setSentQuery('');
+    setError('');
+    setAwaitingConfirmation(false);
+    setPendingThreadId(null);
+    setPendingPlan('');
+    setRepairCount(1);
+    setConfirmationFeedback('');
+    setShowTraceView(false);
+    setTraceMeta(null);
+  };
+
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
     setSentQuery(query);
@@ -536,6 +558,7 @@ export default function AgentFlowPanel({
           autoConfirm,
           schemaContext: selectedSchema || '',
           workspaceId: selectedWorkspaceId,
+          conversationId: conversationId ?? null,
         }),
         signal: abortRef.current.signal,
       });
@@ -555,7 +578,7 @@ export default function AgentFlowPanel({
         // Collect all events in this chunk, then process in a SINGLE setSteps update
         // to avoid React batching issues where function updaters see stale state.
         type BatchItem =
-          | { type: 'COMPLETED' }
+          | { type: 'COMPLETED'; conversationId: number | null }
           | { type: 'ERROR'; message: string }
           | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
           | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number }
@@ -573,7 +596,8 @@ export default function AgentFlowPanel({
             const event = JSON.parse(dataStr);
 
             if (event.type === 'COMPLETED') {
-              batch.push({ type: 'COMPLETED' });
+              const convId = event.conversationId != null ? Number(event.conversationId) : null;
+              batch.push({ type: 'COMPLETED', conversationId: convId });
               continue;
             }
             if (event.type === 'ERROR') {
@@ -620,6 +644,7 @@ export default function AgentFlowPanel({
           let hasCompleted = false;
           let hasError = false;
           let errorMsg = '';
+          let completedConvId: number | null = null;
           setSteps(prev => {
             // Manually chain updates — prev is stable for this updater call
             let current = prev;
@@ -729,6 +754,7 @@ export default function AgentFlowPanel({
                 }
               } else if (update.type === 'COMPLETED') {
                 hasCompleted = true;
+                completedConvId = update.conversationId;
                 current = current.map(s =>
                   s.status === 'running'
                     ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
@@ -751,7 +777,10 @@ export default function AgentFlowPanel({
             });
             return current;
           });
-          if (hasCompleted) setIsStreaming(false);
+          if (hasCompleted) {
+            if (completedConvId != null) setConversationId(completedConvId);
+            setIsStreaming(false);
+          }
           if (hasAwaiting && awaitingBatch) {
             setPendingThreadId(awaitingBatch.threadId);
             setPendingPlan(awaitingBatch.plan);
@@ -815,7 +844,7 @@ export default function AgentFlowPanel({
         partial = lines.pop() || '';
 
         type BatchItem =
-          | { type: 'COMPLETED' }
+          | { type: 'COMPLETED'; conversationId: number | null }
           | { type: 'ERROR'; message: string }
           | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number }
           | { type: 'NODE'; nodeName: string; nodeIdx: number; data: any; stepNo: number | null; sequenceNo: number };
@@ -827,7 +856,7 @@ export default function AgentFlowPanel({
           if (!dataStr) continue;
           try {
             const event = JSON.parse(dataStr);
-            if (event.type === 'COMPLETED') { batch.push({ type: 'COMPLETED' }); continue; }
+            if (event.type === 'COMPLETED') { batch.push({ type: 'COMPLETED', conversationId: event.conversationId != null ? Number(event.conversationId) : null }); continue; }
             if (event.type === 'ERROR') { batch.push({ type: 'ERROR', message: event.message || 'Resume failed' }); continue; }
             if (event.type === 'AWAITING_CONFIRMATION') {
               batch.push({ type: 'AWAITING_CONFIRMATION', threadId: String(event.threadId ?? ''), plan: String(event.plan ?? ''), repairCount: Number(event.repairCount ?? 1) });
@@ -848,6 +877,7 @@ export default function AgentFlowPanel({
           let hasCompleted = false;
           let hasError = false;
           let errorMsg = '';
+          let completedConvId: number | null = null;
           setSteps(prev => {
             let current = prev;
             for (const update of batch) {
@@ -867,6 +897,7 @@ export default function AgentFlowPanel({
                 );
               } else if (update.type === 'COMPLETED') {
                 hasCompleted = true;
+                completedConvId = update.conversationId;
                 current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
               } else if (update.type === 'AWAITING_CONFIRMATION') {
                 current = current.map(s => s.status === 'running' ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) } : s);
@@ -893,6 +924,7 @@ export default function AgentFlowPanel({
             setIsStreaming(false);
           }
           if (hasCompleted) {
+            if (completedConvId != null) setConversationId(completedConvId);
             setAwaitingConfirmation(false);
             setIsStreaming(false);
           }
@@ -990,10 +1022,10 @@ export default function AgentFlowPanel({
           <label
             className="flex items-center gap-1.5 cursor-pointer select-none"
             title={autoConfirm
-              ? 'Auto-confirm ON: plans skip the review gate and execute automatically.'
-              : 'Auto-confirm OFF: the LLM gate decides whether a plan needs your approval before execution.'}
+              ? t('chat.autoConfirmOnTitle')
+              : t('chat.autoConfirmOffTitle')}
           >
-            <span className="text-[10px] text-on-surface-variant/70 font-mono uppercase tracking-wider">Auto-confirm</span>
+            <span className="text-[10px] text-on-surface-variant/70 font-mono uppercase tracking-wider">{t('chat.autoConfirm')}</span>
             <button
               type="button"
               role="switch"
@@ -1012,7 +1044,7 @@ export default function AgentFlowPanel({
               value={selectedConnId}
               onChange={(e) => onConnectionChange(e.target.value ? Number(e.target.value) : 0)}
             >
-              <option value="">Select Database</option>
+              <option value="">{t('chat.selectDatabase')}</option>
               {connections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -1023,23 +1055,34 @@ export default function AgentFlowPanel({
               onChange={(e) => setSelectedSchema(e.target.value)}
               disabled={!selectedConnId}
             >
-              <option value="">{loadingSchema ? 'Loading...' : 'Schema'}</option>
+              <option value="">{loadingSchema ? t('chat.loading') : t('chat.schema')}</option>
               {schemas.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div className={'w-1.5 h-1.5 ' + (dbConnected ? 'bg-primary' : 'bg-outline-variant/50')}
-            title={dbConnected ? 'Connected' : 'Not connected'} />
+            title={dbConnected ? t('chat.connected') : t('chat.notConnected')} />
         </div>
 
-        {/* Right: history button (prominent, labelled) */}
-        <button
-          onClick={() => setShowHistory(true)}
-          className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant hover:border-primary/40 transition-colors"
-          title="Agent History"
-        >
-          <History size={13} />
-          <span className="hidden sm:inline uppercase tracking-wider">History</span>
-        </button>
+        {/* Right: new conversation + history buttons — grouped tight */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={startNewConversation}
+            className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant hover:border-primary/40 transition-colors"
+            title="Start a new conversation"
+            disabled={isStreaming}
+          >
+            <Plus size={13} />
+            <span className="hidden sm:inline uppercase tracking-wider">New</span>
+          </button>
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 text-on-surface-variant hover:text-primary hover:bg-primary/10 border border-outline-variant hover:border-primary/40 transition-colors"
+            title="Agent history"
+          >
+            <History size={13} />
+            <span className="hidden sm:inline uppercase tracking-wider">History</span>
+          </button>
+        </div>
       </div>
 
       {showHistory && (
@@ -1052,7 +1095,7 @@ export default function AgentFlowPanel({
             <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/20 bg-surface-container-low">
               <div className="flex items-center gap-2">
                 <History size={14} className="text-primary" />
-                <span className="text-sm text-on-surface font-semibold uppercase tracking-wider">Agent History</span>
+                <span className="text-sm text-on-surface font-semibold uppercase tracking-wider">{t('chat.sessionHistory')}</span>
                 <span className="text-[10px] text-on-surface-variant/50">({historyTotal} session{historyTotal === 1 ? '' : 's'})</span>
               </div>
               <button
@@ -1078,7 +1121,7 @@ export default function AgentFlowPanel({
                       fetchHistory(1, historySearchInput);
                     }
                   }}
-                  placeholder="Search sessions by title or query…  (Enter to search)"
+                  placeholder={t('chat.searchSessions')}
                   className="w-full bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 rounded pl-8 pr-3 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
                 />
               </div>
@@ -1092,7 +1135,7 @@ export default function AgentFlowPanel({
                 </div>
               ) : historyList.length === 0 ? (
                 <div className="px-4 py-10 text-center text-on-surface-variant/50 text-xs">
-                  No history found<span className="text-on-surface-variant/30">.</span>
+                  {t('chat.noHistory')}<span className="text-on-surface-variant/30">.</span>
                 </div>
               ) : historyList.map((h: any) => (
                 <div
@@ -1155,10 +1198,10 @@ export default function AgentFlowPanel({
         {steps.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center h-full opacity-30">
             <div className="text-4xl mb-4">⎈</div>
-            <p className="text-sm mb-1 text-on-surface">SQL Agent Terminal</p>
-            <p className="text-xs text-on-surface-variant">Ask a question in natural language to generate SQL</p>
+            <p className="text-sm mb-1 text-on-surface">{t('chat.terminalTitle')}</p>
+            <p className="text-xs text-on-surface-variant">{t('chat.terminalSubtitle')}</p>
             <div className="mt-6 text-xs text-on-surface-variant/50">
-              <span className="text-primary/50">❯</span> Type your query below and press Enter
+              <span className="text-primary/50">❯</span> {t('chat.terminalPrompt')}
             </div>
           </div>
         )}
@@ -1204,14 +1247,14 @@ export default function AgentFlowPanel({
           <div className="mt-3 p-3 rounded border border-amber-500/40 bg-amber-500/5">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-amber-600">👤</span>
-              <span className="text-on-surface text-sm font-semibold">Human Review Required</span>
+              <span className="text-on-surface text-sm font-semibold">{t('chat.humanReviewRequired')}</span>
               {repairCount > 1 && <span className="text-[10px] text-on-surface-variant/60">(repair #{repairCount})</span>}
             </div>
             {pendingPlan && <PlanView plan={pendingPlan} />}
             <textarea
               value={confirmationFeedback}
               onChange={(e) => setConfirmationFeedback(e.target.value)}
-              placeholder="Modification feedback (optional when approving; describe changes when rejecting)"
+              placeholder={t('chat.feedbackPlaceholder')}
               rows={2}
               className="w-full mt-2 text-xs font-mono bg-surface text-on-surface border border-outline-variant/30 rounded px-2 py-1 outline-none focus:border-primary resize-none"
             />
@@ -1221,14 +1264,14 @@ export default function AgentFlowPanel({
                 disabled={confirming}
                 className="text-xs font-mono px-3 py-1.5 rounded text-[#16a34a] bg-[#16a34a]/10 border border-[#16a34a]/30 hover:bg-[#16a34a]/20 disabled:opacity-40 flex items-center gap-1"
               >
-                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✓'} Confirm & Continue
+                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✓'} {t('chat.confirmContinue')}
               </button>
               <button
                 onClick={() => handleConfirm(false)}
                 disabled={confirming}
                 className="text-xs font-mono px-3 py-1.5 rounded text-error bg-error/10 border border-error/30 hover:bg-error/20 disabled:opacity-40 flex items-center gap-1"
               >
-                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✗'} Reject & Re-plan
+                {confirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✗'} {t('chat.rejectReplan')}
               </button>
             </div>
           </div>
@@ -1240,13 +1283,13 @@ export default function AgentFlowPanel({
 
         {confirming && (
           <div className="flex items-center gap-2 text-on-surface-variant/50 text-xs animate-pulse mt-2">
-            <Loader2 className="w-3 h-3 animate-spin" />Resuming execution...
+            <Loader2 className="w-3 h-3 animate-spin" />{t('chat.resuming')}
           </div>
         )}
 
         {isStreaming && steps.length === 0 && (
           <div className="flex items-center gap-2 text-on-surface-variant/50 text-xs animate-pulse">
-            <Loader2 className="w-3 h-3 animate-spin" />Initializing agent...
+            <Loader2 className="w-3 h-3 animate-spin" />{t('chat.initializing')}
           </div>
         )}
       </div>
@@ -1265,7 +1308,7 @@ export default function AgentFlowPanel({
                 }
               }}
               className="w-full bg-transparent text-on-surface text-sm font-mono resize-none outline-none pt-2 placeholder-on-surface-variant/40"
-              placeholder="Ask a question to generate SQL..."
+              placeholder={t('chat.placeholder')}
               rows={2}
               disabled={isStreaming || awaitingConfirmation || confirming}
             />
@@ -1275,18 +1318,18 @@ export default function AgentFlowPanel({
             disabled={isStreaming || awaitingConfirmation || confirming || !query.trim() || !dbConnected}
             className="text-xs font-mono px-3 py-1.5 rounded text-primary bg-primary/10 border border-primary/20 hover:bg-primary/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors mt-1 flex-shrink-0"
           >
-            {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Run'}
+            {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t('chat.run')}
           </button>
         </div>
         {!dbConnected && (
-          <p className="px-4 pb-2 text-[10px] text-error font-mono">Select a database connection before running queries.</p>
+          <p className="px-4 pb-2 text-[10px] text-error font-mono">{t('chat.selectDbFirst')}</p>
         )}
       </div>
 
       {confirmDeleteId !== null && (
         <ConfirmDialog
-          title="Delete Session"
-          message="Delete this session permanently? This cannot be undone."
+          title={t('chat.deleteSession')}
+          message={t('chat.deleteSessionMsg')}
           confirmLabel="Delete"
           variant="danger"
           onConfirm={() => deleteHistory(confirmDeleteId)}

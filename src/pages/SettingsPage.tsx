@@ -3,8 +3,10 @@ import { Sliders, Palette, ShieldCheck, Plus, Clock, ChevronDown, Sun, Moon, Che
 import { motion } from 'motion/react';
 import { useSettings } from '../contexts/SettingsContext';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
+import { useI18n } from '../i18n';
 import { api, llmConfigApi } from '../api/client';
 import { LlmConfig } from '../types';
+import LlmStrategyPanel from '../components/LlmStrategyPanel';
 
 interface LlmConfigFormState {
   configName: string;
@@ -38,6 +40,7 @@ const providerPlaceholders: Record<string, { baseUrl: string; modelName: string;
 };
 
 export default function SettingsPage({ user }: { user: any }) {
+  const { t } = useI18n();
   const [creativeControl, setCreativeControl] = useState(0.2);
   const { theme, setTheme, fontSize, setFontSize } = useSettings();
   const { configs, refreshConfigs } = useLlmConfig();
@@ -158,8 +161,8 @@ export default function SettingsPage({ user }: { user: any }) {
     <main className="ml-[200px] pt-12 min-h-screen bg-surface">
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="mb-6">
-          <h1 className="text-sm font-mono font-semibold text-on-surface">Settings</h1>
-          <p className="text-xs text-on-surface-variant mt-0.5 font-mono">api configs and preferences</p>
+          <h1 className="text-sm font-mono font-semibold text-on-surface">{t('settings.title')}</h1>
+          <p className="text-xs text-on-surface-variant mt-0.5 font-mono">{t('settings.subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-12 gap-6 pb-24">
@@ -168,13 +171,13 @@ export default function SettingsPage({ user }: { user: any }) {
             {/* LLM Configs Section */}
             <div className="border border-outline-variant bg-surface-container-lowest p-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-mono font-semibold text-on-surface">LLM API Configs</h2>
+                <h2 className="text-xs font-mono font-semibold text-on-surface">{t('settings.llmConfigs')}</h2>
                 <button
                   onClick={startAdd}
                   className="flex items-center gap-1 px-2 py-1 text-xs font-mono text-primary border border-primary hover:bg-primary/10 transition-colors"
                 >
                   <Plus size={14} />
-                  Add Config
+                  {t('settings.addConfig')}
                 </button>
               </div>
 
@@ -186,7 +189,7 @@ export default function SettingsPage({ user }: { user: any }) {
                   className="mb-6 bg-surface-container-low border border-outline-variant/50 p-5 border border-primary/20"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold">{editingConfig ? 'Edit Configuration' : 'New Configuration'}</h3>
+                    <h3 className="text-sm font-bold">{editingConfig ? t('settings.editConfig') : t('settings.newConfig')}</h3>
                     <button onClick={() => { setShowAddForm(false); setEditingConfig(null); }} className="text-on-surface-variant hover:text-on-surface">
                       <X size={18} />
                     </button>
@@ -304,7 +307,8 @@ export default function SettingsPage({ user }: { user: any }) {
               {/* Config List */}
               <div className="space-y-3">
                 {configs.filter(c => c.status === 1).map(config => (
-                  <div key={config.id} className="flex items-center justify-between border border-outline-variant bg-surface-container-high px-3 py-2 hover:border-on-surface-variant/30 transition-colors">
+                  <div key={config.id} className="border border-outline-variant bg-surface-container-high px-3 py-2 hover:border-on-surface-variant/30 transition-colors">
+                    <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-on-surface truncate">{config.configName}</span>
@@ -363,6 +367,9 @@ export default function SettingsPage({ user }: { user: any }) {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    </div>
+                    {/* Phase B (B4/B1): HA strategy selector + fallback chain + health metrics */}
+                    <LlmStrategyPanel config={config} peers={configs} />
                   </div>
                 ))}
                 {configs.filter(c => c.status === 1).length === 0 && (
@@ -390,7 +397,7 @@ export default function SettingsPage({ user }: { user: any }) {
                         disabled={isSaving}
                         className="px-4 py-2 text-xs font-bold text-error bg-error/10 hover:bg-error/20 border border-outline-variant/50 transition-colors"
                       >
-                        Delete
+                        {t('settings.delete')}
                       </button>
                     </div>
                   </div>
@@ -403,12 +410,12 @@ export default function SettingsPage({ user }: { user: any }) {
                 <div className="bg-primary/10 p-2 border border-outline-variant/50 text-primary">
                   <Palette size={20} />
                 </div>
-                <h2 className="text-lg font-bold font-mono">Interface Preferences</h2>
+                <h2 className="text-lg font-bold font-mono">{t('settings.interfacePrefs')}</h2>
               </div>
 
               <div className="flex flex-wrap gap-12">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">Theme Mode</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">{t('settings.themeMode')}</label>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setTheme('light')}
@@ -419,7 +426,7 @@ export default function SettingsPage({ user }: { user: any }) {
                       } text-xs`}
                     >
                       <Sun size={16} />
-                      Light
+                      {t('settings.light')}
                     </button>
                     <button
                       onClick={() => setTheme('dark')}
@@ -430,13 +437,13 @@ export default function SettingsPage({ user }: { user: any }) {
                       } text-xs`}
                     >
                       <Moon size={16} />
-                      Dark
+                      {t('settings.dark')}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">Editor Font Size</label>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant font-mono">{t('settings.editorFontSize')}</label>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setFontSize(Math.max(10, fontSize - 1))}
@@ -460,13 +467,15 @@ export default function SettingsPage({ user }: { user: any }) {
           {/* Right: minimal */}
           <aside className="col-span-12 lg:col-span-4 space-y-4">
             <div className="border border-outline-variant bg-surface-container-lowest p-4">
-              <div className="text-xs font-mono font-semibold text-on-surface mb-2">About</div>
+              <div className="text-xs font-mono font-semibold text-on-surface mb-2">{t('settings.about')}</div>
               <div className="text-[10px] text-on-surface-variant font-mono leading-relaxed">
-                API keys are encrypted at rest (AES). Use read-only credentials for query generation.
+                {t('settings.aboutText')}
               </div>
             </div>
           </aside>
         </div>
+
+        {/* Phase B (B3): HA strategy panels are embedded inline per-config above */}
       </div>
     </main>
   );

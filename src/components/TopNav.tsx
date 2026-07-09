@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, User as UserIcon, LogOut, Zap, Database, Activity } from 'lucide-react';
+import { ChevronDown, User as UserIcon, LogOut, Zap, Database, Activity, Globe } from 'lucide-react';
 import { api } from '../api/client';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
+import { useI18n } from '../i18n';
 
 interface TopNavProps {
   user?: { id: number, username: string, email?: string, avatar?: string, tokenQuota: number } | null;
@@ -9,15 +10,21 @@ interface TopNavProps {
 }
 
 export default function TopNav({ user, onLogout }: TopNavProps) {
+  const { t, locale, setLocale } = useI18n();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
   const { configs, selectedConfigId, selectedConfig, setSelectedConfigId } = useLlmConfig();
   const modelDropdownRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
         setShowModelDropdown(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setShowLangDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -48,13 +55,13 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
             onClick={() => setShowModelDropdown(!showModelDropdown)}
           >
             <Zap size={14} className="text-primary" />
-            <span>{selectedConfig ? selectedConfig.configName : 'system default'}</span>
+            <span>{selectedConfig ? selectedConfig.configName : t('topnav.systemDefault')}</span>
             <ChevronDown size={13} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
           </button>
 
           {showModelDropdown && (
             <div className="absolute top-full left-0 mt-1.5 w-64 bg-surface-container-high border border-outline-variant py-1 z-50 max-h-72 overflow-y-auto font-mono text-sm">
-              <div className="px-3 py-1.5 text-[10px] text-on-surface-variant/60 uppercase tracking-wider">API Configs</div>
+              <div className="px-3 py-1.5 text-[10px] text-on-surface-variant/60 uppercase tracking-wider">{t('topnav.apiConfigs')}</div>
               {configs.filter(c => c.status === 1).map(config => (
                 <button
                   key={config.id}
@@ -65,7 +72,7 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                 >
                   <div className="flex items-center justify-between">
                     <span>{config.configName}</span>
-                    {config.isDefault && <span className="text-[9px] text-on-surface-variant">default</span>}
+                    {config.isDefault && <span className="text-[9px] text-on-surface-variant">{t('topnav.default')}</span>}
                   </div>
                   <div className="text-[10px] text-on-surface-variant/60 mt-0.5">
                     {providerLabel(config.providerType)}{config.modelName ? ` / ${config.modelName}` : ''}
@@ -73,7 +80,7 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                 </button>
               ))}
               {configs.filter(c => c.status === 1).length === 0 && (
-                <div className="px-3 py-2 text-on-surface-variant/50 text-center">No configs</div>
+                <div className="px-3 py-2 text-on-surface-variant/50 text-center">{t('topnav.noConfigs')}</div>
               )}
               <div className="border-t border-outline-variant my-1" />
               <button
@@ -82,7 +89,7 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                 }`}
                 onClick={() => { setSelectedConfigId(0); setShowModelDropdown(false); }}
               >
-                System Default
+                {t('topnav.systemDefaultBtn')}
               </button>
             </div>
           )}
@@ -91,15 +98,43 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
         {/* Middle: status indicator */}
         <div className="text-xs font-mono text-on-surface-variant/50 flex items-center gap-2 border-l border-outline-variant pl-4">
           <span className="w-2 h-2 bg-primary inline-block" />
-          <span>{configs.find(c => c.id === selectedConfigId)?.modelName || 'active'}</span>
+          <span>{configs.find(c => c.id === selectedConfigId)?.modelName || t('topnav.active')}</span>
         </div>
       </div>
 
-      {/* Right: user */}
+      {/* Right: language switcher + user */}
       <div className="flex items-center gap-3">
+        {/* Language switcher */}
+        <div className="relative" ref={langDropdownRef}>
+          <button
+            className="flex items-center gap-1.5 text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors border border-outline-variant/50 px-2 py-1"
+            onClick={() => setShowLangDropdown(!showLangDropdown)}
+            title={t('language.switchTo')}
+          >
+            <Globe size={13} />
+            <span>{locale === 'zh' ? '中文' : 'EN'}</span>
+          </button>
+          {showLangDropdown && (
+            <div className="absolute right-0 mt-1.5 w-28 bg-surface-container-high border border-outline-variant py-1 z-50 font-mono text-sm">
+              <button
+                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${locale === 'en' ? 'text-primary bg-primary/5' : 'text-on-surface hover:bg-surface-container-highest'}`}
+                onClick={() => { setLocale('en'); setShowLangDropdown(false); }}
+              >
+                English
+              </button>
+              <button
+                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${locale === 'zh' ? 'text-primary bg-primary/5' : 'text-on-surface hover:bg-surface-container-highest'}`}
+                onClick={() => { setLocale('zh'); setShowLangDropdown(false); }}
+              >
+                中文
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="text-xs font-mono text-on-surface-variant/50 hidden sm:block">
           <Activity size={14} className="inline mr-1" />
-          <span>token quota: {Math.max(0, user?.tokenQuota || 0).toLocaleString()}</span>
+          <span>{t('topnav.tokenQuota', { value: Math.max(0, user?.tokenQuota || 0).toLocaleString() })}</span>
         </div>
         <div className="relative">
           <button
@@ -127,14 +162,14 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                 }}
               >
                 <UserIcon size={14} />
-                Profile
+                {t('topnav.profile')}
               </button>
               <button
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-on-surface hover:bg-surface-container-highest transition-colors"
                 onClick={handleLogout}
               >
                 <LogOut size={14} className="text-error" />
-                Logout
+                {t('topnav.logout')}
               </button>
             </div>
           )}
