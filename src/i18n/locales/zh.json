@@ -7,7 +7,7 @@
 
   "nav": {
     "chat": "对话",
-    "agentStudio": "Agent 工作室",
+    "agentStudio": "智能体",
     "console": "控制台",
     "workspaces": "工作空间",
     "database": "数据库",
@@ -70,7 +70,7 @@
   },
 
   "agentStudio": {
-    "title": "Agent 工作室",
+    "title": "Agent",
     "subtitle": "# 配置你的数据分析助手：提示词、工具、RAG 与记忆",
     "newAgent": "新建 Agent",
     "lsAgents": "ls agents/",

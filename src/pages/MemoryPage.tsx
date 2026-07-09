@@ -137,6 +137,19 @@ export default function MemoryPage() {
             <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider text-on-surface-variant border-b border-dashed border-outline-variant/40 bg-surface-container-low font-semibold">
               <span className="text-primary">$</span> {t('memory.categories')}
             </div>
+            {/* Search bar */}
+            <div className="px-2 py-2 border-b border-dashed border-outline-variant/10">
+              <div className="relative">
+                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant/40" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder={t('memory.searchPlaceholder')}
+                  className="w-full bg-surface text-[10px] text-on-surface border border-outline-variant/30 pl-6 pr-2 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
+                />
+              </div>
+            </div>
             <div className="p-2 space-y-0.5">
               <FilterButton
                 label="all"
@@ -155,22 +168,26 @@ export default function MemoryPage() {
                 />
               ))}
             </div>
-            <div className="mt-2 px-3 py-2 border-t border-dashed border-outline-variant/20">
-              <div className="relative">
-                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant/40" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder={t('memory.searchPlaceholder')}
-                  className="w-full bg-surface text-[10px] text-on-surface border border-outline-variant/30 pl-6 pr-2 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
-                />
-              </div>
-            </div>
           </div>
 
           {/* ═══ Right: content panel ═══ */}
           <div className="bg-surface-container-lowest">
+            {/* Header with title + refresh */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-dashed border-outline-variant/20 bg-surface-container-low/50">
+              <span className="text-[10px] text-on-surface-variant/60">
+                {!loading && filteredItems.length > 0
+                  ? t('memory.showingCount', { count: filteredItems.length })
+                  : ''}
+              </span>
+              <button
+                onClick={() => fetchMemories(filter || undefined)}
+                className="flex items-center gap-1 text-[10px] text-on-surface-variant/50 hover:text-primary transition-colors"
+                title={t('memory.refresh')}
+              >
+                <RefreshCw size={10} />
+                {t('memory.refresh')}
+              </button>
+            </div>
             {/* ── Inline add form ── */}
             {showForm && (
               <div className="m-3 p-3 border border-dashed border-primary/40 bg-primary/[0.03]">
@@ -263,21 +280,6 @@ export default function MemoryPage() {
                 </div>
               )}
             </div>
-
-            {/* ── Footer summary ── */}
-            {!loading && filteredItems.length > 0 && (
-              <div className="px-3 py-2 border-t border-dashed border-outline-variant/20 flex items-center justify-between text-[10px] text-on-surface-variant/50">
-                <span>{t('memory.showingCount', { count: filteredItems.length })}</span>
-                <button
-                  onClick={() => fetchMemories(filter || undefined)}
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
-                  title={t('memory.refresh')}
-                >
-                  <RefreshCw size={10} />
-                  {t('memory.refresh')}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

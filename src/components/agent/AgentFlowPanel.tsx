@@ -537,12 +537,24 @@ export default function AgentFlowPanel({
 
     // Initialize only the first node — others appear dynamically as they start
     const stepStartTime = Date.now();
-    setSteps([{
-      id: ACTIVE_NODES[0],
-      name: ACTIVE_NODES[0],
-      content: '',
-      status: 'running' as StepStatus,
-    }]);
+    // Keep existing steps on follow-up turns (conversationId != null) so the
+    // conversation history stays visible. Only reset on a fresh conversation.
+    if (conversationId == null) {
+      setSteps([{
+        id: ACTIVE_NODES[0],
+        name: ACTIVE_NODES[0],
+        content: '',
+        status: 'running' as StepStatus,
+      }]);
+    } else {
+      // Push a visual separator + running indicator for the follow-up turn
+      setSteps(prev => [...prev, {
+        id: `followup-${Date.now()}`,
+        name: 'SEPARATOR',
+        content: '',
+        status: 'running' as StepStatus,
+      }]);
+    }
 
     try {
       const response = await fetch('/api/v1/agent/sql/stream', {
@@ -552,7 +564,7 @@ export default function AgentFlowPanel({
         body: JSON.stringify({
           userId: user?.id || 1,
           userInput: sentText,
-          connectionId: selectedConnId || null,
+          connectionId: String(selectedConnId) !== '' ? Number(selectedConnId) : null,
           tableNames: [],
           llmConfigId: selectedConfigId,
           autoConfirm,
@@ -713,12 +725,11 @@ export default function AgentFlowPanel({
                       }
                     : step
                 );
-                // Pre-append the next expected node so a running indicator appears,
-                // unless it's a looped node or HITL (HITL only appears when the graph actually
-                // pauses at the interrupt — never pre-insert a fake HITL card).
+                // Pre-append the next expected node so a running indicator appears.
+                // HITL is excluded — it only appears when the graph actually pauses at the interrupt.
                 const nextIdx = update.nodeIdx + 1;
                 const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
-                if (nextName && nextName !== 'HITL' && !LOOPED_NODES.has(nextName) && !current.some(s => s.name === nextName)) {
+                if (nextName && nextName !== 'HITL' && !current.some(s => s.name === nextName)) {
                   current = [...current, {
                     id: nextName,
                     name: nextName,
@@ -768,13 +779,8 @@ export default function AgentFlowPanel({
                 );
               }
             }
-            // Always re-sort by (ACTIVE_NODES order, step) so display is correct
-            // regardless of SSE event arrival order
-            current.sort((a, b) => {
-              const [ai, as_] = cardSortKey(a.name, a.step ?? null);
-              const [bi, bs] = cardSortKey(b.name, b.step ?? null);
-              return ai - bi || as_ - bs;
-            });
+            // Preserve insertion order (SSE arrival order) for the timeline,
+            // so node cards appear in the sequence they were received.
             return current;
           });
           if (hasCompleted) {
@@ -1235,12 +1241,29 @@ export default function AgentFlowPanel({
             modelCalls={traceMeta?.modelCalls}
           />
         ) : (
-          steps.map((step, idx) => (
-            <div key={step.id}>
-              <StepLine step={step} order={idx + 1} isPausedAtHitl={awaitingConfirmation} />
-              {idx < steps.length - 1 && <ConnectorLine />}
-            </div>
-          ))
+          steps.map((step, idx) => {
+            // SEPARATOR = visual divider between conversation turns
+            if (step.name === 'SEPARATOR') {
+              return (
+                <div key={step.id} className="relative py-2">
+                  <div className="border-t border-dashed border-outline-variant/20" />
+                  {step.status === 'running' && (
+                    <div className="text-center text-[10px] text-primary/60 mt-1.5 animate-pulse">
+                      <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
+                      {t('chat.initializing')}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            const showConnector = idx < steps.length - 1 && steps[idx + 1]?.name !== 'SEPARATOR';
+            return (
+              <div key={step.id}>
+                <StepLine step={step} order={idx + 1} isPausedAtHitl={awaitingConfirmation} />
+                {showConnector && <ConnectorLine />}
+              </div>
+            );
+          })
         )}
 
         {awaitingConfirmation && pendingThreadId && (

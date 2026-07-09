@@ -7,7 +7,7 @@
 
   "nav": {
     "chat": "Chat",
-    "agentStudio": "Agent Studio",
+    "agentStudio": "Agent",
     "console": "Console",
     "workspaces": "Workspaces",
     "database": "Database",
@@ -70,7 +70,7 @@
   },
 
   "agentStudio": {
-    "title": "Agent Studio",
+    "title": "Agent",
     "subtitle": "# configure your data analysis agents: prompts, tools, rag &amp; memory",
     "newAgent": "New Agent",
     "lsAgents": "ls agents/",
@@ -245,7 +245,7 @@
     "loading": "Loading...",
     "noMemories": "No memories yet. The Agent will accumulate them automatically after conversations, or you can add one manually.",
     "noSearchResults": "No memories match your search.",
-    "showingCount": "{count} item{count === 1 ? '' : 's'}",
+    "showingCount": "{count} items",
     "refresh": "refresh"
   },
 
