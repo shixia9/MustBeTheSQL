@@ -395,10 +395,30 @@ export default function AgentFlowPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
   const [dbConnected, setDbConnected] = useState(false);
-  // Phase B (B5): multi-turn conversation id. Null on a fresh chat; the backend
+  // Multi-turn conversation id. Null on a fresh chat; the backend
   // creates a conversation on the first turn and returns its id in the COMPLETED
   // event, which we echo on follow-up turns so prior context is injected.
-  const [conversationId, setConversationId] = useState<number | null>(null);
+  // Persisted to localStorage so it survives component remounts and works
+  // even if the SSE COMPLETED event's conversationId field is not received.
+  const STORAGE_KEY = `agent_conv_id_${user?.id ?? 'default'}`;
+  const conversationIdRef = useRef<number | null>(null);
+  const [conversationId, setConversationId] = useState<number | null>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? Number(saved) : null;
+  });
+  // Sync ref with the initial state value (restored from localStorage if available).
+  if (conversationIdRef.current === null && conversationId != null) {
+    conversationIdRef.current = conversationId;
+  }
+  const handleSetConversationId = useCallback((id: number | null) => {
+    conversationIdRef.current = id;
+    setConversationId(id);
+    if (id != null) {
+      localStorage.setItem(STORAGE_KEY, String(id));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [STORAGE_KEY]);
   // Phase 4 HITL state
   const autoConfirmKey = `agent_autoconfirm_${user?.id ?? 'default'}`;
   const [autoConfirm, setAutoConfirm] = useState<boolean>(() => {
@@ -506,7 +526,9 @@ export default function AgentFlowPanel({
   }, [showHistory]);
 
   const startNewConversation = () => {
+    conversationIdRef.current = null;
     setConversationId(null);
+    localStorage.removeItem(STORAGE_KEY);
     setSteps([]);
     setQuery('');
     setSentQuery('');
@@ -539,7 +561,7 @@ export default function AgentFlowPanel({
     const stepStartTime = Date.now();
     // Keep existing steps on follow-up turns (conversationId != null) so the
     // conversation history stays visible. Only reset on a fresh conversation.
-    if (conversationId == null) {
+    if (conversationIdRef.current == null) {
       setSteps([{
         id: ACTIVE_NODES[0],
         name: ACTIVE_NODES[0],
@@ -570,7 +592,7 @@ export default function AgentFlowPanel({
           autoConfirm,
           schemaContext: selectedSchema || '',
           workspaceId: selectedWorkspaceId,
-          conversationId: conversationId ?? null,
+          conversationId: conversationIdRef.current,
         }),
         signal: abortRef.current.signal,
       });
@@ -663,6 +685,10 @@ export default function AgentFlowPanel({
 
             for (const update of batch) {
               if (update.type === 'NODE_STARTED') {
+                // Remove the generic processing indicator when any real node starts
+                if (current.some(s => s.id === '__processing__')) {
+                  current = current.filter(s => s.id !== '__processing__');
+                }
                 if (LOOPED_NODES.has(update.nodeName)) continue;
                 // Ensure a running placeholder card exists for this node.
                 const id = cardId(update.nodeName, null, 0);
@@ -725,11 +751,24 @@ export default function AgentFlowPanel({
                       }
                     : step
                 );
+                // Remove any pre-inserted placeholder card with the same name but
+                // different id (the one without a step number). Loop: from the end
+                // so splice indices stay valid.
+                if (update.stepNo != null) {
+                  for (let i = current.length - 1; i >= 0; i--) {
+                    const c = current[i];
+                    if (c.name === update.nodeName && c.id !== id && c.status === 'running' && c.step == null) {
+                      current.splice(i, 1);
+                    }
+                  }
+                }
                 // Pre-append the next expected node so a running indicator appears.
-                // HITL is excluded — it only appears when the graph actually pauses at the interrupt.
+                // HITL is excluded — it only appears when the graph actually pauses.
+                // Looped nodes (SQL_GENERATION etc.) are also excluded since their
+                // step number is unknown until the backend emits the STARTED event.
                 const nextIdx = update.nodeIdx + 1;
                 const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
-                if (nextName && nextName !== 'HITL' && !current.some(s => s.name === nextName)) {
+                if (nextName && nextName !== 'HITL' && !LOOPED_NODES.has(nextName) && !current.some(s => s.name === nextName)) {
                   current = [...current, {
                     id: nextName,
                     name: nextName,
@@ -784,7 +823,7 @@ export default function AgentFlowPanel({
             return current;
           });
           if (hasCompleted) {
-            if (completedConvId != null) setConversationId(completedConvId);
+            if (completedConvId != null) handleSetConversationId(completedConvId);
             setIsStreaming(false);
           }
           if (hasAwaiting && awaitingBatch) {
@@ -930,7 +969,7 @@ export default function AgentFlowPanel({
             setIsStreaming(false);
           }
           if (hasCompleted) {
-            if (completedConvId != null) setConversationId(completedConvId);
+            if (completedConvId != null) handleSetConversationId(completedConvId);
             setAwaitingConfirmation(false);
             setIsStreaming(false);
           }
@@ -1253,6 +1292,15 @@ export default function AgentFlowPanel({
                       {t('chat.initializing')}
                     </div>
                   )}
+                </div>
+              );
+            }
+            // PROCESSING = generic loading indicator (no named node card shown)
+            if (step.name === 'PROCESSING') {
+              return (
+                <div key={step.id} className="flex items-center justify-center gap-2 py-3">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary/60" />
+                  <span className="text-[10px] text-primary/60 animate-pulse">{t('chat.processing')}</span>
                 </div>
               );
             }
