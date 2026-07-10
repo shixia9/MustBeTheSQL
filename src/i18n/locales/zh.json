@@ -49,7 +49,7 @@
     "run": "运行",
     "selectDbFirst": "请先选择数据库连接。",
     "placeholder": "输入问题以生成 SQL...",
-    "initializing": "正在初始化 Agent...",
+    "initializing": "思考中...",
     "processing": "处理中...",
     "confirmContinue": "确认并继续",
     "rejectReplan": "拒绝并重新规划",

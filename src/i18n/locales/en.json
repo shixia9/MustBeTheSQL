@@ -49,7 +49,7 @@
     "run": "Run",
     "selectDbFirst": "Select a database connection before running queries.",
     "placeholder": "Ask a question to generate SQL...",
-    "initializing": "Initializing agent...",
+    "initializing": "Thinking...",
     "processing": "Processing...",
     "confirmContinue": "Confirm & Continue",
     "rejectReplan": "Reject & Re-plan",

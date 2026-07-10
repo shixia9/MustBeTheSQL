@@ -423,6 +423,8 @@ export default function AgentFlowPanel({
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [STORAGE_KEY]);
+  // Turn counter — each send() increments it so card IDs are unique across turns.
+  const turnRef = useRef(0);
   // Phase 4 HITL state
   const autoConfirmKey = `agent_autoconfirm_${user?.id ?? 'default'}`;
   const [autoConfirm, setAutoConfirm] = useState<boolean>(() => {
@@ -457,17 +459,19 @@ export default function AgentFlowPanel({
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  /** Composite identity for a card: looped nodes are keyed by name#step-seq, other nodes by name alone.
-   *  When seqNo is omitted, falls back to name#step (backward compat for loaded history). */
-  const cardId = (nodeName: string, stepNo: number | null, seqNo?: number) =>
-    LOOPED_NODES.has(nodeName) && stepNo != null
-      ? seqNo != null ? `${nodeName}#${stepNo}-${seqNo}` : `${nodeName}#${stepNo}`
-      : nodeName;
-  /** Sort key: (ACTIVE_NODES order, step number, seqNo) — keeps looped cards in chronological order.
-   *  (Defined here to be shared by handleSend and handleConfirm.) */
-  const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number): [number, number, number] => {
+  /** Composite identity for a card: turn-prefixed so cards from different
+   *  conversation turns never collide. Looped nodes additionally carry step/seq. */
+  const cardId = (nodeName: string, stepNo: number | null, seqNo?: number) => {
+    const prefix = `turn-${turnRef.current}-`;
+    if (LOOPED_NODES.has(nodeName) && stepNo != null) {
+      return seqNo != null ? `${prefix}${nodeName}#${stepNo}-${seqNo}` : `${prefix}${nodeName}#${stepNo}`;
+    }
+    return `${prefix}${nodeName}`;
+  };
+  /** Sort key: (turn, ACTIVE_NODES order, step number, seqNo) — groups turns chronologically. */
+  const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number, turn?: number): [number, number, number, number] => {
     const base = ACTIVE_NODES.indexOf(nodeName);
-    return [base < 0 ? 9999 : base, stepNo ?? 0, seqNo ?? 0];
+    return [turn ?? turnRef.current, base < 0 ? 9999 : base, stepNo ?? 0, seqNo ?? 0];
   };
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
@@ -500,34 +504,39 @@ export default function AgentFlowPanel({
       .finally(() => setLoadingSchema(false));
   }, [selectedConnId]);
 
-  // Fetch history (paged + searchable) whenever the modal opens or its
-  // pagination / query params change.
+  // Fetch history as conversation list — each conversation contains multiple
+  // agent-execution turns. Grouped by conversation for multi-turn coherence.
   const fetchHistory = useCallback((page: number, kw: string) => {
     setLoadingHistory(true);
-    const qs = new URLSearchParams({ page: String(page), size: String(historySize) });
-    if (kw.trim()) qs.set('keyword', kw.trim());
-    if (selectedWorkspaceId) qs.set('workspaceId', String(selectedWorkspaceId));
-    fetch(`/api/v1/agent/history?${qs.toString()}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then((d: any) => {
-        if (d.code === 200 && d.data) {
-          const recs: any[] = d.data.records || [];
-          setHistoryList(recs.map((r: any) => ({
-            id: r.id,
-            summary: r.summary || '(untitled)',
-            input: r.input || '',
-            timestamp: r.createTime,
-            status: r.status,
+    if (!user?.id) { setLoadingHistory(false); return; }
+    conversationApi.list(user.id)
+      .then((res: any) => {
+        if (res?.code === 200 && Array.isArray(res.data)) {
+          let conversations = res.data;
+          // Filter by keyword on the client side (title match)
+          if (kw.trim()) {
+            const lower = kw.trim().toLowerCase();
+            conversations = conversations.filter((c: any) =>
+              (c.title || '').toLowerCase().includes(lower));
+          }
+          setHistoryList(conversations.map((c: any) => ({
+            id: c.id,
+            conversationId: c.id,
+            summary: c.title || 'Conversation',
+            input: '',
+            timestamp: c.updateTime || c.createTime,
+            status: 'CONVERSATION',
+            turnCount: null, // lazy-loaded when expanded
           })));
-          setHistoryTotal(d.data.total ?? recs.length);
-          setHistoryPage(page);
+          setHistoryTotal(conversations.length);
+          setHistoryPage(1);
         } else {
           setHistoryList([]); setHistoryTotal(0);
         }
       })
       .catch(() => { setHistoryList([]); setHistoryTotal(0); })
       .finally(() => setLoadingHistory(false));
-  }, [historySize, selectedWorkspaceId]);
+  }, [user?.id]);
 
   // Fetch history when the modal is toggled open
   useEffect(() => {
@@ -549,6 +558,7 @@ export default function AgentFlowPanel({
     conversationIdRef.current = null;
     setConversationId(null);
     localStorage.removeItem(STORAGE_KEY);
+    turnRef.current = 0;
     setSteps([]);
     setQuery('');
     setSentQuery('');
@@ -570,6 +580,8 @@ export default function AgentFlowPanel({
 
   const handleSend = async () => {
     if (!query.trim() || !selectedConnId) return;
+    turnRef.current += 1;
+    const currentTurn = turnRef.current;
     setSentQuery(query);
     setError('');
     setIsStreaming(true);
@@ -583,25 +595,23 @@ export default function AgentFlowPanel({
     const sentText = query;
     setQuery('');
 
-    // Initialize only the first node — others appear dynamically as they start
+    const now = Date.now();
     const stepStartTime = Date.now();
-    // Keep existing steps on follow-up turns (conversationId != null) so the
-    // conversation history stays visible. Only reset on a fresh conversation.
-    if (conversationIdRef.current == null) {
-      setSteps([{
-        id: ACTIVE_NODES[0],
-        name: ACTIVE_NODES[0],
-        content: '',
-        status: 'running' as StepStatus,
-      }]);
+
+    // Prepend the current set of completed steps (previous turns) with a
+    // turn separator, then add a user-message card followed by the first
+    // node's running indicator for the new turn.
+    if (conversationIdRef.current != null) {
+      setSteps(prev => [...prev,
+        { id: `turn-${currentTurn}-sep`, name: 'SEPARATOR', content: '', status: 'success' as StepStatus },
+        { id: `turn-${currentTurn}-USER_MESSAGE`, name: 'USER_MESSAGE', content: sentText, status: 'success' as StepStatus },
+        { id: cardId(ACTIVE_NODES[0], null, 0), name: ACTIVE_NODES[0], content: '', status: 'running' as StepStatus },
+      ]);
     } else {
-      // Push a visual separator + running indicator for the follow-up turn
-      setSteps(prev => [...prev, {
-        id: `followup-${Date.now()}`,
-        name: 'SEPARATOR',
-        content: '',
-        status: 'running' as StepStatus,
-      }]);
+      setSteps([
+        { id: `turn-${currentTurn}-USER_MESSAGE`, name: 'USER_MESSAGE', content: sentText, status: 'success' as StepStatus },
+        { id: cardId(ACTIVE_NODES[0], null, 0), name: ACTIVE_NODES[0], content: '', status: 'running' as StepStatus },
+      ]);
     }
 
     try {
@@ -803,22 +813,6 @@ export default function AgentFlowPanel({
                     }
                   }
                 }
-                // Pre-append the next expected node so a running indicator appears.
-                // HITL is excluded — it only appears when the graph actually pauses.
-                // For looped nodes we create a step-less placeholder; the STARTED event
-                // will update it and FINISHED will replace it with the real step card.
-                const nextIdx = update.nodeIdx + 1;
-                const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
-                if (nextName && nextName !== 'HITL' && !current.some(s => s.name === nextName)) {
-                  const nextId = LOOPED_NODES.has(nextName) ? cardId(nextName, null, 0) : nextName;
-                  current = [...current, {
-                    id: nextId,
-                    name: nextName,
-                    content: '',
-                    status: 'running' as StepStatus,
-                    step: undefined,
-                  }];
-                }
               } else if (update.type === 'AWAITING_CONFIRMATION') {
                 // Set any lingering running cards to success (the stream paused normally).
                 current = current.map(s =>
@@ -826,10 +820,11 @@ export default function AgentFlowPanel({
                     ? { ...s, status: 'success' as StepStatus, durationMs: Math.round(Date.now() - stepStartTime) }
                     : s
                 );
-                // Insert a HITL card carrying the pending confirmation, keyed by name 'HITL'.
-                if (!current.some(s => s.name === 'HITL')) {
+                // Insert a HITL card carrying the pending confirmation.
+                const hitlId = cardId('HITL', null, 0);
+                if (!current.some(s => s.id === hitlId)) {
                   current = [...current, {
-                    id: 'HITL',
+                    id: hitlId,
                     name: 'HITL',
                     content: '',
                     status: 'success' as StepStatus,
@@ -841,7 +836,7 @@ export default function AgentFlowPanel({
                     },
                   } as AgentStep];
                 } else {
-                  current = current.map(s => s.name === 'HITL'
+                  current = current.map(s => s.id === hitlId
                     ? { ...s, status: 'success' as StepStatus, data: { ...s.data, needsReview: true, awaitingConfirmation: true, plan: update.plan, repairCount: update.repairCount } }
                     : s);
                 }
@@ -1031,49 +1026,73 @@ export default function AgentFlowPanel({
     }
   };
 
-  /** Load a historical agent session into the timeline. */
-  const loadHistory = async (historyId: number) => {
+  /** Load a historical agent session or conversation into the timeline. */
+  const loadHistory = async (conversationId: number) => {
     setShowHistory(false);
     setError('');
     setAwaitingConfirmation(false);
     setPendingThreadId(null);
+    turnRef.current = 0;
     try {
-      const execRes = await fetch(`/api/v1/agent/history/${historyId}`, { credentials: 'include' });
-      const execJson = await execRes.json();
-      if (execJson.code !== 200 || !execJson.data) { setError('Failed to load history'); return; }
-      const exec = execJson.data;
-      const stepsRes = await fetch(`/api/v1/agent/history/${historyId}/steps`, { credentials: 'include' });
-      const stepsJson = await stepsRes.json();
-      if (stepsJson.code !== 200) { setError('Failed to load history steps'); return; }
-      const historySteps: any[] = (stepsJson.data || []).map((step: any, i: number) => {
-        let data: any = {};
-        try { if (step.outputData) data = JSON.parse(step.outputData); } catch {}
-        return {
-          id: `hist-${step.sequenceNo}`,
-          name: step.nodeName,
-          nodeName: step.nodeName,
-          content: '',
-          status: (step.status === 'SUCCESS' ? 'success' : 'error') as StepStatus,
-          data,
-          step: data?.step != null ? data.step : undefined,
-          durationMs: step.durationMs,
-          // Phase A3: preserve raw trace fields for the TraceCard view.
-          sequenceNo: step.sequenceNo,
-          latencyMs: step.latencyMs,
-          inputTokens: step.inputTokens,
-          outputTokens: step.outputTokens,
-          nodeType: step.nodeType,
-          rawStatus: step.status,
-        };
-      });
-      setSteps(historySteps);
-      // Phase A3: capture aggregate trace stats from the execution record.
-      setTraceMeta({
-        totalTokens: exec.totalTokens,
-        totalDurationMs: exec.totalDurationMs,
-        modelCalls: exec.modelCalls,
-      });
-      setSentQuery(exec.input || '');
+      // Load all executions for this conversation
+      const qs = new URLSearchParams({ page: '1', size: '50', conversationId: String(conversationId) });
+      const listRes = await fetch(`/api/v1/agent/history?${qs.toString()}`, { credentials: 'include' });
+      const listJson = await listRes.json();
+      if (listJson.code !== 200 || !listJson.data) { setError('Failed to load history'); return; }
+      const executions: any[] = listJson.data.records || [];
+      if (executions.length === 0) { setError('No turns in this conversation'); return; }
+
+      // Build timeline: one turn per execution, with SEPARATOR + USER_MESSAGE + steps
+      const allSteps: AgentStep[] = [];
+      for (let t = 0; t < executions.length; t++) {
+        const exec = executions[t];
+        const currentTurn = t + 1;
+        turnRef.current = currentTurn;
+
+        // Separator between turns (not before the first)
+        if (t > 0) {
+          allSteps.push({
+            id: `turn-${currentTurn}-sep`, name: 'SEPARATOR', content: '', status: 'success' as StepStatus,
+          });
+        }
+        // User message for this turn
+        allSteps.push({
+          id: `turn-${currentTurn}-USER_MESSAGE`, name: 'USER_MESSAGE', content: exec.input || '', status: 'success' as StepStatus,
+        });
+
+        // Fetch steps for this execution
+        try {
+          const stepsRes = await fetch(`/api/v1/agent/history/${exec.id}/steps`, { credentials: 'include' });
+          const stepsJson = await stepsRes.json();
+          const execSteps: any[] = stepsJson.data || [];
+          for (const step of execSteps) {
+            let data: any = {};
+            try { if (step.outputData) data = JSON.parse(step.outputData); } catch {}
+            const nodeName = step.nodeName;
+            const sId = LOOPED_NODES.has(nodeName) && data?.step != null
+              ? `turn-${currentTurn}-${nodeName}#${data.step}-${step.sequenceNo}`
+              : `turn-${currentTurn}-${nodeName}`;
+            allSteps.push({
+              id: sId,
+              name: nodeName,
+              content: '',
+              status: (step.status === 'SUCCESS' ? 'success' : 'error') as StepStatus,
+              data,
+              step: data?.step != null ? data.step : undefined,
+              durationMs: step.durationMs,
+              sequenceNo: step.sequenceNo,
+              latencyMs: step.latencyMs,
+              inputTokens: step.inputTokens,
+              outputTokens: step.outputTokens,
+              nodeType: step.nodeType,
+              rawStatus: step.status,
+            });
+          }
+        } catch { /* best-effort per execution */ }
+      }
+
+      setSteps(allSteps);
+      setSentQuery(executions[executions.length - 1]?.input || '');
       setIsStreaming(false);
     } catch (e: any) {
       setError(e.message || 'Failed to load history');
@@ -1230,26 +1249,16 @@ export default function AgentFlowPanel({
                   key={h.id}
                   className="group w-full text-left px-4 py-2.5 hover:bg-primary/5 border-b border-outline-variant/10 last:border-0 transition-colors flex items-start gap-2"
                 >
-                  <span className="text-primary/50 flex-shrink-0 mt-0.5 cursor-pointer" onClick={() => loadHistory(h.id)}>❯</span>
-                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => loadHistory(h.id)}>
+                  <span className="text-primary/50 flex-shrink-0 mt-0.5 cursor-pointer" onClick={() => loadHistory(h.conversationId ?? h.id)}>❯</span>
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => loadHistory(h.conversationId ?? h.id)}>
                     <div className="flex items-center gap-2">
                       {h.status && (
-                        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${h.status === 'COMPLETED' ? 'bg-[#16a34a]' : 'bg-amber-500'}`} />
+                        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${h.status === 'CONVERSATION' ? 'bg-primary' : h.status === 'COMPLETED' ? 'bg-[#16a34a]' : 'bg-amber-500'}`} />
                       )}
                       <span className="text-on-surface text-xs truncate group-hover:text-primary transition-colors">{h.summary}</span>
                     </div>
-                    {h.input && h.input !== h.summary && (
-                      <div className="text-[10px] text-on-surface-variant/40 mt-0.5 truncate">{h.input}</div>
-                    )}
                     <div className="text-[10px] text-on-surface-variant/40 mt-0.5">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</div>
                   </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(h.id); }}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-on-surface-variant/40 hover:text-error hover:bg-error/10 rounded p-1 transition-all"
-                    title="Delete session"
-                  >
-                    <X size={12} />
-                  </button>
                 </div>
               ))}
             </div>
@@ -1327,14 +1336,26 @@ export default function AgentFlowPanel({
             // SEPARATOR = visual divider between conversation turns
             if (step.name === 'SEPARATOR') {
               return (
-                <div key={step.id} className="relative py-2">
-                  <div className="border-t border-dashed border-outline-variant/20" />
-                  {step.status === 'running' && (
-                    <div className="text-center text-[10px] text-primary/60 mt-1.5 animate-pulse">
-                      <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
-                      {t('chat.initializing')}
+                <div key={step.id} className="relative py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 border-t border-dashed border-outline-variant/30" />
+                    <span className="text-[9px] text-on-surface-variant/40 font-mono uppercase tracking-widest flex-shrink-0">Next Turn</span>
+                    <div className="flex-1 border-t border-dashed border-outline-variant/30" />
+                  </div>
+                </div>
+              );
+            }
+            // USER_MESSAGE = the user's question displayed as a chat-style card
+            if (step.name === 'USER_MESSAGE') {
+              return (
+                <div key={step.id} className="mb-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-primary font-mono text-sm pt-0.5 flex-shrink-0">❯</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] text-on-surface-variant/50 font-mono uppercase tracking-wider mb-0.5">You</div>
+                      <p className="text-on-surface text-sm leading-relaxed whitespace-pre-wrap break-words">{step.content}</p>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             }

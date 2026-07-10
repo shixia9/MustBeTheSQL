@@ -17,6 +17,12 @@ export interface AgentStep {
    *  Same node name + different step = a distinct card. */
   step?: number;
   sequenceNo?: number;
+  /** Trace fields (populated from history). */
+  latencyMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  nodeType?: string;
+  rawStatus?: string;
 }
 
 /** A per-step trace row (latency/tokens/type) used by the Trace view.
