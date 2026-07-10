@@ -10,6 +10,7 @@ import type { AgentStep, StepStatus } from '../../types/agent';
 import { nodeCategoryOf, CATEGORY_STYLES, messageCategoryForNode, formatDuration } from '../../types/agent';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { useI18n } from '../../i18n';
+import { conversationApi } from '../../api/client';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import EvidenceRecallCard from './cards/EvidenceRecallCard';
 import FeasibilityCard from './cards/FeasibilityCard';
@@ -29,6 +30,7 @@ interface AgentFlowPanelProps {
 
 /** Phase 4 active nodes — the full set wired into the graph. */
 const ACTIVE_NODES = [
+  'MEMORY_RECALL',
   'EVIDENCE_RECALL', 'SCHEMA_LINKING', 'FEASIBILITY_ASSESSMENT',
   'PLANNER', 'HITL_GATE', 'HITL', 'PLAN_DISPATCH',
   'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER',
@@ -44,6 +46,7 @@ const LOOPED_NODES = new Set([
 ]);
 
 const NODE_ICONS: Record<string, string> = {
+  MEMORY_RECALL: '🧠',
   EVIDENCE_RECALL: '🔍', SCHEMA_LINKING: '🔗', FEASIBILITY_ASSESSMENT: '✅',
   PLANNER: '📋', HITL_GATE: '🚦', HITL: '👤', PLAN_DISPATCH: '🧭',
   SQL_GENERATION: '▷', SQL_EXECUTION: '▶', SQL_FIXER: '🔧',
@@ -51,6 +54,7 @@ const NODE_ICONS: Record<string, string> = {
   REPORT: '◉',
 };
 const NODE_LABELS: Record<string, string> = {
+  MEMORY_RECALL: 'Memory Recall',
   EVIDENCE_RECALL: 'Knowledge Recall', SCHEMA_LINKING: 'Schema Linking',
   FEASIBILITY_ASSESSMENT: 'Feasibility Assessment', PLANNER: 'Planning',
   HITL_GATE: 'Review Gate', HITL: 'Human Review', PLAN_DISPATCH: 'Plan Dispatch',
@@ -469,6 +473,22 @@ export default function AgentFlowPanel({
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
   useEffect(() => { setDbConnected(selectedConnId !== '' && selectedConnId !== null); }, [selectedConnId]);
 
+  // Proactively create a conversation on mount so the first message already
+  // carries a valid conversationId. Follows the AgentX pattern where sessions
+  // are created before the first chat message.
+  useEffect(() => {
+    if (!user?.id || conversationIdRef.current != null) return;
+    let cancelled = false;
+    conversationApi.create()
+      .then((res: any) => {
+        if (cancelled || !res?.data?.id) return;
+        handleSetConversationId(res.data.id);
+      })
+      .catch(() => {}); // best-effort — fallback to backend auto-creation on first stream
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Fetch available schemas when connection changes
   useEffect(() => {
     if (!selectedConnId) { setSchemas([]); setSelectedSchema(''); return; }
@@ -540,6 +560,12 @@ export default function AgentFlowPanel({
     setConfirmationFeedback('');
     setShowTraceView(false);
     setTraceMeta(null);
+    // Proactively create a new conversation for the fresh chat.
+    conversationApi.create()
+      .then((res: any) => {
+        if (res?.data?.id) handleSetConversationId(res.data.id);
+      })
+      .catch(() => {});
   };
 
   const handleSend = async () => {
@@ -689,7 +715,22 @@ export default function AgentFlowPanel({
                 if (current.some(s => s.id === '__processing__')) {
                   current = current.filter(s => s.id !== '__processing__');
                 }
-                if (LOOPED_NODES.has(update.nodeName)) continue;
+                // For looped nodes, create a step-less placeholder running card;
+                // the FINISHED event will replace it with the real step-numbered card.
+                if (LOOPED_NODES.has(update.nodeName)) {
+                  const placeholderId = cardId(update.nodeName, null, 0);
+                  if (!current.some(st => st.id === placeholderId)) {
+                    current = [...current, {
+                      id: placeholderId,
+                      name: update.nodeName,
+                      content: '',
+                      status: 'running' as StepStatus,
+                      step: undefined,
+                      sequenceNo: 0,
+                    } as AgentStep];
+                  }
+                  continue;
+                }
                 // Ensure a running placeholder card exists for this node.
                 const id = cardId(update.nodeName, null, 0);
                 if (!current.some(st => st.id === id)) {
@@ -764,16 +805,18 @@ export default function AgentFlowPanel({
                 }
                 // Pre-append the next expected node so a running indicator appears.
                 // HITL is excluded — it only appears when the graph actually pauses.
-                // Looped nodes (SQL_GENERATION etc.) are also excluded since their
-                // step number is unknown until the backend emits the STARTED event.
+                // For looped nodes we create a step-less placeholder; the STARTED event
+                // will update it and FINISHED will replace it with the real step card.
                 const nextIdx = update.nodeIdx + 1;
                 const nextName = nextIdx < ACTIVE_NODES.length ? ACTIVE_NODES[nextIdx] : null;
-                if (nextName && nextName !== 'HITL' && !LOOPED_NODES.has(nextName) && !current.some(s => s.name === nextName)) {
+                if (nextName && nextName !== 'HITL' && !current.some(s => s.name === nextName)) {
+                  const nextId = LOOPED_NODES.has(nextName) ? cardId(nextName, null, 0) : nextName;
                   current = [...current, {
-                    id: nextName,
+                    id: nextId,
                     name: nextName,
                     content: '',
                     status: 'running' as StepStatus,
+                    step: undefined,
                   }];
                 }
               } else if (update.type === 'AWAITING_CONFIRMATION') {

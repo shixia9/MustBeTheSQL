@@ -34,6 +34,7 @@ export interface TraceStep {
 
 /** The order in which nodes appear in the timeline */
 export const NODE_ORDER = [
+  'MEMORY_RECALL',
   'EVIDENCE_RECALL',
   'SCHEMA_LINKING',
   'FEASIBILITY_ASSESSMENT',
@@ -52,6 +53,7 @@ export const NODE_ORDER = [
 
 /** Agent node names (subset of NODE_ORDER used for active tracking). */
 export const AGENT_NODE = {
+  MEMORY_RECALL: 'MEMORY_RECALL',
   EVIDENCE_RECALL: 'EVIDENCE_RECALL',
   SCHEMA_LINKING: 'SCHEMA_LINKING',
   FEASIBILITY_ASSESSMENT: 'FEASIBILITY_ASSESSMENT',

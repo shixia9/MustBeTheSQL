@@ -141,3 +141,11 @@ export const memoryApi = {
   extract: (body: { userInput: string; summary: string; threadId?: string }) =>
     api.post<void>('/memory/extract', body),
 };
+
+/** Conversation CRUD — proactive conversation creation before first chat message. */
+export const conversationApi = {
+  create: (title?: string, llmStrategyId?: number) =>
+    api.post<any>('/conversations', { title: title || 'New Conversation', llmStrategyId: llmStrategyId || 1 }),
+  list: (userId: number) => api.get<any[]>(`/conversations/user/${userId}`),
+  getDetails: (conversationId: number) => api.get<any[]>(`/conversations/${conversationId}/details`),
+};
