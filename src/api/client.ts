@@ -147,6 +147,13 @@ export const memoryApi = {
 export const conversationApi = {
   create: (title?: string, llmStrategyId?: number) =>
     api.post<any>('/conversations', { title: title || 'New Conversation', llmStrategyId: llmStrategyId || 1 }),
-  list: (userId: number) => api.get<any[]>(`/conversations/user/${userId}`),
+  list: (userId: number, page?: number, size?: number, keyword?: string, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams({ page: String(page || 1), size: String(size || 20) });
+    if (keyword) params.set('keyword', keyword);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    return api.get<any>(`/conversations/user/${userId}?${params.toString()}`);
+  },
   getDetails: (conversationId: number) => api.get<any[]>(`/conversations/${conversationId}/details`),
+  delete: (id: number) => api.delete<void>(`/conversations/${id}`),
 };

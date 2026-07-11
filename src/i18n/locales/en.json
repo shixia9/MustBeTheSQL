@@ -57,7 +57,7 @@
     "feedbackPlaceholder": "Modification feedback (optional when approving; describe changes when rejecting)",
     "resuming": "Resuming execution...",
     "sessionHistory": "Agent History",
-    "searchSessions": "Search sessions by title or query…  (Enter to search)",
+    "searchSessions": "Enter to search",
     "noHistory": "No history found.",
     "deleteSession": "Delete Session",
     "deleteSessionMsg": "Delete this session permanently? This cannot be undone.",

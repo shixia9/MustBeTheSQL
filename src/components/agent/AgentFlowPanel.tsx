@@ -453,6 +453,8 @@ export default function AgentFlowPanel({
   const [historySize, setHistorySize] = useState(8);
   const [historyKeyword, setHistoryKeyword] = useState('');
   const [historySearchInput, setHistorySearchInput] = useState('');
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
@@ -504,39 +506,34 @@ export default function AgentFlowPanel({
       .finally(() => setLoadingSchema(false));
   }, [selectedConnId]);
 
-  // Fetch history as conversation list — each conversation contains multiple
-  // agent-execution turns. Grouped by conversation for multi-turn coherence.
+  // Fetch conversation history with server-side pagination, keyword search, and
+  // optional date range filtering. Queries the conversation table (not agent_execution).
   const fetchHistory = useCallback((page: number, kw: string) => {
     setLoadingHistory(true);
     if (!user?.id) { setLoadingHistory(false); return; }
-    conversationApi.list(user.id)
+    conversationApi.list(user.id, page, historySize, kw || undefined, historyStartDate || undefined, historyEndDate || undefined)
       .then((res: any) => {
-        if (res?.code === 200 && Array.isArray(res.data)) {
-          let conversations = res.data;
-          // Filter by keyword on the client side (title match)
-          if (kw.trim()) {
-            const lower = kw.trim().toLowerCase();
-            conversations = conversations.filter((c: any) =>
-              (c.title || '').toLowerCase().includes(lower));
-          }
-          setHistoryList(conversations.map((c: any) => ({
+        if (res?.code === 200 && res.data) {
+          const pageData = res.data;
+          const records = pageData.records || [];
+          const total = pageData.total ?? records.length;
+          setHistoryList(records.map((c: any) => ({
             id: c.id,
             conversationId: c.id,
             summary: c.title || 'Conversation',
             input: '',
             timestamp: c.updateTime || c.createTime,
             status: 'CONVERSATION',
-            turnCount: null, // lazy-loaded when expanded
           })));
-          setHistoryTotal(conversations.length);
-          setHistoryPage(1);
+          setHistoryTotal(total);
+          setHistoryPage(page);
         } else {
           setHistoryList([]); setHistoryTotal(0);
         }
       })
       .catch(() => { setHistoryList([]); setHistoryTotal(0); })
       .finally(() => setLoadingHistory(false));
-  }, [user?.id]);
+  }, [user?.id, historySize, historyStartDate, historyEndDate]);
 
   // Fetch history when the modal is toggled open
   useEffect(() => {
@@ -1026,7 +1023,7 @@ export default function AgentFlowPanel({
     }
   };
 
-  /** Load a historical agent session or conversation into the timeline. */
+  /** Load all turns in a conversation into the timeline. */
   const loadHistory = async (conversationId: number) => {
     setShowHistory(false);
     setError('');
@@ -1042,25 +1039,22 @@ export default function AgentFlowPanel({
       const executions: any[] = listJson.data.records || [];
       if (executions.length === 0) { setError('No turns in this conversation'); return; }
 
-      // Build timeline: one turn per execution, with SEPARATOR + USER_MESSAGE + steps
+      // Build timeline: one turn per execution
       const allSteps: AgentStep[] = [];
       for (let t = 0; t < executions.length; t++) {
         const exec = executions[t];
         const currentTurn = t + 1;
         turnRef.current = currentTurn;
 
-        // Separator between turns (not before the first)
         if (t > 0) {
           allSteps.push({
             id: `turn-${currentTurn}-sep`, name: 'SEPARATOR', content: '', status: 'success' as StepStatus,
           });
         }
-        // User message for this turn
         allSteps.push({
           id: `turn-${currentTurn}-USER_MESSAGE`, name: 'USER_MESSAGE', content: exec.input || '', status: 'success' as StepStatus,
         });
 
-        // Fetch steps for this execution
         try {
           const stepsRes = await fetch(`/api/v1/agent/history/${exec.id}/steps`, { credentials: 'include' });
           const stepsJson = await stepsRes.json();
@@ -1073,9 +1067,7 @@ export default function AgentFlowPanel({
               ? `turn-${currentTurn}-${nodeName}#${data.step}-${step.sequenceNo}`
               : `turn-${currentTurn}-${nodeName}`;
             allSteps.push({
-              id: sId,
-              name: nodeName,
-              content: '',
+              id: sId, name: nodeName, content: '',
               status: (step.status === 'SUCCESS' ? 'success' : 'error') as StepStatus,
               data,
               step: data?.step != null ? data.step : undefined,
@@ -1088,7 +1080,7 @@ export default function AgentFlowPanel({
               rawStatus: step.status,
             });
           }
-        } catch { /* best-effort per execution */ }
+        } catch { /* best-effort */ }
       }
 
       setSteps(allSteps);
@@ -1099,18 +1091,14 @@ export default function AgentFlowPanel({
     }
   };
 
-  /** Delete a historical session (and its steps) permanently. */
-  const deleteHistory = async (historyId: number) => {
+  /** Cascade-delete a conversation and all related data. */
+  const deleteHistory = async (conversationId: number) => {
     setConfirmDeleteId(null);
     const kw = historyKeyword;
     const prevPage = historyPage;
     try {
-      const res = await fetch(`/api/v1/agent/history/${historyId}`, {
-        method: 'DELETE', credentials: 'include',
-      });
-      const j = await res.json();
-      if (j.code !== 200) { setError(j.message || 'Failed to delete'); return; }
-      // Refresh the current view; if we deleted the last item on a page >1, step back.
+      const res = await conversationApi.delete(conversationId);
+      if (res.code !== 200) { setError(res.message || 'Failed to delete'); return; }
       let pageToFetch = prevPage;
       const remainingEstimate = historyTotal - 1;
       const lastPage = Math.max(1, Math.ceil(remainingEstimate / historySize));
@@ -1232,6 +1220,30 @@ export default function AgentFlowPanel({
                   className="w-full bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 rounded pl-8 pr-3 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
                 />
               </div>
+              {/* Date range filters */}
+              <div className="flex items-center gap-1.5 mt-2">
+                <input
+                  type="date"
+                  value={historyStartDate}
+                  onChange={(e) => { setHistoryStartDate(e.target.value); }}
+                  className="flex-1 bg-surface-container-low text-[10px] text-on-surface border border-outline-variant/30 rounded px-2 py-1 outline-none focus:border-primary"
+                  title="Start date"
+                />
+                <span className="text-on-surface-variant/40 text-[10px]">–</span>
+                <input
+                  type="date"
+                  value={historyEndDate}
+                  onChange={(e) => { setHistoryEndDate(e.target.value); }}
+                  className="flex-1 bg-surface-container-low text-[10px] text-on-surface border border-outline-variant/30 rounded px-2 py-1 outline-none focus:border-primary"
+                  title="End date"
+                />
+                <button
+                  onClick={() => fetchHistory(1, historyKeyword)}
+                  className="px-2 py-1 text-[10px] border border-outline-variant/30 text-on-surface-variant hover:text-primary hover:border-primary/40 transition-colors rounded"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
 
             {/* Sessions list */}
@@ -1259,6 +1271,13 @@ export default function AgentFlowPanel({
                     </div>
                     <div className="text-[10px] text-on-surface-variant/40 mt-0.5">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</div>
                   </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(h.id); }}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-on-surface-variant/40 hover:text-error hover:bg-error/10 rounded p-1 transition-all"
+                    title="Delete conversation"
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               ))}
             </div>

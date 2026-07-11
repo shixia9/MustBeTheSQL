@@ -57,7 +57,7 @@
     "feedbackPlaceholder": "修改意见（批准时可留空；拒绝时请说明修改要求）",
     "resuming": "恢复执行...",
     "sessionHistory": "Agent 会话历史",
-    "searchSessions": "按标题或查询内容搜索会话… (Enter 搜索)",
+    "searchSessions": "Enter 搜索",
     "noHistory": "暂无历史记录。",
     "deleteSession": "删除会话",
     "deleteSessionMsg": "确定要永久删除此会话吗？此操作不可撤销。",
