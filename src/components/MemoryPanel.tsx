@@ -23,6 +23,7 @@ export default function MemoryPanel() {
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [filter, setFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, number>>({ all: 0, PROFILE: 0, TASK: 0, FACT: 0, EPISODIC: 0 });
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ type: 'PROFILE', content: '', importance: 0.8, tags: '' });
   const [saving, setSaving] = useState(false);
@@ -33,6 +34,13 @@ export default function MemoryPanel() {
     setTimeout(() => setMsg(null), 2500);
   };
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const data = await memoryApi.counts();
+      if (data.code === 200 && data.data) setCounts(data.data);
+    } catch { /* best-effort */ }
+  }, []);
+
   const fetchMemories = useCallback(async (type?: string) => {
     setLoading(true);
     try {
@@ -42,7 +50,7 @@ export default function MemoryPanel() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchMemories(); }, [fetchMemories]);
+  useEffect(() => { fetchCounts(); fetchMemories(); }, [fetchCounts, fetchMemories]);
 
   const handleFilter = (type: string) => {
     setFilter(type);
@@ -63,6 +71,7 @@ export default function MemoryPanel() {
         setForm({ type: 'PROFILE', content: '', importance: 0.8, tags: '' });
         setShowForm(false);
         fetchMemories(filter || undefined);
+        fetchCounts();
       } else flash('error', data.message || '添加失败');
     } catch (e: any) { flash('error', e.message || '添加失败'); }
     finally { setSaving(false); }
@@ -74,6 +83,7 @@ export default function MemoryPanel() {
       const data = await memoryApi.delete(id);
       if (data.code === 200) {
         fetchMemories(filter || undefined);
+        fetchCounts();
         flash('success', '已删除');
       }
     } catch (e: any) { flash('error', e.message || '删除失败'); }

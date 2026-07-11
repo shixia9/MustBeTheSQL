@@ -51,7 +51,7 @@ function AppContent() {
   const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
-  const { clearConfigs } = useLlmConfig();
+  const { clearConfigs, refreshConfigs } = useLlmConfig();
 
   useEffect(() => {
     const init = async () => {
@@ -144,6 +144,7 @@ function AppContent() {
     }
 
     setCurrentPage('dashboard');
+    refreshConfigs();
   };
 
   // Handle user update without navigation

@@ -140,6 +140,7 @@ export const memoryApi = {
   delete: (id: number) => api.delete<void>(`/memory/${id}`),
   extract: (body: { userInput: string; summary: string; threadId?: string }) =>
     api.post<void>('/memory/extract', body),
+  counts: () => api.get<Record<string, number>>('/memory/counts'),
 };
 
 /** Conversation CRUD — proactive conversation creation before first chat message. */

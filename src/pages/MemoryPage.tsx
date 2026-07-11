@@ -30,6 +30,7 @@ export default function MemoryPage() {
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [filter, setFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, number>>({ all: 0, PROFILE: 0, TASK: 0, FACT: 0, EPISODIC: 0 });
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ type: 'PROFILE', content: '', importance: 0.8, tags: '' });
   const [saving, setSaving] = useState(false);
@@ -41,6 +42,13 @@ export default function MemoryPage() {
     setTimeout(() => setMsg(null), 2500);
   };
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const data = await memoryApi.counts();
+      if (data.code === 200 && data.data) setCounts(data.data);
+    } catch { /* best-effort */ }
+  }, []);
+
   const fetchMemories = useCallback(async (type?: string) => {
     setLoading(true);
     try {
@@ -50,7 +58,7 @@ export default function MemoryPage() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchMemories(); }, [fetchMemories]);
+  useEffect(() => { fetchCounts(); fetchMemories(); }, [fetchCounts, fetchMemories]);
 
   const handleFilter = (type: string) => {
     setFilter(type);
@@ -71,6 +79,7 @@ export default function MemoryPage() {
         setForm({ type: 'PROFILE', content: '', importance: 0.8, tags: '' });
         setShowForm(false);
         fetchMemories(filter || undefined);
+        fetchCounts();
       } else flash('error', data.message || 'Failed to add');
     } catch (e: any) { flash('error', e.message || 'Failed to add'); }
     finally { setSaving(false); }
@@ -82,6 +91,7 @@ export default function MemoryPage() {
       const data = await memoryApi.delete(id);
       if (data.code === 200) {
         fetchMemories(filter || undefined);
+        fetchCounts();
         flash('success', 'Deleted');
       }
     } catch (e: any) { flash('error', e.message || 'Failed to delete'); }
@@ -90,12 +100,6 @@ export default function MemoryPage() {
   const filteredItems = searchQuery.trim()
     ? items.filter(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
     : items;
-
-  const counts = TYPES.reduce((acc, t) => {
-    acc[t.value] = items.filter(m => m.type === t.value).length;
-    return acc;
-  }, {} as Record<string, number>);
-  counts['ALL'] = items.length;
 
   return (
     <main className="ml-[200px] pt-12 min-h-screen bg-surface text-on-surface font-mono">
@@ -153,7 +157,7 @@ export default function MemoryPage() {
             <div className="p-2 space-y-0.5">
               <FilterButton
                 label="all"
-                count={counts['ALL'] || 0}
+                count={counts['all'] || 0}
                 active={filter === ''}
                 onClick={() => handleFilter('')}
               />
