@@ -225,7 +225,6 @@ function StepLine({ step, order, isPausedAtHitl }: { step: AgentStep; order: num
             ? <Loader2 className="w-3.5 h-3.5 inline animate-spin" />
             : statusChar}
         </span>
-        <span className="text-on-surface-variant/60 text-xs w-6 flex-shrink-0">[{order}]</span>
         <span className="text-on-surface text-sm">{icon} {label}{step.step != null ? ` #${step.step}` : ''}</span>
         <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${catStyle.badge}`}>{msgType}</span>
         {step.durationMs != null && step.status === 'success' && (
