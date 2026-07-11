@@ -1323,7 +1323,7 @@ export default function AgentFlowPanel({
           </div>
         )}
 
-        {/* Phase A3: Trace view — shows token/timing breakdown per node. */}
+        {/* Trace view — shows token/timing breakdown per node. */}
         {showTraceView && steps.length > 0 ? (
           <TraceCard
             steps={steps as unknown as TraceStep[]}
@@ -1336,12 +1336,8 @@ export default function AgentFlowPanel({
             // SEPARATOR = visual divider between conversation turns
             if (step.name === 'SEPARATOR') {
               return (
-                <div key={step.id} className="relative py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 border-t border-dashed border-outline-variant/30" />
-                    <span className="text-[9px] text-on-surface-variant/40 font-mono uppercase tracking-widest flex-shrink-0">Next Turn</span>
-                    <div className="flex-1 border-t border-dashed border-outline-variant/30" />
-                  </div>
+                <div key={step.id} className="relative py-2">
+                  <div className="border-t border-dashed border-outline-variant/20" />
                 </div>
               );
             }
