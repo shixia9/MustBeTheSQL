@@ -398,30 +398,16 @@ export default function AgentFlowPanel({
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string>('');
   const [dbConnected, setDbConnected] = useState(false);
-  // Multi-turn conversation id. Null on a fresh chat; the backend
-  // creates a conversation on the first turn and returns its id in the COMPLETED
-  // event, which we echo on follow-up turns so prior context is injected.
-  // Persisted to localStorage so it survives component remounts and works
-  // even if the SSE COMPLETED event's conversationId field is not received.
-  const STORAGE_KEY = `agent_conv_id_${user?.id ?? 'default'}`;
+  // Multi-turn conversation id. Pre-allocated on mount so the first message
+  // already carries a valid id. The COMPLETED event echoes it back for consistency.
+  // Not restored from localStorage — stale IDs from a previous DB lifecycle
+  // cause ghost conversations that the backend can't resolve.
   const conversationIdRef = useRef<number | null>(null);
-  const [conversationId, setConversationId] = useState<number | null>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? Number(saved) : null;
-  });
-  // Sync ref with the initial state value (restored from localStorage if available).
-  if (conversationIdRef.current === null && conversationId != null) {
-    conversationIdRef.current = conversationId;
-  }
+  const [conversationId, setConversationId] = useState<number | null>(null);
   const handleSetConversationId = useCallback((id: number | null) => {
     conversationIdRef.current = id;
     setConversationId(id);
-    if (id != null) {
-      localStorage.setItem(STORAGE_KEY, String(id));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, [STORAGE_KEY]);
+  }, []);
   // Turn counter — each send() increments it so card IDs are unique across turns.
   const turnRef = useRef(0);
   // Phase 4 HITL state
@@ -478,18 +464,17 @@ export default function AgentFlowPanel({
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps, error]);
   useEffect(() => { setDbConnected(selectedConnId !== '' && selectedConnId !== null); }, [selectedConnId]);
 
-  // Proactively create a conversation on mount so the first message already
-  // carries a valid conversationId. Follows the AgentX pattern where sessions
-  // are created before the first chat message.
+  // Pre-allocate a conversation on mount so the first message already carries
+  // a valid conversationId. Always creates fresh — never restores from localStorage.
   useEffect(() => {
-    if (!user?.id || conversationIdRef.current != null) return;
+    if (!user?.id) return;
     let cancelled = false;
     conversationApi.create()
       .then((res: any) => {
         if (cancelled || !res?.data?.id) return;
         handleSetConversationId(res.data.id);
       })
-      .catch(() => {}); // best-effort — fallback to backend auto-creation on first stream
+      .catch(() => {}); // best-effort; backend will auto-create on first stream
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -553,7 +538,6 @@ export default function AgentFlowPanel({
   const startNewConversation = () => {
     conversationIdRef.current = null;
     setConversationId(null);
-    localStorage.removeItem(STORAGE_KEY);
     turnRef.current = 0;
     setSteps([]);
     setQuery('');
@@ -566,7 +550,7 @@ export default function AgentFlowPanel({
     setConfirmationFeedback('');
     setShowTraceView(false);
     setTraceMeta(null);
-    // Proactively create a new conversation for the fresh chat.
+    // Pre-allocate a fresh conversation for the new chat.
     conversationApi.create()
       .then((res: any) => {
         if (res?.data?.id) handleSetConversationId(res.data.id);
