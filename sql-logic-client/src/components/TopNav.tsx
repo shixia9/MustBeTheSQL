@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, User as UserIcon, LogOut, Zap, Database, Activity, Globe } from 'lucide-react';
+import { ChevronDown, User as UserIcon, LogOut, Zap, Database, Activity, Globe, Shield } from 'lucide-react';
 import { api } from '../api/client';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { useI18n } from '../i18n';
@@ -13,6 +13,13 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
   const { t, locale, setLocale } = useI18n();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    api.get<{ isAdmin: boolean }>('/admin/check').then(res => {
+      if (res?.data?.isAdmin) setIsAdmin(true);
+    }).catch(() => {});
+  }, []);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const { configs, selectedConfigId, selectedConfig, setSelectedConfigId } = useLlmConfig();
   const modelDropdownRef = useRef<HTMLDivElement>(null);
@@ -164,6 +171,15 @@ export default function TopNav({ user, onLogout }: TopNavProps) {
                 <UserIcon size={14} />
                 {t('topnav.profile')}
               </button>
+              {isAdmin && (
+                <button
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-on-surface hover:bg-surface-container-highest transition-colors"
+                  onClick={() => { setShowDropdown(false); window.open('http://localhost:3001', '_blank'); }}
+                >
+                  <Shield size={14} className="text-indigo-500" />
+                  Admin
+                </button>
+              )}
               <button
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-on-surface hover:bg-surface-container-highest transition-colors"
                 onClick={handleLogout}

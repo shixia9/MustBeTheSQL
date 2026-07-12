@@ -18,7 +18,6 @@ import SchemaBrowserPage from './pages/SchemaBrowserPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
 import AgentStudioPage from './pages/AgentStudioPage';
 import MemoryPage from './pages/MemoryPage';
-import AdminDashboardPage from './pages/AdminDashboardPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
@@ -187,8 +186,6 @@ function AppContent() {
           return <ProfilePage user={user} onUserUpdate={handleUserUpdate} />;
         case 'invite':
           return <JoinWorkspacePage token={inviteToken || ''} user={user} onPageChange={setCurrentPage} />;
-        case 'admin':
-          return <AdminDashboardPage user={user} />;
         default:
           return <DashboardPage user={user} />;
       }

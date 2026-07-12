@@ -1,4 +1,4 @@
-export type Page = 'login' | 'dashboard' | 'schema-browser' | 'workspace-manage' | 'history' | 'database' | 'settings' | 'profile' | 'invite' | 'agent-studio' | 'memory' | 'admin';
+export type Page = 'login' | 'dashboard' | 'schema-browser' | 'workspace-manage' | 'history' | 'database' | 'settings' | 'profile' | 'invite' | 'agent-studio' | 'memory';
 
 export interface QueryRecord {
   id: string;
