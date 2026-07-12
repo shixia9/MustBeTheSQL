@@ -3,7 +3,7 @@ import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { api } from '../api/client';
 import AgentFlowPanel from '../components/agent/AgentFlowPanel';
 
-export default function DashboardPage({ user }: { user: any }) {
+export default function DashboardPage({ user, initialConversationId }: { user: any; initialConversationId?: number | null }) {
   const { selectedConfigId } = useLlmConfig();
 
   const [connections, setConnections] = useState<any[]>([]);
@@ -40,6 +40,7 @@ export default function DashboardPage({ user }: { user: any }) {
         connections={connections}
         selectedConnId={selectedConnId}
         selectedConfigId={selectedConfigId}
+        initialConversationId={initialConversationId ?? null}
         onConnectionChange={(connId) => {
           setSelectedConnId(connId);
           localStorage.setItem(`chat_conn_${user.id}`, connId.toString());

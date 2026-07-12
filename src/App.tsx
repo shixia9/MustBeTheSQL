@@ -18,6 +18,7 @@ import SchemaBrowserPage from './pages/SchemaBrowserPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
 import AgentStudioPage from './pages/AgentStudioPage';
 import MemoryPage from './pages/MemoryPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
@@ -47,6 +48,7 @@ export default function App() {
 function AppContent() {
   const { t } = useI18n();
   const [currentPage, setCurrentPage] = useState<Page>('login');
+  const [navState, setNavState] = useState<any>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<{ id: number, username: string, email?: string, avatar?: string, tokenQuota: number, status?: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,13 @@ function AppContent() {
 
     const handleNavigate = (e: any) => {
       if (e.detail) {
-        setCurrentPage(e.detail as Page);
+        if (typeof e.detail === 'string') {
+          setCurrentPage(e.detail as Page);
+          setNavState(null);
+        } else {
+          setCurrentPage(e.detail.page as Page);
+          setNavState(e.detail);
+        }
       }
     };
     window.addEventListener('navigate', handleNavigate);
@@ -160,7 +168,7 @@ function AppContent() {
         case 'login':
           return <LoginPage onLogin={handleLogin} />;
         case 'dashboard':
-          return <DashboardPage user={user} />;
+          return <DashboardPage user={user} initialConversationId={navState?.conversationId ?? null} />;
         case 'agent-studio':
           return <AgentStudioPage user={user} />;
         case 'memory':
@@ -179,6 +187,8 @@ function AppContent() {
           return <ProfilePage user={user} onUserUpdate={handleUserUpdate} />;
         case 'invite':
           return <JoinWorkspacePage token={inviteToken || ''} user={user} onPageChange={setCurrentPage} />;
+        case 'admin':
+          return <AdminDashboardPage user={user} />;
         default:
           return <DashboardPage user={user} />;
       }

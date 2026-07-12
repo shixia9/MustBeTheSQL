@@ -26,6 +26,7 @@ interface AgentFlowPanelProps {
   selectedConnId: number | '';
   selectedConfigId: number | null;
   onConnectionChange: (connId: number) => void;
+  initialConversationId?: number | null;
 }
 
 /** Phase 4 active nodes — the full set wired into the graph. */
@@ -388,7 +389,7 @@ const cardSortKey = (nodeName: string, stepNo: number | null, seqNo?: number): [
 };
 
 export default function AgentFlowPanel({
-  user, connections, selectedConnId, selectedConfigId, onConnectionChange,
+  user, connections, selectedConnId, selectedConfigId, onConnectionChange, initialConversationId,
 }: AgentFlowPanelProps) {
   const { t } = useI18n();
   const { selectedWorkspaceId } = useWorkspaceStore();
@@ -466,8 +467,10 @@ export default function AgentFlowPanel({
 
   // Pre-allocate a conversation on mount so the first message already carries
   // a valid conversationId. Always creates fresh — never restores from localStorage.
+  // Skip if initialConversationId is provided (resuming from HistoryPage).
   useEffect(() => {
     if (!user?.id) return;
+    if (initialConversationId) return; // will load existing conversation below
     let cancelled = false;
     conversationApi.create()
       .then((res: any) => {
@@ -477,7 +480,15 @@ export default function AgentFlowPanel({
       .catch(() => {}); // best-effort; backend will auto-create on first stream
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, initialConversationId]);
+
+  // Load an existing conversation when navigated from HistoryPage.
+  useEffect(() => {
+    if (!initialConversationId || !user?.id) return;
+    handleSetConversationId(initialConversationId);
+    loadHistory(initialConversationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConversationId]);
 
   // Fetch available schemas when connection changes
   useEffect(() => {

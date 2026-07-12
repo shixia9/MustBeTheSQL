@@ -1,7 +1,9 @@
-import { Database, Settings, MessageSquare, Plus, Activity, Building2, Bot, Brain } from 'lucide-react';
+import { Database, Settings, MessageSquare, Plus, Activity, Building2, Bot, Brain, History, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { Page } from '../types';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { useI18n } from '../i18n';
+import { api } from '../api/client';
 import WorkspaceSelector from './workspace/WorkspaceSelector';
 
 interface SidebarProps {
@@ -14,14 +16,24 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
   const { t } = useI18n();
   const { configs } = useLlmConfig();
   const hasCustomConfig = configs.filter(c => c.status === 1).length > 0;
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    api.get<any>('/user/admin-check').then(res => {
+      if (res?.data?.isAdmin) setIsAdmin(true);
+    }).catch(() => {});
+  }, []);
+
   const navItems = [
     { id: 'dashboard', label: t('nav.chat'), icon: MessageSquare },
     { id: 'agent-studio', label: t('nav.agentStudio'), icon: Bot },
     { id: 'memory', label: t('nav.memory'), icon: Brain },
+    { id: 'history', label: t('nav.history'), icon: History },
     { id: 'schema-browser', label: t('nav.console'), icon: Activity },
     { id: 'workspace-manage', label: t('nav.workspaces'), icon: Building2 },
     { id: 'database', label: t('nav.database'), icon: Database },
     { id: 'settings', label: t('nav.settings'), icon: Settings },
+    ...(isAdmin ? [{ id: 'admin' as Page, label: 'Admin', icon: Shield }] : []),
   ];
 
   return (

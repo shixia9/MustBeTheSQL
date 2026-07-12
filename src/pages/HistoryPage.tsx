@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, X, RefreshCw, Share2, CheckCircle2 } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Play, Copy, Dock, Trash2, X, RefreshCw, Share2, CheckCircle2, MessageSquare } from 'lucide-react';
 
 import { QueryRecord } from '../types';
 import { api } from '../api/client';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { conversationApi } from '../api/client';
 
 export default function HistoryPage({ user }: { user: any }) {
   const { configs } = useLlmConfig();
@@ -34,6 +35,14 @@ export default function HistoryPage({ user }: { user: any }) {
   const [isReRunning, setIsReRunning] = useState(false);
   const [reRunResult, setReRunResult] = useState<any>(null);
   const [reRunError, setReRunError] = useState<string>('');
+
+  // Conversation tab state
+  const [activeTab, setActiveTab] = useState<'queries' | 'conversations'>('queries');
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [convPage, setConvPage] = useState(1);
+  const [convTotal, setConvTotal] = useState(0);
+  const [convLoading, setConvLoading] = useState(false);
+  const [convKeyword, setConvKeyword] = useState('');
 
   // Debounce fetch when filters change
   useEffect(() => {
@@ -174,13 +183,63 @@ export default function HistoryPage({ user }: { user: any }) {
     }
   };
 
+  const fetchConversations = async () => {
+    if (!user?.id) return;
+    try {
+      setConvLoading(true);
+      const data = await conversationApi.listSummaries(user.id, convPage, 10, convKeyword || undefined);
+      if (data.code === 200 && data.data) {
+        setConversations(data.data.records || []);
+        setConvTotal(data.data.total || 0);
+      }
+    } catch (e) {
+      console.error('Failed to fetch conversations', e);
+    } finally {
+      setConvLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'conversations') {
+      fetchConversations();
+    }
+  }, [activeTab, convPage, convKeyword, user]);
+
+  const handleContinueConversation = (conversationId: number) => {
+    window.dispatchEvent(new CustomEvent('navigate', {
+      detail: { page: 'dashboard', conversationId }
+    }));
+  };
+
   return (
     <main className="ml-[200px] pt-12 min-h-screen flex bg-surface">
       {/* Query Management Table Area */}
       <section className="flex-1 p-8 overflow-hidden flex flex-col gap-8">
         <div className="flex items-end justify-between">
-          <div>
-            <h1 className="text-sm font-mono font-semibold text-on-surface">Query History</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-sm font-mono font-semibold text-on-surface">History</h1>
+            <div className="flex gap-1 bg-surface-container-high rounded p-0.5">
+              <button
+                onClick={() => setActiveTab('queries')}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  activeTab === 'queries'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                Queries
+              </button>
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  activeTab === 'conversations'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                Conversations
+              </button>
+            </div>
           </div>
           <div className="flex gap-4">
             <div className="px-4 py-2 bg-surface-container-highest/30 border border-outline-variant/50 flex flex-col items-end">
@@ -198,7 +257,8 @@ export default function HistoryPage({ user }: { user: any }) {
           </div>
         </div>
 
-        {/* Toolbar / Filters */}
+        {/* Toolbar / Filters — only for query history */}
+        {activeTab === 'queries' && (
         <div className="bg-surface-container-lowest p-4 border border-outline-variant  flex flex-wrap items-center gap-4 border border-outline-variant/10">
           <div className="relative flex-1 min-w-[300px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={18} />
@@ -245,8 +305,10 @@ export default function HistoryPage({ user }: { user: any }) {
             </button>
           </div>
         </div>
+        )}
 
-        {/* Data Table */}
+        {/* Data Table — query history */}
+        {activeTab === 'queries' && (
         <div className="bg-surface-container-lowest border border-outline-variant  overflow-hidden flex flex-col border border-outline-variant/10">
           <table className="w-full text-left border-collapse">
             <thead className="bg-surface-container-high border-b border-outline-variant/10">
@@ -352,6 +414,91 @@ export default function HistoryPage({ user }: { user: any }) {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Conversations View */}
+        {activeTab === 'conversations' && (
+        <div className="bg-surface-container-lowest border border-outline-variant overflow-hidden flex flex-col border border-outline-variant/10">
+          {/* Conversations search */}
+          <div className="p-4 border-b border-outline-variant/10">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={18} />
+              <input
+                className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none focus:ring-2 focus:ring-primary/20 text-sm text-on-surface"
+                placeholder="Search conversations..."
+                type="text"
+                value={convKeyword}
+                onChange={(e) => { setConvKeyword(e.target.value); setConvPage(1); }}
+              />
+            </div>
+          </div>
+
+          {/* Conversation cards */}
+          <div className="divide-y divide-outline-variant/5">
+            {convLoading ? (
+              <div className="px-6 py-12 text-center text-sm text-on-surface-variant">Loading conversations...</div>
+            ) : conversations.length === 0 ? (
+              <div className="px-6 py-12 text-center text-sm text-on-surface-variant">
+                <MessageSquare size={32} className="mx-auto mb-3 text-on-surface-variant/40" />
+                No conversations yet. Start a chat in the Dashboard!
+              </div>
+            ) : conversations.map((c: any) => (
+              <div key={c.id} className="px-6 py-4 hover:bg-surface-container-high/20 transition-colors flex items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MessageSquare size={14} className="text-primary/60 flex-shrink-0" />
+                    <h3 className="text-sm font-semibold text-on-surface truncate">{c.title}</h3>
+                    <span className="text-[10px] font-bold text-on-surface-variant/50 bg-surface-container-high px-1.5 py-0.5">
+                      {c.turnCount} turns
+                    </span>
+                  </div>
+                  {c.lastMessage && (
+                    <p className="text-xs text-on-surface-variant truncate ml-6">{c.lastMessage}</p>
+                  )}
+                  <p className="text-[10px] text-on-surface-variant/50 mt-1 ml-6">
+                    {c.lastActiveTime ? new Date(c.lastActiveTime).toLocaleString('en-US', {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    }) : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleContinueConversation(c.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
+                >
+                  <Play size={12} />
+                  Continue
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {convTotal > 10 && (
+            <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
+              <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">
+                Showing {(convPage - 1) * 10 + 1} - {Math.min(convPage * 10, convTotal)} of {convTotal}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setConvPage(p => Math.max(1, p - 1))}
+                  disabled={convPage === 1}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-30"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button className="px-3 py-1 bg-primary text-white text-xs font-bold">{convPage}</button>
+                <button
+                  onClick={() => setConvPage(p => p + 1)}
+                  disabled={convPage * 10 >= convTotal}
+                  className="p-1 text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-30"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        )}
       </section>
 
       {/* Detail Sidebar View */}
