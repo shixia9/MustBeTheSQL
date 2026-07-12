@@ -20,19 +20,26 @@ export default function App() {
 
   if (isAdmin === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-vellum">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin h-8 w-8 rounded-full"
+            style={{ border: '3px solid rgba(60,94,184,0.18)', borderTopColor: 'var(--color-register)' }} />
+          <span className="text-xs font-mono text-marginalia">Verifying credentials&hellip;</span>
+        </div>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-vellum">
         <div className="text-center">
-          <Shield size={48} className="mx-auto mb-4 text-red-400" />
-          <h1 className="text-lg font-bold text-gray-800 mb-2">Access Denied</h1>
-          <p className="text-sm text-gray-500">Admin privileges required.</p>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'var(--color-sig-red-soft)' }}>
+            <Shield size={26} style={{ color: 'var(--color-sig-red)' }} />
+          </div>
+          <h1 className="text-lg font-bold text-typeset mb-1">Access Denied</h1>
+          <p className="text-sm text-marginalia">You need administrator privileges to access this panel.</p>
         </div>
       </div>
     );
