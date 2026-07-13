@@ -11,7 +11,7 @@ const ALL_TOOLS: { key: string; labelKey: string; descKey: string }[] = [
   { key: 'sample', labelKey: 'agentStudio.toolSample', descKey: 'agentStudio.toolSampleDesc' },
 ];
 
-const emptyDraft = (): Partial<AgentEntity> & { enabledTools: string[]; topK?: number; scoreThreshold?: number; ragEnabled?: boolean } => ({
+const emptyDraft = (): Partial<AgentEntity> & { enabledTools: string[]; topK?: number; scoreThreshold?: number; ragEnabled?: boolean; contextStrategy?: string } => ({
   name: '',
   description: '',
   avatar: '🤖',
@@ -21,6 +21,7 @@ const emptyDraft = (): Partial<AgentEntity> & { enabledTools: string[]; topK?: n
   topK: 5,
   scoreThreshold: 0.6,
   ragEnabled: true,
+  contextStrategy: 'TRUNCATE',
   memoryEnabled: true,
   isDefault: false,
 });
@@ -66,11 +67,12 @@ export default function AgentStudioPage({ user }: { user: any }) {
 
   const selectAgent = (a: AgentEntity) => {
     setSelectedId(a.id);
-    let ragTopK = 5; let ragThreshold = 0.6; let ragEnabled = true;
+    let ragTopK = 5; let ragThreshold = 0.6; let ragEnabled = true; let contextStrategy = 'TRUNCATE';
     try {
       if (a.ragConfig) {
         const rag = JSON.parse(a.ragConfig);
         ragTopK = rag.topK ?? 5; ragThreshold = rag.scoreThreshold ?? 0.6; ragEnabled = rag.enabled ?? true;
+        contextStrategy = rag.contextStrategy ?? 'TRUNCATE';
       }
     } catch { /* keep defaults */ }
     setDraft({
@@ -78,7 +80,7 @@ export default function AgentStudioPage({ user }: { user: any }) {
       avatar: a.avatar ?? '🤖', systemPrompt: a.systemPrompt ?? '',
       welcomeMessage: a.welcomeMessage ?? '',
       enabledTools: a.enabledTools ?? ['sql', 'schema', 'python', 'sample'],
-      topK: ragTopK, scoreThreshold: ragThreshold, ragEnabled,
+      topK: ragTopK, scoreThreshold: ragThreshold, ragEnabled, contextStrategy,
       memoryEnabled: a.memoryEnabled ?? true, isDefault: a.isDefault ?? false,
     });
   };
@@ -111,6 +113,7 @@ export default function AgentStudioPage({ user }: { user: any }) {
         systemPrompt: draft.systemPrompt, welcomeMessage: draft.welcomeMessage,
         enabledTools: draft.enabledTools,
         topK: draft.topK, scoreThreshold: draft.scoreThreshold, ragEnabled: draft.ragEnabled,
+        contextStrategy: draft.contextStrategy,
         memoryEnabled: draft.memoryEnabled, isDefault: draft.isDefault,
       });
       if (data.code === 200) {
@@ -388,6 +391,17 @@ export default function AgentStudioPage({ user }: { user: any }) {
                           className="w-full px-3 py-2 text-sm bg-surface border border-outline-variant/50 focus:border-primary outline-none font-mono"
                         />
                       </div>
+                    </div>
+                    <div className="mt-3">
+                      <label className="text-[9px] uppercase tracking-wider text-on-surface-variant block mb-1">Context Strategy</label>
+                      <select
+                        value={draft.contextStrategy ?? 'TRUNCATE'}
+                        onChange={e => setDraft({ ...draft, contextStrategy: e.target.value })}
+                        className="w-full px-3 py-2 text-sm bg-surface border border-outline-variant/50 focus:border-primary outline-none font-mono"
+                      >
+                        <option value="TRUNCATE">TRUNCATE — drop oldest turns when window overflows</option>
+                        <option value="SUMMARIZE">SUMMARIZE — compress overflow turns into a summary</option>
+                      </select>
                     </div>
                   </div>
                 </section>

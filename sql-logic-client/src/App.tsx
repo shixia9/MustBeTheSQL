@@ -186,6 +186,9 @@ function AppContent() {
           return <ProfilePage user={user} onUserUpdate={handleUserUpdate} />;
         case 'invite':
           return <JoinWorkspacePage token={inviteToken || ''} user={user} onPageChange={setCurrentPage} />;
+        case 'admin':
+          // Admin console is a separate application — open in a new tab to preserve session context
+          return <AdminRedirect />;
         default:
           return <DashboardPage user={user} />;
       }
@@ -225,6 +228,20 @@ function AppContent() {
       <div className="relative">
         {renderPage()}
       </div>
+    </div>
+  );
+}
+
+/** Opens the admin console in a new browser tab, then returns to dashboard. */
+function AdminRedirect() {
+  useEffect(() => {
+    const adminUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
+    window.open(adminUrl, '_blank');
+    window.dispatchEvent(new CustomEvent('navigate', { detail: 'dashboard' }));
+  }, []);
+  return (
+    <div className="ml-[200px] pt-12 min-h-screen bg-surface flex items-center justify-center">
+      <p className="text-sm text-on-surface-variant font-mono">Opening admin console in a new tab&hellip;</p>
     </div>
   );
 }

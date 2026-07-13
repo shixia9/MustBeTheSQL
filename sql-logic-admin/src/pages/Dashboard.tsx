@@ -325,7 +325,7 @@ function LlmTab({ llmMetrics }: { llmMetrics: any[] }) {
         <table className="w-full">
           <thead>
             <tr>
-              <th className="th">Config</th>
+              <th className="th">Config Name</th>
               <th className="th w-24">Calls</th>
               <th className="th w-56">Success Rate</th>
               <th className="th w-32">Latency</th>
@@ -341,8 +341,8 @@ function LlmTab({ llmMetrics }: { llmMetrics: any[] }) {
               const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
               return (
                 <tr key={i} className="transition-colors hover:bg-black/[0.015]">
-                  <td className="td font-mono font-medium" style={{ color: 'var(--color-typeset)' }}>
-                    #{m.configId}
+                  <td className="td font-mono text-xs font-medium" style={{ color: 'var(--color-typeset)' }}>
+                    {m.configName || `#${m.configId}`}
                   </td>
                   <td className="td font-mono text-xs">{m.totalCalls}</td>
                   <td className="td">
