@@ -56,14 +56,12 @@ function AppContent() {
 
   useEffect(() => {
     const init = async () => {
-      // Check if there's a stored user, then validate the session with the backend
       const localUser = storageUtils.getUser();
       if (localUser) {
         try {
           // Validate that the Sa-Token session is still active on the backend
           const data = await api.get<any>('/user/info');
           if (data.code === 200 && data.data) {
-            // Session is valid — update user data from backend
             const serverUser = data.data;
             setUser({
               id: serverUser.id,
@@ -76,17 +74,36 @@ function AppContent() {
             setIsLoggedIn(true);
             memoryUtils.user = localUser;
             setCurrentPage('dashboard');
-            // Update localStorage with fresh data from server
             storageUtils.saveUser(serverUser);
           } else {
-            // Session invalid (e.g., token expired after server restart) — clear stale data
             storageUtils.deleteUser();
             memoryUtils.user = null;
           }
         } catch (e) {
-          // Network error or 401 — session is invalid, clear stale data
           storageUtils.deleteUser();
           memoryUtils.user = null;
+        }
+      } else {
+        // No stored user — try to restore session from Sa-Token cookie (e.g. after OAuth login)
+        try {
+          const data = await api.get<any>('/user/info');
+          if (data.code === 200 && data.data) {
+            const serverUser = data.data;
+            setUser({
+              id: serverUser.id,
+              username: serverUser.username,
+              email: serverUser.email,
+              avatar: serverUser.avatar,
+              tokenQuota: serverUser.tokenQuota ?? 0,
+              status: serverUser.status
+            });
+            setIsLoggedIn(true);
+            memoryUtils.user = serverUser;
+            storageUtils.saveUser(serverUser);
+            setCurrentPage('dashboard');
+          }
+        } catch (e) {
+          // No active session — stay on login page
         }
       }
       // Check for invite token in URL params
