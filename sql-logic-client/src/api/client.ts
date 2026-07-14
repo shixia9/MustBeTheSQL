@@ -164,6 +164,8 @@ export const mcpServerApi = {
   list: () => api.get<any[]>('/mcp-servers'),
   create: (body: { name: string; transportType: string; endpoint: string; env?: Record<string, string> }) =>
     api.post<{ id: number; connected: boolean }>('/mcp-servers', body),
+  update: (id: number, body: { name: string; transportType: string; endpoint: string; env?: Record<string, string> }) =>
+    api.put<{ id: number; connected: boolean }>(`/mcp-servers/${id}`, body),
   delete: (id: number) => api.delete<void>(`/mcp-servers/${id}`),
   connect: (id: number) => api.post<{ connected: boolean }>(`/mcp-servers/${id}/connect`),
   disconnect: (id: number) => api.post<{ connected: boolean }>(`/mcp-servers/${id}/disconnect`),

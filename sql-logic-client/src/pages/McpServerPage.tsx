@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Server, Plus, Trash2, Loader2, Plug, PlugZap, Wrench } from 'lucide-react';
+import { Server, Plus, Trash2, Loader2, Plug, PlugZap, Pencil } from 'lucide-react';
 import { mcpServerApi } from '../api/client';
 import type { McpServerConfig } from '../types';
 
@@ -25,6 +25,7 @@ export default function McpServerPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', transportType: 'SSE', endpoint: '', envStr: '' });
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const flash = (type: 'success' | 'error', text: string) => {
     setMsg({ type, text });
@@ -60,21 +61,35 @@ export default function McpServerPage() {
     }
     setSaving(true);
     try {
-      const env: Record<string, string> | undefined = form.envStr.trim()
-        ? Object.fromEntries(form.envStr.split(',').map(s => s.split('=').map(x => x.trim())))
-        : undefined;
-      const data = await mcpServerApi.create({
-        name: form.name.trim(), transportType: form.transportType, endpoint: form.endpoint.trim(), env,
-      });
-      if (data.code === 200) {
-        flash('success', 'Server added');
-        setShowForm(false);
-        setForm({ name: '', transportType: 'SSE', endpoint: '', envStr: '' });
-        await fetchServers();
-        if (data.data) setSelectedId(data.data.id);
-      } else flash('error', data.message || 'Failed to add server');
-    } catch (e: any) { flash('error', e.message || 'Failed to add server'); }
+      const payload = { name: form.name.trim(), transportType: form.transportType, endpoint: form.endpoint.trim(),
+        env: form.envStr.trim() ? Object.fromEntries(form.envStr.split(',').map(s => s.split('=').map(x => x.trim()))) : undefined };
+      if (editingId) {
+        const data = await mcpServerApi.update(editingId, payload);
+        if (data.code === 200) {
+          flash('success', 'Server updated');
+          setShowForm(false); setEditingId(null);
+          setForm({ name: '', transportType: 'SSE', endpoint: '', envStr: '' });
+          await fetchServers();
+        } else flash('error', data.message || 'Failed to update');
+      } else {
+        const data = await mcpServerApi.create(payload);
+        if (data.code === 200) {
+          flash('success', 'Server added');
+          setShowForm(false);
+          setForm({ name: '', transportType: 'SSE', endpoint: '', envStr: '' });
+          await fetchServers();
+          if (data.data) setSelectedId(data.data.id);
+        } else flash('error', data.message || 'Failed to add server');
+      }
+    } catch (e: any) { flash('error', e.message || 'Failed'); }
     finally { setSaving(false); }
+  };
+
+  const handleEdit = (s: McpServerConfig) => {
+    setForm({ name: s.name, transportType: s.transportType, endpoint: s.endpoint,
+      envStr: s.envVars ? (() => { try { const obj = JSON.parse(s.envVars); return Object.entries(obj).map(([k,v]) => `${k}=${v}`).join(','); } catch { return s.envVars.replace(/[{}"]/g,''); } })() : '' });
+    setEditingId(s.id);
+    setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -128,7 +143,7 @@ export default function McpServerPage() {
             </div>
           </div>
           <button
-            onClick={() => setShowForm(v => !v)}
+            onClick={() => { setShowForm(v => !v); setEditingId(null); setForm({ name: '', transportType: 'SSE', endpoint: '', envStr: '' }); }}
             className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-primary text-primary hover:bg-primary/10 transition-colors"
           >
             {showForm ? 'Cancel' : <><Plus size={14} /> Add Server</>}
@@ -147,40 +162,84 @@ export default function McpServerPage() {
 
         {/* ── Add form ── */}
         {showForm && (
-          <div className="mb-6 bg-surface-container-low border border-outline-variant/50 p-5 border-dashed">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Name</label>
-                <input className="input-flat" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="my-mcp-server" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Transport Type</label>
-                <select className="input-flat" value={form.transportType}
-                  onChange={e => setForm({ ...form, transportType: e.target.value })}>
-                  <option value="SSE">SSE (Remote HTTP)</option>
-                  <option value="STDIO">STDIO (Local Process)</option>
-                </select>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">Endpoint</label>
-                <input className="input-flat font-mono" value={form.endpoint}
-                  onChange={e => setForm({ ...form, endpoint: e.target.value })}
-                  placeholder={form.transportType === 'SSE' ? 'https://example.com/mcp/sse' : 'npx -y @modelcontextprotocol/server-example'} />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-[10px] font-bold text-outline-variant uppercase tracking-wider">
-                  Environment Variables <span className="text-on-surface-variant/50">(optional, key=val,key=val)</span>
-                </label>
-                <input className="input-flat font-mono" value={form.envStr}
-                  onChange={e => setForm({ ...form, envStr: e.target.value })} placeholder="KEY1=val1,KEY2=val2" />
-              </div>
+          <div className="mb-6 overflow-hidden border border-outline-variant/30" style={{ background: '#111622', borderRadius: '4px', boxShadow: '0 8px 32px rgba(17,22,34,0.18)' }}>
+            {/* Header strip */}
+            <div className="flex items-center gap-3 px-5 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+              <div className="w-4 h-4 rounded-sm" style={{ background: editingId ? 'var(--color-sig-green)' : 'var(--color-register)' }} />
+              <span className="font-mono text-[11px] uppercase tracking-[0.15em] font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                {editingId ? 'Edit MCP Server' : 'Register MCP Server'}
+              </span>
+              <span className="font-mono text-[10px] ml-auto" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                {editingId ? `config #${editingId}` : 'new connection'}
+              </span>
             </div>
-            <div className="flex justify-end mt-4">
-              <button onClick={handleAdd} disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider bg-primary text-on-primary hover:brightness-110 disabled:opacity-50">
-                {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Add
-              </button>
+
+            {/* Form body */}
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block font-mono text-[10px] uppercase tracking-[0.12em] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Name</label>
+                  <input
+                    className="w-full font-mono text-sm px-3 py-2 outline-none transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e8e8ec', borderRadius: '3px' }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--color-register)'; e.target.style.background = 'rgba(255,255,255,0.09)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.06)'; }}
+                    value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                    placeholder="my-mcp-server" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block font-mono text-[10px] uppercase tracking-[0.12em] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Transport</label>
+                  <select
+                    className="w-full font-mono text-sm px-3 py-2 outline-none transition-colors appearance-none"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e8e8ec', borderRadius: '3px', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: '2rem' }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--color-register)'; e.target.style.background = 'rgba(255,255,255,0.09)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.06)'; }}
+                    value={form.transportType}
+                    onChange={e => setForm({ ...form, transportType: e.target.value })}>
+                    <option value="SSE">SSE — Remote HTTP endpoint</option>
+                    <option value="STDIO">STDIO — Local process command</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-mono text-[10px] uppercase tracking-[0.12em] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Endpoint</label>
+                  <input
+                    className="w-full font-mono text-sm px-3 py-2 outline-none transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e8e8ec', borderRadius: '3px' }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--color-register)'; e.target.style.background = 'rgba(255,255,255,0.09)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.06)'; }}
+                    value={form.endpoint}
+                    onChange={e => setForm({ ...form, endpoint: e.target.value })}
+                    placeholder={form.transportType === 'SSE' ? 'https://example.com/mcp/sse' : 'npx -y @modelcontextprotocol/server-example'} />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="block font-mono text-[10px] uppercase tracking-[0.12em] font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    Environment Variables
+                    <span className="font-normal ml-1.5" style={{ color: 'rgba(255,255,255,0.18)' }}>optional</span>
+                  </label>
+                  <input
+                    className="w-full font-mono text-sm px-3 py-2 outline-none transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#e8e8ec', borderRadius: '3px' }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--color-register)'; e.target.style.background = 'rgba(255,255,255,0.09)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.06)'; }}
+                    value={form.envStr}
+                    onChange={e => setForm({ ...form, envStr: e.target.value })}
+                    placeholder="KEY1=val1, KEY2=val2" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="font-mono text-[10px]" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                  {form.transportType === 'SSE' ? 'Connects to a remote MCP server via HTTP' : 'Spawns a local process and communicates via stdin/stdout'}
+                </span>
+                <button onClick={handleAdd} disabled={saving}
+                  className="flex items-center gap-1.5 px-5 py-2 text-xs font-mono uppercase tracking-wider font-semibold transition-all disabled:opacity-40"
+                  style={{ background: 'var(--color-register)', color: '#fff', border: 'none', borderRadius: '3px' }}
+                  onMouseEnter={e => (e.target as HTMLElement).style.filter = 'brightness(1.15)'}
+                  onMouseLeave={e => (e.target as HTMLElement).style.filter = 'none'}>
+                  {saving ? <Loader2 size={12} className="animate-spin" /> : editingId ? <Pencil size={12} /> : <Plus size={12} />}
+                  {editingId ? 'Save Changes' : 'Register Server'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -278,8 +337,12 @@ export default function McpServerPage() {
                       <Plug size={13} /> Connect
                     </button>
                   )}
+                  <button onClick={() => handleEdit(selected)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-outline-variant text-on-surface-variant hover:text-on-surface hover:border-on-surface-variant/60 transition-colors">
+                    <Pencil size={13} /> Edit
+                  </button>
                   <button onClick={() => handleDelete(selected.id)}
-                    className="ml-auto flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors">
                     <Trash2 size={13} /> Delete
                   </button>
                 </div>
