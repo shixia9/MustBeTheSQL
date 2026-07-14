@@ -108,13 +108,13 @@ export const workspaceApi = {
     api.post<void>(`/workspaces/invitations/${token}/accept`),
 };
 
-/** Phase A4: LLM provider test connection helper. */
+/** LLM provider test connection helper. */
 export const llmConfigApi = {
   test: (configId: number) =>
     api.post<{ success: boolean; latencyMs: number; message?: string }>(`/llm-config/${configId}/test`, {}),
 };
 
-/** Phase B (B1): LLM HA strategy + metrics. */
+/** LLM HA strategy + metrics. */
 export const llmStrategyApi = {
   updateStrategy: (configId: number, body: { strategyType: string; fallbackChain?: number[] }) =>
     api.put(`/llm-config/${configId}/strategy`, body),
@@ -122,7 +122,7 @@ export const llmStrategyApi = {
     api.get<{ successRate?: number; avgLatencyMs?: number; circuitState?: string; totalRequests?: number }>(`/llm-config/${configId}/metrics`),
 };
 
-/** Phase B (B4): Agent Studio CRUD. */
+/** Agent Studio CRUD. */
 export const agentEntityApi = {
   list: () => api.get<any[]>('/agent-entity/list'),
   get: (id: number) => api.get<any>(`/agent-entity/${id}`),
@@ -130,9 +130,20 @@ export const agentEntityApi = {
   update: (id: number, body: any) => api.put<any>(`/agent-entity/${id}`, body),
   setDefault: (id: number) => api.put<void>(`/agent-entity/${id}/default`, {}),
   delete: (id: number) => api.delete<void>(`/agent-entity/${id}`),
+  /** Agent version management. */
+  publish: (id: number) =>
+    api.post<{ id: number; versionNumber: number; publishTime: string }>(`/agent-entity/${id}/publish`),
+  listVersions: (id: number) =>
+    api.get<any[]>(`/agent-entity/${id}/versions`),
+  getVersionSnapshot: (id: number, versionId: number) =>
+    api.get<string>(`/agent-entity/${id}/versions/${versionId}`),
+  revertToVersion: (id: number, versionId: number) =>
+    api.post<void>(`/agent-entity/${id}/versions/${versionId}/revert`),
+  deleteVersion: (id: number, versionId: number) =>
+    api.delete<void>(`/agent-entity/${id}/versions/${versionId}`),
 };
 
-/** Phase B (B3): memory management + manual extraction trigger. */
+/** Memory management + manual extraction trigger. */
 export const memoryApi = {
   list: (type?: string) => api.get<any[]>(`/memory/list${type ? `?type=${type}` : ''}`),
   create: (body: { type: string; content: string; importance?: number; tags?: string[] }) =>
@@ -141,6 +152,22 @@ export const memoryApi = {
   extract: (body: { userInput: string; summary: string; threadId?: string }) =>
     api.post<void>('/memory/extract', body),
   counts: () => api.get<Record<string, number>>('/memory/counts'),
+};
+
+/** Tool discovery — list all registered tools from ToolRegistry. */
+export const toolsApi = {
+  list: () => api.get<any[]>('/tools'),
+};
+
+/** MCP server management CRUD + connect/disconnect/status. */
+export const mcpServerApi = {
+  list: () => api.get<any[]>('/mcp-servers'),
+  create: (body: { name: string; transportType: string; endpoint: string; env?: Record<string, string> }) =>
+    api.post<{ id: number; connected: boolean }>('/mcp-servers', body),
+  delete: (id: number) => api.delete<void>(`/mcp-servers/${id}`),
+  connect: (id: number) => api.post<{ connected: boolean }>(`/mcp-servers/${id}/connect`),
+  disconnect: (id: number) => api.post<{ connected: boolean }>(`/mcp-servers/${id}/disconnect`),
+  status: (id: number) => api.get<{ connected: boolean }>(`/mcp-servers/${id}/status`),
 };
 
 /** Conversation CRUD — proactive conversation creation before first chat message. */

@@ -14,11 +14,16 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
   const [userKeyword, setUserKeyword] = useState('');
   const [userLoading, setUserLoading] = useState(false);
   const [llmMetrics, setLlmMetrics] = useState<any[]>([]);
+  const [llmPage, setLlmPage] = useState(1);
+  const [llmTotal, setLlmTotal] = useState(0);
+  const [llmKeyword, setLlmKeyword] = useState('');
+  const [llmSubTab, setLlmSubTab] = useState<'general' | 'system' | 'users'>('general');
   const [quotaEdit, setQuotaEdit] = useState<{ userId: number; current: number } | null>(null);
   const [quotaValue, setQuotaValue] = useState('');
 
-  useEffect(() => { if (activeTab === 'overview') { fetchDashboard(); fetchLlmMetrics(); } }, [activeTab]);
+  useEffect(() => { if (activeTab === 'overview') { fetchDashboard(); } }, [activeTab]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, userPage, userKeyword]);
+  useEffect(() => { if (activeTab === 'llm') fetchLlmMetrics(); }, [activeTab, llmPage, llmKeyword, llmSubTab]);
 
   const fetchDashboard = async () => {
     const res = await api.get<any>('/admin/dashboard');
@@ -33,8 +38,13 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
     setUserLoading(false);
   };
   const fetchLlmMetrics = async () => {
-    const res = await api.get<any[]>('/admin/llm/metrics');
-    if (res.data) setLlmMetrics(res.data);
+    const endpoint = llmSubTab === 'system' ? '/admin/llm/metrics/system'
+      : llmSubTab === 'users' ? '/admin/llm/metrics/users'
+      : '/admin/llm/metrics';
+    const params = new URLSearchParams({ page: String(llmPage), size: '20' });
+    if (llmKeyword) params.set('keyword', llmKeyword);
+    const res = await api.get<any>(`/admin/llm/metrics${llmSubTab === 'system' ? '/system' : llmSubTab === 'users' ? '/users' : ''}?${params}`);
+    if (res.data) { setLlmMetrics(res.data.records || []); setLlmTotal(res.data.total || 0); }
   };
   const handleToggleStatus = async (userId: number, currentStatus: number) => {
     await api.put(`/admin/users/${userId}/status`, { status: currentStatus === 1 ? 0 : 1 });
@@ -102,7 +112,11 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
             userKeyword={userKeyword} setUserKeyword={setUserKeyword} setUserPage={setUserPage}
             handleToggleStatus={handleToggleStatus} setQuotaEdit={setQuotaEdit} setQuotaValue={setQuotaValue} />
         )}
-        {activeTab === 'llm' && <LlmTab llmMetrics={llmMetrics} />}
+        {activeTab === 'llm' && (
+          <LlmView llmMetrics={llmMetrics} llmTotal={llmTotal} llmPage={llmPage}
+            llmKeyword={llmKeyword} setLlmKeyword={setLlmKeyword} setLlmPage={setLlmPage}
+            llmSubTab={llmSubTab} setLlmSubTab={setLlmSubTab} />
+        )}
       </main>
 
       {/* ════════════ Quota Modal ════════════ */}
@@ -309,63 +323,164 @@ function UsersTab({ users, userTotal, userPage, userLoading, userKeyword, setUse
 /* ═══════════════════════════════════════════
    LLM Tab
    ═══════════════════════════════════════════ */
-function LlmTab({ llmMetrics }: { llmMetrics: any[] }) {
+type LlmSubTab = 'general' | 'system' | 'users';
+
+function LlmView({ llmMetrics, llmTotal, llmPage, llmKeyword, setLlmKeyword, setLlmPage, llmSubTab, setLlmSubTab }: {
+  llmMetrics: any[]; llmTotal: number; llmPage: number;
+  llmKeyword: string; setLlmKeyword: (v: string) => void; setLlmPage: (v: number) => void;
+  llmSubTab: LlmSubTab; setLlmSubTab: (v: LlmSubTab) => void;
+}) {
+  const subtabs: { key: LlmSubTab; label: string }[] = [
+    { key: 'general', label: 'General' },
+    { key: 'system', label: 'System LLM' },
+    { key: 'users', label: 'User LLM' },
+  ];
+
   return (
-    <div className="p-8 max-w-[1080px] space-y-5">
-      <div>
-        <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
-          LLM Monitoring
-        </h1>
-        <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
-          Call metrics per configuration
-        </p>
+    <div className="flex" style={{ minHeight: 'calc(100vh - 0px)' }}>
+      {/* ═══ Sub-sidebar ═══ */}
+      <div className="w-48 shrink-0 border-r" style={{ borderColor: 'rgba(111,115,133,0.12)', background: 'rgba(111,115,133,0.02)' }}>
+        <div className="px-4 py-4">
+          <p className="font-mono text-[10px] uppercase tracking-wider font-semibold mb-3" style={{ color: 'var(--color-marginalia)' }}>LLM Views</p>
+          {subtabs.map(st => (
+            <button key={st.key} onClick={() => { setLlmSubTab(st.key); setLlmPage(1); }}
+              className={`w-full text-left px-3 py-2 mb-0.5 rounded-md font-mono text-xs transition-colors ${
+                llmSubTab === st.key ? 'font-semibold' : ''
+              }`}
+              style={llmSubTab === st.key
+                ? { color: 'var(--color-register)', background: 'var(--color-register-soft)' }
+                : { color: 'var(--color-marginalia)' }}
+            >{st.label}</button>
+          ))}
+        </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="th">Config Name</th>
-              <th className="th w-24">Calls</th>
-              <th className="th w-56">Success Rate</th>
-              <th className="th w-32">Latency</th>
-              <th className="th w-52">Tokens &nbsp;<span style={{ color: 'var(--color-marginalia)', fontWeight: 400 }}>In / Out</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {llmMetrics.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-14 text-center font-mono text-xs"
-                style={{ color: 'var(--color-marginalia)' }}>No metrics available</td></tr>
-            ) : llmMetrics.map((m: any, i: number) => {
-              const rate = Math.round((m.successRate || 0) * 100);
-              const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
-              return (
-                <tr key={i} className="transition-colors hover:bg-black/[0.015]">
-                  <td className="td font-mono text-xs font-medium" style={{ color: 'var(--color-typeset)' }}>
-                    {m.configName || `#${m.configId}`}
-                  </td>
-                  <td className="td font-mono text-xs">{m.totalCalls}</td>
-                  <td className="td">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden max-w-[140px]"
-                        style={{ background: 'rgba(111,115,133,0.12)' }}>
-                        <div className="h-full rounded-full transition-all duration-600"
-                          style={{ width: `${rate}%`, background: barColor }} />
-                      </div>
-                      <span className="font-mono text-[11px] font-semibold w-9 text-right"
-                        style={{ color: 'var(--color-marginalia)' }}>{rate}%</span>
-                    </div>
-                  </td>
-                  <td className="td font-mono text-xs">{Math.round(m.avgLatencyMs || 0)} ms</td>
-                  <td className="td font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>
-                    {m.totalInputTokens?.toLocaleString()} / {m.totalOutputTokens?.toLocaleString()}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* ═══ Content ═══ */}
+      <div className="flex-1 p-8" style={{ maxWidth: 'calc(1080px - 192px)' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
+              {llmSubTab === 'system' ? 'System LLM Monitoring' : llmSubTab === 'users' ? 'User LLM Monitoring' : 'LLM Monitoring'}
+            </h1>
+            <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
+              {llmSubTab === 'system' ? 'Platform default LLM usage by user, IP, and token consumption'
+                : llmSubTab === 'users' ? 'User-owned LLM configurations with masked credentials'
+                : 'Call metrics per configuration'}
+            </p>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--color-marginalia)' }} />
+            <input className="input pl-9 pr-4 w-56" placeholder="Search config..."
+              value={llmKeyword} onChange={e => { setLlmKeyword(e.target.value); setLlmPage(1); }} />
+          </div>
+        </div>
+
+        <div className="card overflow-hidden">
+          {llmSubTab === 'system' ? <SystemLlmTable data={llmMetrics} /> : llmSubTab === 'users' ? <UserLlmTable data={llmMetrics} /> : <GeneralLlmTable data={llmMetrics} />}
+          {llmTotal > 20 && (
+            <div className="px-4 py-3 flex items-center justify-between"
+              style={{ borderTop: '1px solid rgba(111,115,133,0.1)', background: 'rgba(111,115,133,0.02)' }}>
+              <span className="font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>
+                {(llmPage - 1) * 20 + 1}&ndash;{Math.min(llmPage * 20, llmTotal)} of {llmTotal}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setLlmPage(p => Math.max(1, p - 1))} disabled={llmPage === 1}
+                  className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
+                  style={{ color: 'var(--color-marginalia)' }}><ChevronLeft size={14} /></button>
+                <span className="font-mono text-xs font-semibold px-1" style={{ color: 'var(--color-typeset)' }}>{llmPage}</span>
+                <button onClick={() => setLlmPage(p => p + 1)} disabled={llmPage * 20 >= llmTotal}
+                  className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
+                  style={{ color: 'var(--color-marginalia)' }}><ChevronRight size={14} /></button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function GeneralLlmTable({ data }: { data: any[] }) {
+  if (data.length === 0) return <div className="px-4 py-14 text-center font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>No metrics available</div>;
+  return (
+    <table className="w-full">
+      <thead><tr>
+        <th className="th">Config Name</th><th className="th w-20">Calls</th><th className="th w-48">Success Rate</th>
+        <th className="th w-24">Latency</th><th className="th w-44">Tokens In / Out</th>
+      </tr></thead>
+      <tbody>
+        {data.map((m: any, i: number) => {
+          const rate = Math.round((m.successRate || 0) * 100);
+          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
+          return (
+            <tr key={i} className="transition-colors hover:bg-black/[0.015]">
+              <td className="td font-mono text-xs font-medium" style={{ color: 'var(--color-typeset)' }}>{m.configName || `#${m.configId}`}</td>
+              <td className="td font-mono text-xs">{m.totalCalls}</td>
+              <td className="td"><div className="flex items-center gap-2.5"><div className="flex-1 h-1.5 rounded-full overflow-hidden max-w-[120px]" style={{ background: 'rgba(111,115,133,0.12)' }}><div className="h-full rounded-full transition-all duration-600" style={{ width: `${rate}%`, background: barColor }} /></div><span className="font-mono text-[11px] font-semibold w-9 text-right" style={{ color: 'var(--color-marginalia)' }}>{rate}%</span></div></td>
+              <td className="td font-mono text-xs">{Math.round(m.avgLatencyMs || 0)} ms</td>
+              <td className="td font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>{(m.totalInputTokens || 0).toLocaleString()} / {(m.totalOutputTokens || 0).toLocaleString()}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function SystemLlmTable({ data }: { data: any[] }) {
+  if (data.length === 0) return <div className="px-4 py-14 text-center font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>No system LLM metrics available</div>;
+  return (
+    <table className="w-full">
+      <thead><tr>
+        <th className="th">Config</th><th className="th">User</th><th className="th w-28">IP</th>
+        <th className="th w-16">Calls</th><th className="th w-36">Success Rate</th>
+        <th className="th w-20">Latency</th><th className="th w-24">Tokens</th><th className="th w-20">Status</th>
+      </tr></thead>
+      <tbody>
+        {data.map((m: any, i: number) => {
+          const rate = Math.round((m.successRate || 0) * 100);
+          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
+          return (
+            <tr key={i} className="transition-colors hover:bg-black/[0.015]">
+              <td className="td font-mono text-xs" style={{ color: 'var(--color-typeset)' }}>{m.configName || `#${m.configId}`}</td>
+              <td className="td"><span className="font-mono text-xs">{m.username || `#${m.userId}`}</span><br /><span className="text-[10px]" style={{ color: 'var(--color-marginalia)' }}>{m.userEmail}</span></td>
+              <td className="td font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>{m.lastIp || '—'}</td>
+              <td className="td font-mono text-xs">{m.totalCalls}</td>
+              <td className="td"><div className="flex items-center gap-2"><div className="flex-1 h-1.5 rounded-full overflow-hidden max-w-[80px]" style={{ background: 'rgba(111,115,133,0.12)' }}><div className="h-full rounded-full" style={{ width: `${rate}%`, background: barColor }} /></div><span className="font-mono text-[11px] font-semibold w-8 text-right" style={{ color: 'var(--color-marginalia)' }}>{rate}%</span></div></td>
+              <td className="td font-mono text-xs">{Math.round(m.avgLatencyMs || 0)} ms</td>
+              <td className="td font-mono text-xs">{(m.totalTokens || 0).toLocaleString()}</td>
+              <td className="td"><span className={m.userStatus === 1 ? 'badge-ok' : 'badge-err'}>{m.userStatus === 1 ? 'Active' : 'Disabled'}</span></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function UserLlmTable({ data }: { data: any[] }) {
+  if (data.length === 0) return <div className="px-4 py-14 text-center font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>No user LLM metrics available</div>;
+  return (
+    <table className="w-full">
+      <thead><tr>
+        <th className="th">Owner</th><th className="th">Config</th><th className="th">Provider</th>
+        <th className="th">Model</th><th className="th w-28">API Key</th>
+        <th className="th w-16">Calls</th><th className="th w-20">Latency</th><th className="th w-20">Tokens</th>
+      </tr></thead>
+      <tbody>
+        {data.map((m: any, i: number) => (
+          <tr key={i} className="transition-colors hover:bg-black/[0.015]">
+            <td className="td"><span className="font-mono text-xs">{m.username || `#${m.userId}`}</span></td>
+            <td className="td font-mono text-xs" style={{ color: 'var(--color-typeset)' }}>{m.configName || `#${m.configId}`}</td>
+            <td className="td font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>{m.providerType || '—'}</td>
+            <td className="td font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>{m.modelName || '—'}</td>
+            <td className="td font-mono text-[10px]" style={{ color: 'var(--color-marginalia)' }}>{m.apiKeyMasked || '***'}</td>
+            <td className="td font-mono text-xs">{m.totalCalls}</td>
+            <td className="td font-mono text-xs">{Math.round(m.avgLatencyMs || 0)} ms</td>
+            <td className="td font-mono text-xs">{(m.totalTokens || 0).toLocaleString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

@@ -1,4 +1,4 @@
-export type Page = 'login' | 'dashboard' | 'schema-browser' | 'workspace-manage' | 'history' | 'database' | 'settings' | 'profile' | 'invite' | 'agent-studio' | 'memory' | 'admin';
+export type Page = 'login' | 'dashboard' | 'schema-browser' | 'workspace-manage' | 'history' | 'database' | 'settings' | 'profile' | 'invite' | 'agent-studio' | 'memory' | 'mcp-servers' | 'admin';
 
 export interface QueryRecord {
   id: string;
@@ -42,7 +42,7 @@ export interface LlmConfig {
   updateTime: string;
 }
 
-/** Phase B (B4): Agent Studio entity — one user-managed Agent configuration. */
+/** Agent Studio entity — one user-managed Agent configuration. */
 export interface AgentEntity {
   id: number;
   userId?: number;
@@ -62,10 +62,32 @@ export interface AgentEntity {
   updateTime?: string;
 }
 
-/** Phase B: per-instance LLM health metrics returned by GET /llm-config/{id}/metrics. */
+/** Per-instance LLM health metrics returned by GET /llm-config/{id}/metrics. */
 export interface LlmConfigMetrics {
   successRate?: number;
   avgLatencyMs?: number;
   circuitState?: string;
   totalRequests?: number;
+}
+
+/** Tool definition as returned by GET /api/v1/tools */
+export interface ToolDefinition {
+  name: string;
+  displayName: string;
+  description: string;
+  type: 'BUILTIN' | 'MCP_SSE' | 'MCP_STDIO' | 'DOCKER_PYTHON';
+  parametersSchema: string | null;
+}
+
+/** MCP server configuration from GET /api/v1/mcp-servers */
+export interface McpServerConfig {
+  id: number;
+  userId: number;
+  name: string;
+  transportType: string;
+  endpoint: string;
+  envVars: string | null;
+  status: number;
+  createTime: string;
+  updateTime: string;
 }

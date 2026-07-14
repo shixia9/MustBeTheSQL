@@ -1,4 +1,4 @@
-import { Database, Settings, MessageSquare, Plus, Activity, Building2, Bot, Brain, History, Shield } from 'lucide-react';
+import { Database, Settings, MessageSquare, Plus, Activity, Building2, Bot, Brain, History, Shield, Server } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Page } from '../types';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
@@ -28,6 +28,7 @@ export default function Sidebar({ currentPage, onPageChange, user }: SidebarProp
     { id: 'dashboard', label: t('nav.chat'), icon: MessageSquare },
     { id: 'agent-studio', label: t('nav.agentStudio'), icon: Bot },
     { id: 'memory', label: t('nav.memory'), icon: Brain },
+    { id: 'mcp-servers', label: 'MCP', icon: Server },
     { id: 'history', label: t('nav.history'), icon: History },
     { id: 'schema-browser', label: t('nav.console'), icon: Activity },
     { id: 'workspace-manage', label: t('nav.workspaces'), icon: Building2 },

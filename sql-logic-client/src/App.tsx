@@ -18,6 +18,7 @@ import SchemaBrowserPage from './pages/SchemaBrowserPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
 import AgentStudioPage from './pages/AgentStudioPage';
 import MemoryPage from './pages/MemoryPage';
+import McpServerPage from './pages/McpServerPage';
 
 import { SettingsProvider } from './contexts/SettingsContext';
 import { LlmConfigProvider } from './contexts/LlmConfigContext';
@@ -189,6 +190,8 @@ function AppContent() {
           return <AgentStudioPage user={user} />;
         case 'memory':
           return <MemoryPage />;
+        case 'mcp-servers':
+          return <McpServerPage />;
         case 'schema-browser':
           return <SchemaBrowserPage user={user} />;
         case 'workspace-manage':

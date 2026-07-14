@@ -1,15 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bot, Plus, Trash2, Save, Star, Check, Loader2, Eye, EyeOff } from 'lucide-react';
-import { agentEntityApi } from '../api/client';
-import type { AgentEntity } from '../types';
+import { Bot, Plus, Trash2, Save, Star, Check, Loader2, Eye, EyeOff, Building2, GitBranch, History, RotateCcw, X } from 'lucide-react';
+import { agentEntityApi, toolsApi } from '../api/client';
+import type { AgentEntity, ToolDefinition } from '../types';
 import { useI18n } from '../i18n';
-
-const ALL_TOOLS: { key: string; labelKey: string; descKey: string }[] = [
-  { key: 'sql', labelKey: 'agentStudio.toolSql', descKey: 'agentStudio.toolSqlDesc' },
-  { key: 'schema', labelKey: 'agentStudio.toolSchema', descKey: 'agentStudio.toolSchemaDesc' },
-  { key: 'python', labelKey: 'agentStudio.toolPython', descKey: 'agentStudio.toolPythonDesc' },
-  { key: 'sample', labelKey: 'agentStudio.toolSample', descKey: 'agentStudio.toolSampleDesc' },
-];
 
 const emptyDraft = (): Partial<AgentEntity> & { enabledTools: string[]; topK?: number; scoreThreshold?: number; ragEnabled?: boolean; contextStrategy?: string } => ({
   name: '',
@@ -30,6 +23,20 @@ const StatusDot = ({ on }: { on: boolean }) => (
   <span className={`w-2 h-2 inline-block border ${on ? 'bg-primary border-primary' : 'bg-transparent border-outline-variant'}`} />
 );
 
+const ToolTypeBadge = ({ type }: { type: string }) => {
+  const colors: Record<string, string> = {
+    BUILTIN: 'border-primary/40 text-primary bg-primary/10',
+    MCP_SSE: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
+    MCP_STDIO: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
+    DOCKER_PYTHON: 'border-purple-500/40 text-purple-400 bg-purple-500/10',
+  };
+  return (
+    <span className={`text-[9px] px-1.5 py-0.5 border font-semibold uppercase tracking-wider ${colors[type] || 'border-outline-variant/40 text-on-surface-variant bg-surface-container'}`}>
+      {type.replace(/_/g, '-')}
+    </span>
+  );
+};
+
 export default function AgentStudioPage({ user }: { user: any }) {
   const { t } = useI18n();
   const [agents, setAgents] = useState<AgentEntity[]>([]);
@@ -40,6 +47,12 @@ export default function AgentStudioPage({ user }: { user: any }) {
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showPromptPreview, setShowPromptPreview] = useState(false);
+  const [availableTools, setAvailableTools] = useState<ToolDefinition[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [revertingId, setRevertingId] = useState<number | null>(null);
 
   const flash = (type: 'success' | 'error', text: string) => {
     setMsg({ type, text });
@@ -64,6 +77,16 @@ export default function AgentStudioPage({ user }: { user: any }) {
   }, []);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
+
+  const fetchTools = useCallback(async () => {
+    try {
+      const data = await toolsApi.list();
+      if (data.code === 200 && data.data) {
+        setAvailableTools(data.data);
+      }
+    } catch { /* tools are optional — keep fallback */ }
+  }, []);
+  useEffect(() => { fetchTools(); }, [fetchTools]);
 
   const selectAgent = (a: AgentEntity) => {
     setSelectedId(a.id);
@@ -104,9 +127,8 @@ export default function AgentStudioPage({ user }: { user: any }) {
     finally { setCreating(false); }
   };
 
-  const handleSave = async () => {
-    if (!selectedId || !draft.name?.trim()) { flash('error', t('agentStudio.nameRequired')); return; }
-    setSaving(true);
+  const handleSaveSilent = async (): Promise<boolean> => {
+    if (!selectedId || !draft.name?.trim()) return false;
     try {
       const data = await agentEntityApi.update(selectedId, {
         name: draft.name, description: draft.description, avatar: draft.avatar,
@@ -116,11 +138,20 @@ export default function AgentStudioPage({ user }: { user: any }) {
         contextStrategy: draft.contextStrategy,
         memoryEnabled: draft.memoryEnabled, isDefault: draft.isDefault,
       });
-      if (data.code === 200) {
+      return data.code === 200;
+    } catch { return false; }
+  };
+
+  const handleSave = async () => {
+    if (!selectedId || !draft.name?.trim()) { flash('error', t('agentStudio.nameRequired')); return; }
+    setSaving(true);
+    try {
+      const ok = await handleSaveSilent();
+      if (ok) {
         flash('success', t('agentStudio.saved'));
         await fetchAgents();
       } else {
-        flash('error', data.message || t('agentStudio.saveFailed'));
+        flash('error', t('agentStudio.saveFailed'));
       }
     } catch (e: any) { flash('error', e.message || t('agentStudio.saveFailed')); }
     finally { setSaving(false); }
@@ -155,6 +186,56 @@ export default function AgentStudioPage({ user }: { user: any }) {
         ? d.enabledTools.filter(t => t !== key)
         : [...(d.enabledTools ?? []), key],
     }));
+  };
+
+  const fetchVersions = async () => {
+    if (!selectedId) return;
+    setVersionsLoading(true);
+    try {
+      const data = await agentEntityApi.listVersions(selectedId);
+      if (data.code === 200) setVersions(data.data || []);
+    } catch { /* ignore */ }
+    finally { setVersionsLoading(false); }
+  };
+
+  const handlePublish = async () => {
+    if (!selectedId) return;
+    setPublishing(true);
+    try {
+      const saved = await handleSaveSilent();
+      if (!saved) { flash('error', 'Save before publish failed'); setPublishing(false); return; }
+      const data = await agentEntityApi.publish(selectedId);
+      if (data.code === 200) {
+        flash('success', 'Version published');
+        await fetchVersions();
+      } else flash('error', data.message || 'Publish failed');
+    } catch (e: any) { flash('error', e.message || 'Publish failed'); }
+    finally { setPublishing(false); }
+  };
+
+  const handleRevert = async (versionId: number) => {
+    if (!selectedId || !confirm('Revert agent to this version? Unsaved changes will be lost.')) return;
+    setRevertingId(versionId);
+    try {
+      const data = await agentEntityApi.revertToVersion(selectedId, versionId);
+      if (data.code === 200) {
+        flash('success', 'Reverted successfully');
+        await fetchAgents();
+        await fetchVersions();
+      } else flash('error', data.message || 'Revert failed');
+    } catch (e: any) { flash('error', e.message || 'Revert failed'); }
+    finally { setRevertingId(null); }
+  };
+
+  const handleDeleteVersion = async (versionId: number) => {
+    if (!selectedId || !confirm('Delete this version permanently?')) return;
+    try {
+      const data = await agentEntityApi.deleteVersion(selectedId, versionId);
+      if (data.code === 200) {
+        flash('success', 'Version deleted');
+        await fetchVersions();
+      } else flash('error', data.message || 'Delete failed');
+    } catch (e: any) { flash('error', e.message || 'Delete failed'); }
   };
 
   const selected = agents.find(a => a.id === selectedId);
@@ -226,6 +307,11 @@ export default function AgentStudioPage({ user }: { user: any }) {
                       <div className="text-xs truncate flex items-center gap-1.5">
                         {a.isDefault && <Star size={9} className="fill-primary text-primary flex-shrink-0" />}
                         <span className="truncate">{a.name}</span>
+                        {a.workspaceId != null && (
+                          <span className="text-[9px] px-1 py-0.5 bg-surface-container-high border border-outline-variant/40 text-on-surface-variant/70 flex items-center gap-0.5 flex-shrink-0">
+                            <Building2 size={8} />
+                          </span>
+                        )}
                       </div>
                       {a.description && (
                         <div className="text-[10px] text-on-surface-variant truncate mt-0.5"># {a.description}</div>
@@ -328,12 +414,12 @@ export default function AgentStudioPage({ user }: { user: any }) {
                     <span className="text-on-surface font-semibold uppercase tracking-wider">{t('agentStudio.toolConfig')}</span>
                   </div>
                   <div className="ml-5 grid grid-cols-2 gap-2">
-                    {ALL_TOOLS.map(tool => {
-                      const on = draft.enabledTools?.includes(tool.key);
+                    {availableTools.length > 0 ? availableTools.map(tool => {
+                      const on = draft.enabledTools?.includes(tool.name);
                       return (
                         <button
-                          key={tool.key}
-                          onClick={() => toggleTool(tool.key)}
+                          key={tool.name}
+                          onClick={() => toggleTool(tool.name)}
                           className={`flex items-start gap-3 px-3 py-2.5 text-left text-xs transition-all font-mono ${
                             on
                               ? 'tool-toggle-on'
@@ -347,12 +433,15 @@ export default function AgentStudioPage({ user }: { user: any }) {
                             className="term-checkbox mt-0.5"
                           />
                           <div>
-                            <div className="text-xs font-semibold">{t(tool.labelKey)}</div>
-                            <div className="text-[10px] text-on-surface-variant/70 mt-0.5"># {t(tool.descKey)}</div>
+                            <div className="text-xs font-semibold">{tool.displayName}</div>
+                            <div className="text-[10px] text-on-surface-variant/70 mt-0.5"># {tool.description}</div>
+                            <div className="mt-1"><ToolTypeBadge type={tool.type} /></div>
                           </div>
                         </button>
                       );
-                    })}
+                    }) : (
+                      <div className="col-span-2 text-[11px] text-on-surface-variant/60 px-3 py-4">Loading tools...</div>
+                    )}
                   </div>
                 </section>
 
@@ -426,6 +515,77 @@ export default function AgentStudioPage({ user }: { user: any }) {
                       {t('agentStudio.memoryDisabledNote')}
                     </p>
                   </div>
+                </section>
+
+                {/* ═══════ 6. VERSION MANAGEMENT ═══════ */}
+                <section className="py-5 border-b border-dashed border-outline-variant/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-primary font-semibold">$</span>
+                      <span className="text-on-surface font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <History size={12} /> Versions
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setShowVersions(v => !v); if (!showVersions) fetchVersions(); }}
+                        className="flex items-center gap-1 text-[10px] text-on-surface-variant hover:text-primary"
+                      >
+                        <GitBranch size={11} />
+                        {showVersions ? 'hide' : 'versions'}
+                      </button>
+                      <button
+                        onClick={handlePublish}
+                        disabled={publishing}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] uppercase border border-primary text-primary hover:bg-primary/10 disabled:opacity-50"
+                      >
+                        {publishing ? <Loader2 size={10} className="animate-spin" /> : <Save size={10} />}
+                        Publish
+                      </button>
+                    </div>
+                  </div>
+
+                  {showVersions && (
+                    <div className="ml-5">
+                      {versionsLoading ? (
+                        <div className="text-[11px] text-on-surface-variant py-2">
+                          <Loader2 size={11} className="inline animate-spin mr-1" />Loading...
+                        </div>
+                      ) : versions.length === 0 ? (
+                        <div className="text-[11px] text-on-surface-variant/60 py-2">
+                          No versions yet. Click Publish to snapshot the current configuration.
+                        </div>
+                      ) : (
+                        <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                          {versions.map((v: any) => (
+                            <div key={v.id} className="flex items-center justify-between px-2.5 py-1.5 border border-outline-variant/20 bg-surface-container-low/30 text-xs">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary font-mono">v{v.versionNumber}</span>
+                                <span className="text-on-surface-variant/60 text-[10px]">{v.publishTime}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleRevert(v.id)}
+                                  disabled={revertingId === v.id}
+                                  className="flex items-center gap-1 text-[10px] text-on-surface-variant hover:text-primary disabled:opacity-50"
+                                >
+                                  {revertingId === v.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
+                                  Revert
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVersion(v.id)}
+                                  className="flex items-center gap-0.5 text-[10px] text-on-surface-variant hover:text-red-400 ml-1"
+                                  title="Delete version"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </section>
 
                 {/* ═══════ ACTIONS ═══════ */}
