@@ -26,6 +26,7 @@ export default function McpServerPage() {
   const [form, setForm] = useState({ name: '', transportType: 'SSE', endpoint: '', envStr: '' });
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [toggling, setToggling] = useState<number | null>(null);
 
   const flash = (type: 'success' | 'error', text: string) => {
     setMsg({ type, text });
@@ -105,6 +106,7 @@ export default function McpServerPage() {
   };
 
   const handleConnect = async (id: number) => {
+    setToggling(id);
     try {
       const data = await mcpServerApi.connect(id);
       if (data.code === 200) {
@@ -112,9 +114,11 @@ export default function McpServerPage() {
         flash('success', 'Connected');
       } else flash('error', data.message || 'Connection failed');
     } catch (e: any) { flash('error', e.message || 'Connection failed'); }
+    finally { setToggling(null); }
   };
 
   const handleDisconnect = async (id: number) => {
+    setToggling(id);
     try {
       const data = await mcpServerApi.disconnect(id);
       if (data.code === 200) {
@@ -122,6 +126,7 @@ export default function McpServerPage() {
         flash('success', 'Disconnected');
       }
     } catch (e: any) { flash('error', e.message || 'Disconnect failed'); }
+    finally { setToggling(null); }
   };
 
   const selected = servers.find(s => s.id === selectedId);
@@ -327,14 +332,16 @@ export default function McpServerPage() {
 
                 <div className="flex items-center gap-2 pt-4 pb-1">
                   {connectionStatus[selected.id] ? (
-                    <button onClick={() => handleDisconnect(selected.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-outline-variant text-on-surface-variant hover:text-on-surface hover:border-on-surface-variant/60 transition-colors">
-                      <PlugZap size={13} /> Disconnect
+                    <button onClick={() => handleDisconnect(selected.id)} disabled={toggling === selected.id}
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-outline-variant text-on-surface-variant hover:text-on-surface hover:border-on-surface-variant/60 transition-colors disabled:opacity-50">
+                      {toggling === selected.id ? <Loader2 size={13} className="animate-spin" /> : <PlugZap size={13} />}
+                      Disconnect
                     </button>
                   ) : (
-                    <button onClick={() => handleConnect(selected.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider bg-primary text-on-primary hover:brightness-110 transition-all">
-                      <Plug size={13} /> Connect
+                    <button onClick={() => handleConnect(selected.id)} disabled={toggling === selected.id}
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider bg-primary text-on-primary hover:brightness-110 transition-all disabled:opacity-50">
+                      {toggling === selected.id ? <Loader2 size={13} className="animate-spin" /> : <Plug size={13} />}
+                      Connect
                     </button>
                   )}
                   <button onClick={() => handleEdit(selected)}
