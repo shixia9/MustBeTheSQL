@@ -54,6 +54,7 @@ export const NODE_ORDER = [
   'PYTHON_GENERATION',
   'PYTHON_EXECUTION',
   'PYTHON_ANALYSIS',
+  'MCP_TOOL_EXECUTOR',
   'REPORT',
 ] as const;
 
@@ -87,6 +88,7 @@ export function messageCategoryForNode(nodeName: string): MessageType {
   switch (nodeName) {
     case 'SQL_GENERATION':
     case 'PYTHON_GENERATION':
+    case 'MCP_TOOL_EXECUTOR':
       return 'TOOL_CALL';
     case 'SQL_EXECUTION':
     case 'PYTHON_EXECUTION':
@@ -116,6 +118,7 @@ export function nodeCategoryOf(nodeName: string): NodeCategory {
     case 'SQL_EXECUTION':
     case 'PYTHON_GENERATION':
     case 'PYTHON_EXECUTION':
+    case 'MCP_TOOL_EXECUTOR':
       return 'execution';
     case 'HITL_GATE':
     case 'HITL':

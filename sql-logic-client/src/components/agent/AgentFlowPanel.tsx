@@ -36,6 +36,7 @@ const ACTIVE_NODES = [
   'PLANNER', 'HITL_GATE', 'HITL', 'PLAN_DISPATCH',
   'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER',
   'PYTHON_GENERATION', 'PYTHON_EXECUTION', 'PYTHON_ANALYSIS',
+  'MCP_TOOL_EXECUTOR',
   'REPORT',
 ];
 
@@ -44,6 +45,7 @@ const ACTIVE_NODES = [
 const LOOPED_NODES = new Set([
   'SQL_GENERATION', 'SQL_EXECUTION', 'SQL_FIXER',
   'PYTHON_GENERATION', 'PYTHON_EXECUTION', 'PYTHON_ANALYSIS',
+  'MCP_TOOL_EXECUTOR',
 ]);
 
 const NODE_ICONS: Record<string, string> = {
@@ -52,6 +54,7 @@ const NODE_ICONS: Record<string, string> = {
   PLANNER: '📋', HITL_GATE: '🚦', HITL: '👤', PLAN_DISPATCH: '🧭',
   SQL_GENERATION: '▷', SQL_EXECUTION: '▶', SQL_FIXER: '🔧',
   PYTHON_GENERATION: '🐍', PYTHON_EXECUTION: '⚙', PYTHON_ANALYSIS: '📊',
+  MCP_TOOL_EXECUTOR: '🔌',
   REPORT: '◉',
 };
 const NODE_LABELS: Record<string, string> = {
@@ -62,7 +65,7 @@ const NODE_LABELS: Record<string, string> = {
   SQL_GENERATION: 'SQL Generation', SQL_EXECUTION: 'SQL Execution',
   SQL_FIXER: 'SQL Repair',
   PYTHON_GENERATION: 'Python Generation', PYTHON_EXECUTION: 'Python Execution',
-  PYTHON_ANALYSIS: 'Python Analysis', REPORT: 'Report',
+  PYTHON_ANALYSIS: 'Python Analysis', MCP_TOOL_EXECUTOR: 'MCP Tool', REPORT: 'Report',
 };
 
 /** Strip ```markdown ... ``` wrapper if present */

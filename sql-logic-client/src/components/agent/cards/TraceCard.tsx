@@ -15,6 +15,7 @@ const NODE_DISPLAY_NAMES: Record<string, string> = {
   PYTHON_GENERATION: 'Python Generation',
   PYTHON_EXECUTION: 'Python Execution',
   PYTHON_ANALYSIS: 'Python Analysis',
+  MCP_TOOL_EXECUTOR: 'MCP Tool',
   REPORT: 'Report',
 };
 
@@ -32,6 +33,7 @@ const NODE_ICONS: Record<string, string> = {
   PYTHON_GENERATION: '🐍',
   PYTHON_EXECUTION: '▶',
   PYTHON_ANALYSIS: '📊',
+  MCP_TOOL_EXECUTOR: '🔌',
   REPORT: '◉',
 };
 
