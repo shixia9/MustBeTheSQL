@@ -55,6 +55,7 @@ export const NODE_ORDER = [
   'PYTHON_EXECUTION',
   'PYTHON_ANALYSIS',
   'MCP_TOOL_EXECUTOR',
+  'MCP_TOOL_FIXER',
   'REPORT',
 ] as const;
 
@@ -74,6 +75,8 @@ export const AGENT_NODE = {
   PYTHON_GENERATION: 'PYTHON_GENERATION',
   PYTHON_EXECUTION: 'PYTHON_EXECUTION',
   PYTHON_ANALYSIS: 'PYTHON_ANALYSIS',
+  MCP_TOOL_EXECUTOR: 'MCP_TOOL_EXECUTOR',
+  MCP_TOOL_FIXER: 'MCP_TOOL_FIXER',
   REPORT: 'REPORT',
 } as const;
 
@@ -90,6 +93,8 @@ export function messageCategoryForNode(nodeName: string): MessageType {
     case 'PYTHON_GENERATION':
     case 'MCP_TOOL_EXECUTOR':
       return 'TOOL_CALL';
+    case 'MCP_TOOL_FIXER':
+      return 'THINKING';
     case 'SQL_EXECUTION':
     case 'PYTHON_EXECUTION':
       return 'TOOL_RESULT';
@@ -120,6 +125,8 @@ export function nodeCategoryOf(nodeName: string): NodeCategory {
     case 'PYTHON_EXECUTION':
     case 'MCP_TOOL_EXECUTOR':
       return 'execution';
+    case 'MCP_TOOL_FIXER':
+      return 'planning';
     case 'HITL_GATE':
     case 'HITL':
     case 'PLAN_DISPATCH':

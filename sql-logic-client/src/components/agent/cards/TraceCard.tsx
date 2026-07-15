@@ -16,6 +16,7 @@ const NODE_DISPLAY_NAMES: Record<string, string> = {
   PYTHON_EXECUTION: 'Python Execution',
   PYTHON_ANALYSIS: 'Python Analysis',
   MCP_TOOL_EXECUTOR: 'MCP Tool',
+  MCP_TOOL_FIXER: 'MCP Fix',
   REPORT: 'Report',
 };
 
@@ -34,6 +35,7 @@ const NODE_ICONS: Record<string, string> = {
   PYTHON_EXECUTION: '▶',
   PYTHON_ANALYSIS: '📊',
   MCP_TOOL_EXECUTOR: '🔌',
+  MCP_TOOL_FIXER: '🩹',
   REPORT: '◉',
 };
 
