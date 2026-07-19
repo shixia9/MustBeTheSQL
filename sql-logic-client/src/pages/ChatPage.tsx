@@ -165,25 +165,73 @@ export default function ChatPage() {
           handleStream(prompt);
         }} />
       )}
-      <div className="border-t border-outline-variant bg-surface px-4 py-3 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[#a3e635] font-mono text-sm">$</span>
+
+      {/* Input bar */}
+      <div
+        className="flex-shrink-0 px-4 py-3"
+        style={{
+          background: 'var(--color-content-bg)',
+          borderTop: '1px solid var(--color-border-subtle)',
+        }}
+      >
+        <div className="flex items-center gap-2.5 max-w-3xl mx-auto">
+          {/* Prompt indicator */}
+          <span
+            className="select-none flex-shrink-0"
+            style={{
+              fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: 'var(--color-ink-tertiary)',
+            }}
+          >
+            $
+          </span>
+
           <input
             type="text"
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
-            placeholder={t('Enter your analysis question...') || 'Enter your analysis question...'}
+            placeholder={t('Enter your analysis question...') || 'Ask anything about your data...'}
             disabled={isStreaming}
-            className="flex-1 bg-transparent border-none outline-none text-sm font-mono text-on-surface placeholder:text-on-surface-variant/40"
+            className="flex-1 bg-transparent border-none outline-none"
+            style={{
+              fontSize: '13px',
+              fontWeight: 400,
+              color: 'var(--color-ink)',
+              fontFamily: '"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif',
+              letterSpacing: '-0.01em',
+            }}
           />
-          <button
-            onClick={handleSubmit}
-            disabled={isStreaming || !inputValue.trim()}
-            className="btn-primary flex items-center gap-1.5"
-          >
-            Run
-          </button>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Auto-confirm toggle */}
+            <button
+              onClick={() => onAutoConfirmChange(!autoConfirm)}
+              className="select-none transition-colors"
+              style={{
+                fontSize: '10.5px',
+                fontWeight: 500,
+                color: autoConfirm ? 'var(--color-ink-tertiary)' : 'var(--color-semantic-gate)',
+                letterSpacing: '-0.01em',
+                padding: '2px 6px',
+                borderRadius: 'var(--radius-sm)',
+                background: autoConfirm ? 'transparent' : 'var(--color-semantic-gate-soft)',
+              }}
+              title="Auto-confirm execution plans"
+            >
+              auto
+            </button>
+
+            <button
+              onClick={handleSubmit}
+              disabled={isStreaming || !inputValue.trim()}
+              className="btn-primary"
+            >
+              Run
+            </button>
+          </div>
         </div>
       </div>
     </div>

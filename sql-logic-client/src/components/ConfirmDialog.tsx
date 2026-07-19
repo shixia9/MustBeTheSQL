@@ -11,44 +11,102 @@ interface ConfirmDialogProps {
 }
 
 export default function ConfirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'danger', onConfirm, onCancel }: ConfirmDialogProps) {
+  const accentColor = variant === 'danger' ? 'var(--color-error)' : 'var(--color-semantic-gate)';
+  const accentSoft = variant === 'danger' ? 'var(--color-error-soft)' : 'var(--color-semantic-gate-soft)';
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="bg-surface-container-high border border-outline-variant w-full max-w-sm">
+      <div
+        className="w-full max-w-sm overflow-hidden"
+        style={{
+          background: 'var(--color-panel-bg)',
+          border: '1px solid var(--color-border-default)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className={variant === 'danger' ? 'text-error' : 'text-amber-500'} />
-            <span className="text-sm font-mono font-semibold text-on-surface">{title}</span>
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 28,
+                height: 28,
+                background: accentSoft,
+                color: accentColor,
+              }}
+            >
+              <AlertTriangle size={14} />
+            </div>
+            <span
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--color-ink)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {title}
+            </span>
           </div>
           <button
             onClick={onCancel}
-            className="text-on-surface-variant/60 hover:text-on-surface transition-colors"
+            className="flex items-center justify-center rounded-md transition-colors"
+            style={{
+              width: 28,
+              height: 28,
+              color: 'var(--color-ink-tertiary)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(0,0,0,0.05)';
+              e.currentTarget.style.color = 'var(--color-ink)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--color-ink-tertiary)';
+            }}
           >
-            <X size={15} />
+            <X size={14} />
           </button>
         </div>
 
         {/* Message */}
         <div className="px-4 py-4">
-          <p className="text-[13px] font-mono text-on-surface-variant leading-relaxed">{message}</p>
+          <p
+            style={{
+              fontSize: '13px',
+              fontWeight: 400,
+              color: 'var(--color-ink-secondary)',
+              lineHeight: 1.6,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {message}
+          </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-outline-variant">
-          <button
-            onClick={onCancel}
-            className="px-4 py-1.5 text-xs font-mono text-on-surface-variant border border-outline-variant hover:bg-surface-container-high transition-colors"
-          >
+        <div
+          className="flex items-center justify-end gap-2 px-4 py-3"
+          style={{ borderTop: '1px solid var(--color-border-subtle)', background: 'var(--color-content-bg-alt)' }}
+        >
+          <button onClick={onCancel} className="btn-ghost">
             {cancelLabel}
           </button>
           <button
             onClick={onConfirm}
-            className={'px-4 py-1.5 text-xs font-mono border transition-colors ' + (variant === 'danger'
-              ? 'border-error/60 text-error hover:bg-error/10'
-              : 'border-amber-500/60 text-amber-500 hover:bg-amber-500/10')}
+            className="btn-primary"
+            style={{
+              background: variant === 'danger' ? 'var(--color-error)' : 'var(--color-semantic-gate)',
+            }}
           >
             {confirmLabel}
           </button>

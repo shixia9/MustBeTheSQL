@@ -62,9 +62,31 @@ export default function AgentExecutionView({
 
       {/* HITL Confirm Panel */}
       {hitlPending && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 panel p-4 shadow-lg max-w-md">
-          <div className="text-sm font-mono text-[#f59e0b] mb-2">Agent needs your confirmation</div>
-          <pre className="text-[11px] text-on-surface-variant mb-3 max-h-40 overflow-auto">
+        <div
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 p-4 max-w-md glass-overlay-dark"
+          style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.25)' }}
+        >
+          <div
+            className="mb-2"
+            style={{
+              fontSize: '12.5px',
+              fontWeight: 600,
+              color: 'var(--color-semantic-gate)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Agent needs your confirmation
+          </div>
+          <pre
+            className="mb-3 max-h-40 overflow-auto"
+            style={{
+              fontSize: '11px',
+              fontWeight: 400,
+              color: 'var(--color-dark-ink-secondary)',
+              fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+              lineHeight: 1.5,
+            }}
+          >
             {JSON.stringify(hitlPending.plan, null, 2)}
           </pre>
           <div className="flex gap-2">

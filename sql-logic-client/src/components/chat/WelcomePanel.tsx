@@ -59,24 +59,40 @@ export default function WelcomePanel({ onSuggestionClick }: {
       className="flex flex-col items-center justify-center min-h-full px-6 py-12"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+      transition={{ duration: 0.4, ease: [0.33, 1, 0.68, 1] }}
     >
-      {/* Terminal prompt header */}
-      <div className="mb-8 text-center">
-        <p className="font-mono text-sm text-on-surface-variant/60 mb-2">
-          $ ssh {displayName}@sql-engine --welcome
-        </p>
-        <h1 className="font-mono text-2xl font-bold text-on-surface">
-          <span className="text-[#a3e635]">$</span>{' '}
-          {greeting}, <span className="text-[#38bdf8]">{displayName}</span>
+      {/* Greeting */}
+      <div className="mb-10 text-center">
+        <h1
+          style={{
+            fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+            fontWeight: 600,
+            color: 'var(--color-ink)',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.2,
+            marginBottom: '8px',
+          }}
+        >
+          {greeting}, {displayName}
         </h1>
-        <p className="mt-2 text-sm text-on-surface-variant font-mono">
+        <p
+          style={{
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'var(--color-ink-secondary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.5,
+          }}
+        >
           {t('welcome.subtitle') || 'How can I help you analyze your data today?'}
         </p>
       </div>
 
-      {/* Suggestion cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-[640px]">
+      {/* Suggestion cards */}
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full"
+        style={{ maxWidth: '600px' }}
+      >
         {defaultSuggestions.map((item, i) => {
           const Icon = getIcon(item.icon);
           return (
@@ -84,22 +100,38 @@ export default function WelcomePanel({ onSuggestionClick }: {
               key={item.title}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 + i * 0.08, ease: 'easeOut' }}
+              transition={{ duration: 0.35, delay: 0.1 + i * 0.06, ease: [0.33, 1, 0.68, 1] }}
               onClick={() => onSuggestionClick(item.prompt)}
-              className="group text-left p-4 rounded border border-outline-variant bg-surface-container-lowest
-                         hover:border-[#38bdf8]/40 hover:bg-surface-container-low
-                         transition-all duration-200 card-hover"
+              className="panel-clickable text-left p-4"
             >
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0
-                                bg-[#38bdf8]/10 text-[#38bdf8] group-hover:bg-[#38bdf8]/20 transition-colors">
+                <div
+                  className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}
+                >
                   <Icon size={16} />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-on-surface mb-0.5 group-hover:text-[#38bdf8] transition-colors">
+                  <div
+                    className="mb-0.5"
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--color-ink)',
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
                     {t('welcome.suggestions.' + i + '.title') || item.title}
                   </div>
-                  <div className="text-xs text-on-surface-variant leading-relaxed">
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 400,
+                      color: 'var(--color-ink-secondary)',
+                      lineHeight: 1.5,
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
                     {t('welcome.suggestions.' + i + '.description') || item.description}
                   </div>
                 </div>
@@ -110,8 +142,17 @@ export default function WelcomePanel({ onSuggestionClick }: {
       </div>
 
       {/* Footer */}
-      <p className="mt-8 text-[10px] text-on-surface-variant/40 font-mono">
-        $ echo "Powered by SQL-Logic-Engine Multi-Agent System"
+      <p
+        className="mt-10 select-none"
+        style={{
+          fontSize: '10.5px',
+          fontWeight: 400,
+          color: 'var(--color-ink-tertiary)',
+          fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+          letterSpacing: '0.02em',
+        }}
+      >
+        Powered by SQL-Logic-Engine Multi-Agent System
       </p>
     </motion.div>
   );

@@ -5,7 +5,9 @@ import DatabasePage from './DatabasePage';
 export default function DatasourcePage() {
   return (
     <ManagementPage title="datasources" icon={Database}>
-      <DatabasePage />
+      <div className="bg-white border border-slate-200 rounded-lg p-4">
+        <DatabasePage />
+      </div>
     </ManagementPage>
   );
 }

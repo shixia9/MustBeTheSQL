@@ -17,11 +17,11 @@ interface MemoryItem {
 
 const typeColor = (type: string): string => {
   switch (type) {
-    case 'PROFILE': return 'border-blue-500/40 text-blue-400 bg-blue-500/10';
-    case 'TASK': return 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10';
-    case 'FACT': return 'border-amber-500/40 text-amber-400 bg-amber-500/10';
-    case 'EPISODIC': return 'border-purple-500/40 text-purple-400 bg-purple-500/10';
-    default: return 'border-outline-variant/40 text-on-surface-variant bg-surface-container';
+    case 'PROFILE': return 'border-blue-300 text-blue-600 bg-blue-50';
+    case 'TASK': return 'border-emerald-300 text-emerald-600 bg-emerald-50';
+    case 'FACT': return 'border-amber-300 text-amber-600 bg-amber-50';
+    case 'EPISODIC': return 'border-purple-300 text-purple-600 bg-purple-50';
+    default: return 'border-slate-200 text-slate-500 bg-slate-50';
   }
 };
 
@@ -102,55 +102,57 @@ export default function MemoryPage() {
     : items;
 
   return (
-    <div className="min-h-full text-on-surface font-mono">
+    <div className="min-h-full text-slate-900">
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-outline-variant/40">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-slate-200">
           <div className="flex items-center gap-3">
-            <Brain size={22} className="text-primary" />
+            <Brain size={22} className="text-blue-600" />
             <div>
               <h1 className="text-base font-semibold tracking-wider uppercase">
-                <span className="text-primary">$</span> {t('memory.title')}
+                <span className="text-blue-600">$</span> {t('memory.title')}
               </h1>
-              <p className="text-[11px] text-on-surface-variant mt-0.5 font-mono">
+              <p className="text-[11px] text-slate-500 mt-0.5">
                 {t('memory.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={() => { setShowForm(v => !v); if (!showForm) setSearchQuery(''); }}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-primary text-primary hover:bg-primary/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider border border-blue-300 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
           >
             {showForm ? <Trash2 size={13} /> : <Plus size={13} />}
             {showForm ? t('memory.cancel') : t('memory.addMemory')}
           </button>
         </div>
 
-        {/* ── Flash messages ── */}
+        {/* Flash messages */}
         {msg && (
-          <div className={`mb-4 px-3 py-2 text-xs font-mono border ${msg.type === 'success' ? 'border-primary/40 text-primary bg-primary/10' : 'border-red-500/40 text-red-400 bg-red-500/10'}`}>
+          <div className={`mb-4 px-3 py-2 text-xs border rounded-md ${
+            msg.type === 'success' ? 'border-blue-300 text-blue-600 bg-blue-50' : 'border-red-300 text-red-600 bg-red-50'
+          }`}>
             <span className="mr-2">{msg.type === 'success' ? '✓' : '✗'}</span>
             {msg.text}
           </div>
         )}
 
-        {/* ── Two-panel layout ── */}
-        <div className="grid grid-cols-[220px_1fr] gap-0 border border-outline-variant/40">
-          {/* ═══ Left: filter panel ═══ */}
-          <div className="border-r border-outline-variant/40 bg-surface-container-lowest">
-            <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider text-on-surface-variant border-b border-dashed border-outline-variant/40 bg-surface-container-low font-semibold">
-              <span className="text-primary">$</span> {t('memory.categories')}
+        {/* Two-panel layout */}
+        <div className="grid grid-cols-[220px_1fr] gap-0 border border-slate-200 rounded-lg overflow-hidden">
+          {/* Left: filter panel */}
+          <div className="border-r border-slate-200 bg-white">
+            <div className="px-3 py-2.5 text-[10px] uppercase tracking-wider text-slate-500 border-b border-dashed border-slate-200 bg-slate-50 font-semibold">
+              <span className="text-blue-600">$</span> {t('memory.categories')}
             </div>
             {/* Search bar */}
-            <div className="px-2 py-2 border-b border-dashed border-outline-variant/10">
+            <div className="px-2 py-2 border-b border-dashed border-slate-100">
               <div className="relative">
-                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant/40" />
+                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={t('memory.searchPlaceholder')}
-                  className="w-full bg-surface text-[10px] text-on-surface border border-outline-variant/30 pl-6 pr-2 py-1.5 outline-none focus:border-primary placeholder-on-surface-variant/40"
+                  className="w-full bg-white text-[10px] text-slate-900 border border-slate-200 rounded-md pl-6 pr-2 py-1.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -174,36 +176,36 @@ export default function MemoryPage() {
             </div>
           </div>
 
-          {/* ═══ Right: content panel ═══ */}
-          <div className="bg-surface-container-lowest">
+          {/* Right: content panel */}
+          <div className="bg-white">
             {/* Header with title + refresh */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-dashed border-outline-variant/20 bg-surface-container-low/50">
-              <span className="text-[10px] text-on-surface-variant/60">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-dashed border-slate-200 bg-slate-50/50">
+              <span className="text-[10px] text-slate-400">
                 {!loading && filteredItems.length > 0
                   ? t('memory.showingCount', { count: filteredItems.length })
                   : ''}
               </span>
               <button
                 onClick={() => fetchMemories(filter || undefined)}
-                className="flex items-center gap-1 text-[10px] text-on-surface-variant/50 hover:text-primary transition-colors"
+                className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-blue-600 transition-colors"
                 title={t('memory.refresh')}
               >
                 <RefreshCw size={10} />
                 {t('memory.refresh')}
               </button>
             </div>
-            {/* ── Inline add form ── */}
+            {/* Inline add form */}
             {showForm && (
-              <div className="m-3 p-3 border border-dashed border-primary/40 bg-primary/[0.03]">
-                <div className="flex items-center gap-2 mb-2 text-[10px] text-on-surface-variant">
-                  <span className="text-primary">$</span> {t('memory.newMemory')}
+              <div className="m-3 p-3 border border-dashed border-blue-300 bg-blue-50/30 rounded-md">
+                <div className="flex items-center gap-2 mb-2 text-[10px] text-slate-500">
+                  <span className="text-blue-600">$</span> {t('memory.newMemory')}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <select
                       value={form.type}
                       onChange={e => setForm({ ...form, type: e.target.value })}
-                      className="w-28 px-2 py-1.5 text-[11px] bg-surface border border-outline-variant/50 outline-none focus:border-primary font-mono"
+                      className="w-28 px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     >
                       {TYPES.map(tp => <option key={tp.value} value={tp.value}>{tp.label}</option>)}
                     </select>
@@ -211,7 +213,7 @@ export default function MemoryPage() {
                       value={form.content}
                       onChange={e => setForm({ ...form, content: e.target.value })}
                       placeholder={t('memory.contentPlaceholder')}
-                      className="flex-1 px-2 py-1.5 text-[11px] bg-surface border border-outline-variant/50 outline-none focus:border-primary font-mono"
+                      className="flex-1 px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -219,21 +221,21 @@ export default function MemoryPage() {
                       value={form.tags}
                       onChange={e => setForm({ ...form, tags: e.target.value })}
                       placeholder={t('memory.tagsPlaceholder')}
-                      className="flex-1 px-2 py-1.5 text-[11px] bg-surface border border-outline-variant/50 outline-none focus:border-primary font-mono"
+                      className="flex-1 px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     />
-                    <div className="flex items-center gap-1.5 text-[10px] text-on-surface-variant">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                       <span>{t('memory.importance')}:</span>
                       <input
                         type="number" min={0} max={1} step={0.1}
                         value={form.importance}
                         onChange={e => setForm({ ...form, importance: Number(e.target.value) })}
-                        className="w-16 px-2 py-1.5 text-[11px] bg-surface border border-outline-variant/50 outline-none focus:border-primary font-mono text-center"
+                        className="w-16 px-2 py-1.5 text-[11px] bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-center"
                       />
                     </div>
                     <button
                       onClick={handleCreate}
                       disabled={saving}
-                      className="px-3 py-1.5 text-[11px] uppercase bg-primary text-on-primary hover:brightness-110 active:brightness-95 transition-all disabled:opacity-50 font-mono"
+                      className="px-3 py-1.5 text-[11px] uppercase bg-blue-600 text-white rounded-md hover:bg-blue-700 active:brightness-95 transition-all disabled:opacity-50"
                     >
                       {saving ? <Loader2 size={11} className="inline animate-spin" /> : t('common.save')}
                     </button>
@@ -242,39 +244,39 @@ export default function MemoryPage() {
               </div>
             )}
 
-            {/* ── Memory items ── */}
+            {/* Memory items */}
             <div className="p-3">
               {loading ? (
-                <div className="py-10 text-center text-xs text-on-surface-variant">
+                <div className="py-10 text-center text-xs text-slate-500">
                   <Loader2 size={14} className="inline animate-spin mr-1.5" />{t('memory.loading')}
                 </div>
               ) : filteredItems.length === 0 ? (
-                <div className="py-10 text-center text-xs text-on-surface-variant">
+                <div className="py-10 text-center text-xs text-slate-500">
                   {searchQuery.trim() ? t('memory.noSearchResults') : t('memory.noMemories')}
                 </div>
               ) : (
                 <div className="space-y-1">
                   {filteredItems.map(m => (
-                    <div key={m.id} className="group flex items-start gap-2 px-3 py-2 border border-outline-variant/20 hover:border-outline-variant/40 transition-colors bg-surface-container-low/30">
-                      <span className={`text-[9px] px-1.5 py-0.5 border font-semibold uppercase tracking-wider flex-shrink-0 ${typeColor(m.type)}`}>
+                    <div key={m.id} className="group flex items-start gap-2 px-3 py-2 border border-slate-100 hover:border-slate-200 rounded-md transition-colors bg-slate-50/30">
+                      <span className={`text-[9px] px-1.5 py-0.5 border rounded font-semibold uppercase tracking-wider flex-shrink-0 ${typeColor(m.type)}`}>
                         [{m.type.slice(0, 4)}]
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs text-on-surface leading-relaxed break-words">{m.content}</div>
-                        <div className="flex items-center gap-2 mt-1 text-[10px] text-on-surface-variant/60">
+                        <div className="text-xs text-slate-900 leading-relaxed break-words">{m.content}</div>
+                        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
                           {m.tags && Array.isArray(m.tags) && m.tags.length > 0 && (
                             <span>tags: {m.tags.join(', ')}</span>
                           )}
                           {m.tags && typeof m.tags === 'string' && m.tags.length > 0 && (
                             <span>tags: {m.tags}</span>
                           )}
-                          <span>★ {fmtImportance(m.importance)}</span>
-                          {m.createTime && <span>· {fmtDate(m.createTime)}</span>}
+                          <span>{'★'} {fmtImportance(m.importance)}</span>
+                          {m.createTime && <span>{'·'} {fmtDate(m.createTime)}</span>}
                         </div>
                       </div>
                       <button
                         onClick={() => handleDelete(m.id)}
-                        className="p-1 text-on-surface-variant/30 hover:text-error opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                        className="p-1 text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                         title={t('common.delete')}
                       >
                         <Trash2 size={12} />
@@ -298,15 +300,17 @@ function FilterButton({ label, count, active, desc, onClick }: {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
+      className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left rounded transition-colors ${
         active
-          ? 'bg-primary/10 text-primary border-l-2 border-l-primary'
-          : 'text-on-surface-variant hover:bg-surface-container border-l-2 border-l-transparent'
+          ? 'bg-blue-50 text-blue-600 border-l-2 border-l-blue-600'
+          : 'text-slate-500 hover:bg-slate-50 border-l-2 border-l-transparent'
       }`}
       title={desc}
     >
       <span className="flex-1 truncate">{label}</span>
-      <span className={`text-[10px] px-1.5 py-0.5 font-mono ${active ? 'bg-primary/20 text-primary' : 'bg-surface-container-high text-on-surface-variant/60'}`}>
+      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+        active ? 'bg-blue-100 text-blue-600' : 'bg-slate-50 text-slate-400'
+      }`}>
         {count}
       </span>
     </button>

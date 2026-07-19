@@ -27,26 +27,26 @@ export default function SkillsPage() {
         placeholder="> search skills..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="input-flat w-full max-w-md mb-4"
+        className="w-full max-w-md px-3 py-2 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 mb-4"
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(skill => (
-          <div key={skill.id} className="panel p-4 hover:border-[#38bdf8]/30 transition-colors cursor-pointer">
+          <div key={skill.id} className="bg-white border border-slate-200 rounded-lg p-4 hover:border-blue-300 transition-colors cursor-pointer">
             <div className="flex items-center gap-2 mb-1">
-              <Puzzle size={16} className="text-[#38bdf8]" />
-              <h3 className="text-sm font-semibold text-on-surface">{skill.name}</h3>
-              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded font-mono bg-primary/10 text-primary">
+              <Puzzle size={16} className="text-blue-600" />
+              <h3 className="text-sm font-semibold text-slate-900">{skill.name}</h3>
+              <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
                 v{skill.version}
               </span>
             </div>
-            <p className="text-[11px] text-on-surface-variant mb-2">{skill.description}</p>
+            <p className="text-[11px] text-slate-500 mb-2">{skill.description}</p>
             <div className="flex items-center gap-2">
               {skill.tags.map(tag => (
-                <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded font-mono bg-surface-container-high text-on-surface-variant/70">
+                <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-500/70">
                   #{tag}
                 </span>
               ))}
-              <span className="ml-auto text-[10px] text-on-surface-variant/50 font-mono">{skill.downloads} downloads</span>
+              <span className="ml-auto text-[10px] text-slate-500/50">{skill.downloads} downloads</span>
             </div>
           </div>
         ))}

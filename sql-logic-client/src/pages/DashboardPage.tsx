@@ -34,7 +34,7 @@ export default function DashboardPage({ user, initialConversationId }: { user: a
   };
 
   return (
-    <main className="ml-[200px] pt-12 flex flex-col h-screen bg-surface overflow-hidden">
+    <main className="ml-[200px] pt-12 flex flex-col min-h-full bg-slate-50 overflow-hidden">
       <AgentFlowPanel
         user={user}
         connections={connections}

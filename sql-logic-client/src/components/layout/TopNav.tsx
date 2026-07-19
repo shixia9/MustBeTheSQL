@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { useLayout } from '../../contexts/LayoutContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useLlmConfig } from '../../contexts/LlmConfigContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { getIcon } from '../../assets/icons';
 import StatusIndicator from '../ui/StatusIndicator';
 import TokenBudgetBar from '../ui/TokenBudgetBar';
@@ -13,40 +13,91 @@ export default function TopNav() {
   const { t } = useI18n();
   const { toggleSidebar, sidebarCollapsed } = useLayout();
   const { user, logout } = useAuth();
+  const { theme, setTheme } = useSettings();
   const navigate = useNavigate();
 
   const goProfile = () => navigate('/profile');
-
   const CollapseIcon = getIcon(sidebarCollapsed ? 'expand' : 'collapse');
 
   return (
-    <header className="flex items-center h-12 px-3 border-b border-outline-variant bg-surface flex-shrink-0 z-50 gap-3">
-      <button onClick={toggleSidebar} className="btn-ghost p-1.5" title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+    <header
+      className="flex items-center h-11 px-3 flex-shrink-0 z-50 gap-2"
+      style={{
+        background: 'var(--color-dark-surface)',
+        borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+      }}
+    >
+      {/* Sidebar toggle */}
+      <button
+        onClick={toggleSidebar}
+        className="btn-ghost p-1.5"
+        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
         <CollapseIcon size={16} />
       </button>
 
-      <ModelSelector />
+      {/* Brand / Model selector area */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-[12.5px] font-semibold select-none"
+          style={{ color: 'var(--color-dark-ink)', letterSpacing: '-0.01em' }}
+        >
+          MBS
+        </span>
+        <span
+          className="text-[10px] font-medium select-none hidden sm:inline"
+          style={{ color: 'var(--color-dark-ink-tertiary)', letterSpacing: '0.02em' }}
+        >
+          /
+        </span>
+      </div>
 
-      <StatusIndicator status="live" />
+      <ModelSelector />
 
       <div className="flex-1" />
 
+      <StatusIndicator status="live" />
+
       <TokenBudgetBar used={1200} total={8192} />
 
-      <button className="btn-ghost p-1.5" title="Toggle theme">
-        {React.createElement(getIcon('sun'), { size: 14 })}
+      {/* Divider */}
+      <div style={{ width: 0.5, height: 20, background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+
+      {/* Icon buttons */}
+      <button
+        className="btn-ghost p-1.5"
+        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {React.createElement(getIcon(theme === 'dark' ? 'sun' : 'moon'), { size: 15 })}
       </button>
 
-      <button className="btn-ghost p-1.5" title="Toggle language">
-        {React.createElement(getIcon('languages'), { size: 14 })}
+      <button
+        className="btn-ghost p-1.5"
+        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        title="Toggle language"
+      >
+        {React.createElement(getIcon('languages'), { size: 15 })}
       </button>
 
-      <button className="btn-ghost p-1.5" onClick={goProfile} title="Profile">
-        {React.createElement(getIcon('user'), { size: 14 })}
+      <button
+        className="btn-ghost p-1.5"
+        onClick={goProfile}
+        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        title="Profile"
+      >
+        {React.createElement(getIcon('user'), { size: 15 })}
       </button>
 
-      <button className="btn-ghost p-1.5 text-error hover:text-error/80" onClick={logout} title="Logout">
-        {React.createElement(getIcon('logout'), { size: 14 })}
+      <button
+        className="btn-ghost p-1.5"
+        onClick={logout}
+        style={{ color: 'var(--color-error)', border: 'none' }}
+        title="Logout"
+      >
+        {React.createElement(getIcon('logout'), { size: 15 })}
       </button>
     </header>
   );

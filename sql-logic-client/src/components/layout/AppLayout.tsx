@@ -10,11 +10,15 @@ export default function AppLayout() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-surface">
-        <div className="text-center font-mono">
-          <div className="text-[#a3e635] text-lg mb-2">$ ssh sql-engine@gateway.local</div>
-          <div className="text-on-surface-variant/60 text-xs">authenticating...</div>
-          <div className="skeleton w-48 h-1 mt-3 mx-auto rounded" />
+      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-dark-surface)' }}>
+        <div className="text-center">
+          <div className="text-[#4dc9f6] text-sm font-semibold mb-2 font-sans" style={{ letterSpacing: '-0.01em' }}>
+            Must Be The SQL
+          </div>
+          <div className="text-[#636882] text-[11px] font-medium font-sans">
+            Authenticating...
+          </div>
+          <div className="skeleton w-48 h-1 mt-3 mx-auto rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
         </div>
       </div>
     );
@@ -22,12 +26,15 @@ export default function AppLayout() {
 
   return (
     <LayoutProvider>
-      <div className="flex flex-col h-screen bg-surface text-on-surface font-mono overflow-hidden">
+      <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--color-dark-surface)' }}>
         <AgentPulseLine />
         <TopNav />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-auto bg-surface-container-lowest">
+          <main
+            className="flex-1 overflow-auto"
+            style={{ background: 'var(--color-content-bg)' }}
+          >
             <Outlet />
           </main>
         </div>

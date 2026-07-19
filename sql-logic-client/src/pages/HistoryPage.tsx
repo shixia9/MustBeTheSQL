@@ -12,7 +12,7 @@ export default function HistoryPage({ user }: { user: any }) {
   const [selectedQuery, setSelectedQuery] = useState<QueryRecord | null>(null);
   const [queries, setQueries] = useState<QueryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Pagination & Filter States
   const [page, setPage] = useState(1);
   const [size] = useState(10);
@@ -20,7 +20,7 @@ export default function HistoryPage({ user }: { user: any }) {
   const [keyword, setKeyword] = useState('');
   const [dbType, setDbType] = useState('All DB Types');
   const [model, setModel] = useState('All Models');
-  
+
   // Lineage State
   const [lineage, setLineage] = useState<any[]>([]);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export default function HistoryPage({ user }: { user: any }) {
       if (data.code === 200 && data.data) {
         const records = data.data.records || [];
         setTotal(data.data.total || 0);
-        
+
         const formattedQueries: QueryRecord[] = records.map((item: any) => ({
           id: item.id.toString(),
           prompt: item.prompt || '',
@@ -96,7 +96,7 @@ export default function HistoryPage({ user }: { user: any }) {
           })
         }));
         setQueries(formattedQueries);
-        
+
         // Auto-select first item if current selection is not in the list
         if (formattedQueries.length > 0 && (!selectedQuery || !formattedQueries.find(q => q.id === selectedQuery.id))) {
           setSelectedQuery(formattedQueries[0]);
@@ -150,7 +150,7 @@ export default function HistoryPage({ user }: { user: any }) {
 
   const handleReRun = async (query: QueryRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    
+
     setReRunQueryData(query);
     setIsReRunModalOpen(true);
     setIsReRunning(true);
@@ -217,14 +217,14 @@ export default function HistoryPage({ user }: { user: any }) {
       <section className="flex-1 p-8 overflow-hidden flex flex-col gap-8">
         <div className="flex items-end justify-between">
           <div className="flex items-center gap-4">
-            <h1 className="text-sm font-mono font-semibold text-on-surface">History</h1>
-            <div className="flex gap-1 bg-surface-container-high rounded p-0.5">
+            <h1 className="text-sm font-semibold text-slate-900">History</h1>
+            <div className="flex gap-1 bg-slate-50 rounded p-0.5">
               <button
                 onClick={() => setActiveTab('queries')}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                   activeTab === 'queries'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-on-surface-variant hover:text-on-surface'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 Queries
@@ -233,8 +233,8 @@ export default function HistoryPage({ user }: { user: any }) {
                 onClick={() => setActiveTab('conversations')}
                 className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                   activeTab === 'conversations'
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-on-surface-variant hover:text-on-surface'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 Conversations
@@ -242,15 +242,15 @@ export default function HistoryPage({ user }: { user: any }) {
             </div>
           </div>
           <div className="flex gap-4">
-            <div className="px-4 py-2 bg-surface-container-highest/30 border border-outline-variant/50 flex flex-col items-end">
-              <span className="text-[10px] font-bold uppercase text-primary/70">Total Queries</span>
-            <span className="font-mono text-lg font-bold">{isLoading ? '-' : total}</span>
+            <div className="px-4 py-2 bg-slate-100/30 border border-slate-200/50 flex flex-col items-end">
+              <span className="text-[10px] font-bold uppercase text-blue-600/70">Total Queries</span>
+            <span className="text-lg font-bold">{isLoading ? '-' : total}</span>
           </div>
-            <div className="px-4 py-2 bg-surface-container-highest/30 border border-outline-variant/50 flex flex-col items-end">
-              <span className="text-[10px] font-bold uppercase text-primary/70">Avg Latency</span>
-              <span className="font-mono text-lg font-bold">
-                {isLoading ? '-' : (queries.filter(q => q.latency !== '-').length > 0 
-                  ? `${Math.round(queries.filter(q => q.latency !== '-').reduce((acc, q) => acc + parseInt(q.latency.replace('ms', '')), 0) / queries.filter(q => q.latency !== '-').length)}ms` 
+            <div className="px-4 py-2 bg-slate-100/30 border border-slate-200/50 flex flex-col items-end">
+              <span className="text-[10px] font-bold uppercase text-blue-600/70">Avg Latency</span>
+              <span className="text-lg font-bold">
+                {isLoading ? '-' : (queries.filter(q => q.latency !== '-').length > 0
+                  ? `${Math.round(queries.filter(q => q.latency !== '-').reduce((acc, q) => acc + parseInt(q.latency.replace('ms', '')), 0) / queries.filter(q => q.latency !== '-').length)}ms`
                   : '-')}
               </span>
             </div>
@@ -259,12 +259,12 @@ export default function HistoryPage({ user }: { user: any }) {
 
         {/* Toolbar / Filters — only for query history */}
         {activeTab === 'queries' && (
-        <div className="bg-surface-container-lowest p-4 border border-outline-variant  flex flex-wrap items-center gap-4 border border-outline-variant/10">
+        <div className="bg-white p-4 border border-slate-200 flex flex-wrap items-center gap-4">
           <div className="relative flex-1 min-w-[300px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={18} />
-            <input 
-              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none  focus:ring-2 focus:ring-primary/20 text-sm text-on-surface" 
-              placeholder="Search prompt excerpts or snippets..." 
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/60" size={18} />
+            <input
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none outline-none focus:ring-2 focus:ring-blue-500/20 text-sm text-slate-900"
+              placeholder="Search prompt excerpts or snippets..."
               type="text"
               value={keyword}
               onChange={(e) => {
@@ -274,8 +274,8 @@ export default function HistoryPage({ user }: { user: any }) {
             />
           </div>
           <div className="flex items-center gap-3">
-            <select 
-              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8  focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
+            <select
+              className="bg-slate-50 border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8 outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer text-slate-900"
               value={dbType}
               onChange={(e) => {
                 setDbType(e.target.value);
@@ -287,7 +287,7 @@ export default function HistoryPage({ user }: { user: any }) {
               <option value="PostgreSQL">PostgreSQL</option>
             </select>
             <select
-              className="bg-surface-container-low border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8  focus:ring-2 focus:ring-primary/20 cursor-pointer text-on-surface"
+              className="bg-slate-50 border-none text-xs font-semibold uppercase tracking-wider py-2 pl-3 pr-8 outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer text-slate-900"
               value={model}
               onChange={(e) => {
                 setModel(e.target.value);
@@ -299,7 +299,7 @@ export default function HistoryPage({ user }: { user: any }) {
                 <option key={config.id} value={config.configName}>{config.configName}</option>
               ))}
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest transition-colors  text-xs font-bold uppercase tracking-widest text-on-surface-variant">
+            <button className="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-bold uppercase tracking-widest text-slate-500">
               <Calendar size={14} />
               Date Range
             </button>
@@ -309,77 +309,77 @@ export default function HistoryPage({ user }: { user: any }) {
 
         {/* Data Table — query history */}
         {activeTab === 'queries' && (
-        <div className="bg-surface-container-lowest border border-outline-variant  overflow-hidden flex flex-col border border-outline-variant/10">
+        <div className="bg-white border border-slate-200 overflow-hidden flex flex-col">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-container-high border-b border-outline-variant/10">
+            <thead className="bg-slate-50 border-b border-slate-200/10">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Prompt Excerpt</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">SQL Snippet</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">LLM Model</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Date / Time</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Prompt Excerpt</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">SQL Snippet</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">LLM Model</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Date / Time</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/5">
+            <tbody className="divide-y divide-slate-200/5">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-on-surface-variant">Loading history...</td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">Loading history...</td>
                 </tr>
               ) : queries.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-on-surface-variant">No history found. Try running a query!</td>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500">No history found. Try running a query!</td>
                 </tr>
               ) : queries.map((q) => (
-                <tr 
-                  key={q.id} 
+                <tr
+                  key={q.id}
                   onClick={() => setSelectedQuery(q)}
-                  className={`hover:bg-surface-container-high/20 transition-colors group cursor-pointer ${selectedQuery?.id === q.id ? 'bg-primary/5' : ''}`}
+                  className={`hover:bg-slate-50/20 transition-colors group cursor-pointer ${selectedQuery?.id === q.id ? 'bg-blue-50' : ''}`}
                 >
                   <td className="px-6 py-5">
-                    <p className="text-sm font-medium text-on-surface truncate max-w-xs">{q.prompt}</p>
-                    <span className="text-[10px] text-primary font-bold uppercase flex items-center gap-1 mt-1">
-                      <div className="w-1.5 h-1.5  bg-primary"></div> {q.database}
+                    <p className="text-sm font-medium text-slate-900 truncate max-w-xs">{q.prompt}</p>
+                    <span className="text-[10px] text-blue-600 font-bold uppercase flex items-center gap-1 mt-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div> {q.database}
                     </span>
                   </td>
                   <td className="px-6 py-5">
-                    <code className="text-[11px] font-mono bg-inverse-surface/5 text-primary px-2 py-1  truncate block max-w-[200px]">{q.sql}</code>
+                    <code className="text-[11px] bg-slate-100 text-blue-600 px-2 py-1 rounded truncate block max-w-[200px]">{q.sql}</code>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-surface-container-highest text-primary text-[10px] font-bold  uppercase">{q.model}</span>
-                      <span className="text-[10px] text-on-surface-variant font-medium">{q.latency}</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-blue-600 text-[10px] font-bold rounded uppercase">{q.model}</span>
+                      <span className="text-[10px] text-slate-500 font-medium">{q.latency}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <p className="text-[11px] font-medium text-on-surface-variant">{q.timestamp.split(',')[0]}</p>
-                    <p className="text-[10px] text-on-surface-variant/60">{q.timestamp.split(',')[1]}</p>
+                    <p className="text-[11px] font-medium text-slate-500">{q.timestamp.split(',')[0]}</p>
+                    <p className="text-[10px] text-slate-500/60">{q.timestamp.split(',')[1]}</p>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
+                      <button
                         onClick={(e) => handleReRun(q, e)}
-                        className="p-1.5 hover:bg-primary/10 text-primary " 
+                        className="p-1.5 hover:bg-blue-50 rounded text-blue-600"
                         title="Re-run in Dashboard"
                       >
                         <Play size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => handleCopy(q.sql, q.id, e)}
-                        className="p-1.5 hover:bg-primary/10 text-primary "
+                        className="p-1.5 hover:bg-blue-50 rounded text-blue-600"
                         title="Copy SQL"
                       >
                         {copiedId === q.id ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); setSelectedQuery(q); }}
-                        className="p-1.5 hover:bg-primary/10 text-primary "
+                        className="p-1.5 hover:bg-blue-50 rounded text-blue-600"
                         title="View Details"
                       >
                         <Dock size={16} />
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); setConfirmId(q.id); }}
-                        className="p-1.5 hover:bg-error/10 text-error "
+                        className="p-1.5 hover:bg-red-50 rounded text-red-600"
                         title="Delete Record"
                       >
                         <Trash2 size={16} />
@@ -390,24 +390,24 @@ export default function HistoryPage({ user }: { user: any }) {
               ))}
             </tbody>
           </table>
-          
-          <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
-            <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">
+
+          <div className="px-6 py-4 border-t border-slate-200/10 flex items-center justify-between bg-slate-50">
+            <span className="text-[10px] font-bold uppercase text-slate-500/60 tracking-wider">
               Showing {queries.length > 0 ? (page - 1) * size + 1 : 0} - {Math.min(page * size, total)} of {total} queries
             </span>
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1 text-on-surface-variant hover:bg-surface-container-high  transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1 text-slate-500 hover:bg-slate-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={18} />
               </button>
-              <button className="px-3 py-1 bg-primary text-white text-xs font-bold ">{page}</button>
-              <button 
+              <button className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded">{page}</button>
+              <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={page * size >= total}
-                className="p-1 text-on-surface-variant hover:bg-surface-container-high  transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1 text-slate-500 hover:bg-slate-50 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight size={18} />
               </button>
@@ -418,13 +418,13 @@ export default function HistoryPage({ user }: { user: any }) {
 
         {/* Conversations View */}
         {activeTab === 'conversations' && (
-        <div className="bg-surface-container-lowest border border-outline-variant overflow-hidden flex flex-col border border-outline-variant/10">
+        <div className="bg-white border border-slate-200 overflow-hidden flex flex-col">
           {/* Conversations search */}
-          <div className="p-4 border-b border-outline-variant/10">
+          <div className="p-4 border-b border-slate-200/10">
             <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400/60" size={18} />
               <input
-                className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none focus:ring-2 focus:ring-primary/20 text-sm text-on-surface"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border-none outline-none focus:ring-2 focus:ring-blue-500/20 text-sm text-slate-900"
                 placeholder="Search conversations..."
                 type="text"
                 value={convKeyword}
@@ -434,28 +434,28 @@ export default function HistoryPage({ user }: { user: any }) {
           </div>
 
           {/* Conversation cards */}
-          <div className="divide-y divide-outline-variant/5">
+          <div className="divide-y divide-slate-200/5">
             {convLoading ? (
-              <div className="px-6 py-12 text-center text-sm text-on-surface-variant">Loading conversations...</div>
+              <div className="px-6 py-12 text-center text-sm text-slate-500">Loading conversations...</div>
             ) : conversations.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-on-surface-variant">
-                <MessageSquare size={32} className="mx-auto mb-3 text-on-surface-variant/40" />
+              <div className="px-6 py-12 text-center text-sm text-slate-500">
+                <MessageSquare size={32} className="mx-auto mb-3 text-slate-400/40" />
                 No conversations yet. Start a chat in the Dashboard!
               </div>
             ) : conversations.map((c: any) => (
-              <div key={c.id} className="px-6 py-4 hover:bg-surface-container-high/20 transition-colors flex items-center justify-between gap-4">
+              <div key={c.id} className="px-6 py-4 hover:bg-slate-50/20 transition-colors flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <MessageSquare size={14} className="text-primary/60 flex-shrink-0" />
-                    <h3 className="text-sm font-semibold text-on-surface truncate">{c.title}</h3>
-                    <span className="text-[10px] font-bold text-on-surface-variant/50 bg-surface-container-high px-1.5 py-0.5">
+                    <MessageSquare size={14} className="text-blue-600/60 flex-shrink-0" />
+                    <h3 className="text-sm font-semibold text-slate-900 truncate">{c.title}</h3>
+                    <span className="text-[10px] font-bold text-slate-500/50 bg-slate-50 px-1.5 py-0.5 rounded">
                       {c.turnCount} turns
                     </span>
                   </div>
                   {c.lastMessage && (
-                    <p className="text-xs text-on-surface-variant truncate ml-6">{c.lastMessage}</p>
+                    <p className="text-xs text-slate-500 truncate ml-6">{c.lastMessage}</p>
                   )}
-                  <p className="text-[10px] text-on-surface-variant/50 mt-1 ml-6">
+                  <p className="text-[10px] text-slate-500/50 mt-1 ml-6">
                     {c.lastActiveTime ? new Date(c.lastActiveTime).toLocaleString('en-US', {
                       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     }) : ''}
@@ -463,7 +463,7 @@ export default function HistoryPage({ user }: { user: any }) {
                 </div>
                 <button
                   onClick={() => handleContinueConversation(c.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors flex-shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-600/90 transition-colors flex-shrink-0"
                 >
                   <Play size={12} />
                   Continue
@@ -474,23 +474,23 @@ export default function HistoryPage({ user }: { user: any }) {
 
           {/* Pagination */}
           {convTotal > 10 && (
-            <div className="px-6 py-4 border-t border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
-              <span className="text-[10px] font-bold uppercase text-on-surface-variant/60 tracking-wider">
+            <div className="px-6 py-4 border-t border-slate-200/10 flex items-center justify-between bg-slate-50">
+              <span className="text-[10px] font-bold uppercase text-slate-500/60 tracking-wider">
                 Showing {(convPage - 1) * 10 + 1} - {Math.min(convPage * 10, convTotal)} of {convTotal}
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setConvPage(p => Math.max(1, p - 1))}
                   disabled={convPage === 1}
-                  className="p-1 text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-30"
+                  className="p-1 text-slate-500 hover:bg-slate-50 rounded transition-colors disabled:opacity-30"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <button className="px-3 py-1 bg-primary text-white text-xs font-bold">{convPage}</button>
+                <button className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded">{convPage}</button>
                 <button
                   onClick={() => setConvPage(p => p + 1)}
                   disabled={convPage * 10 >= convTotal}
-                  className="p-1 text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-30"
+                  className="p-1 text-slate-500 hover:bg-slate-50 rounded transition-colors disabled:opacity-30"
                 >
                   <ChevronRight size={18} />
                 </button>
@@ -502,17 +502,17 @@ export default function HistoryPage({ user }: { user: any }) {
       </section>
 
       {/* Detail Sidebar View */}
-      
+
         {selectedQuery && (
-          <aside className="w-96 border-l border-outline-variant bg-surface-container-low flex flex-col z-10">
-            <div className="p-6 border-b border-outline-variant/10 flex items-center justify-between">
+          <aside className="w-96 border-l border-slate-200 bg-slate-50 flex flex-col z-10">
+            <div className="p-6 border-b border-slate-200/10 flex items-center justify-between">
               <div>
-                <h2 className="font-mono font-bold text-lg text-on-surface leading-tight">Query Detail</h2>
-                <p className="text-[10px] font-bold uppercase text-primary tracking-widest">ID: {selectedQuery.id}</p>
+                <h2 className="font-bold text-lg text-slate-900 leading-tight">Query Detail</h2>
+                <p className="text-[10px] font-bold uppercase text-blue-600 tracking-widest">ID: {selectedQuery.id}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedQuery(null)}
-                className="p-2 hover:bg-surface-container-high  transition-colors"
+                className="p-2 hover:bg-slate-50 rounded transition-colors"
               >
                 <X size={20} />
               </button>
@@ -520,36 +520,36 @@ export default function HistoryPage({ user }: { user: any }) {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 block">Natural Language Prompt</span>
-                <div className="bg-surface-container-lowest p-4 border border-outline-variant  border border-outline-variant/10">
-                  <p className="text-sm text-on-surface leading-relaxed italic">"{selectedQuery.prompt}"</p>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Natural Language Prompt</span>
+                <div className="bg-white p-4 border border-slate-200">
+                  <p className="text-sm text-slate-900 leading-relaxed italic">"{selectedQuery.prompt}"</p>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Generated SQL</span>
-                  <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold ">{selectedQuery.model}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Generated SQL</span>
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded">{selectedQuery.model}</span>
                 </div>
-                <div className="bg-[#1e2433] border border-outline-variant overflow-hidden  border border-white/5">
+                <div className="bg-[#1e2433] border border-slate-200 overflow-hidden">
                   <div className="px-4 py-2 bg-slate-800/50 border-b border-white/5 flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400 font-mono uppercase">{selectedQuery.database}</span>
-                    <button 
+                    <span className="text-[10px] text-slate-400 uppercase">{selectedQuery.database}</span>
+                    <button
                       onClick={() => handleCopy(selectedQuery.sql, selectedQuery.id)}
                       className="text-slate-400 hover:text-white transition-colors"
                       title="Copy SQL"
                     >
-                      {copiedId === selectedQuery.id ? <CheckCircle2 size={14} className="text-primary" /> : <Copy size={14} />}
+                      {copiedId === selectedQuery.id ? <CheckCircle2 size={14} className="text-blue-600" /> : <Copy size={14} />}
                     </button>
                   </div>
-                  <pre className="p-4 text-[11px] font-mono text-slate-200 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+                  <pre className="p-4 text-[11px] text-slate-200 leading-relaxed overflow-x-auto whitespace-pre-wrap">
                     <code>{selectedQuery.sql}</code>
                   </pre>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3 block">Execution Telemetry</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 block">Execution Telemetry</span>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Latency', value: selectedQuery.latency },
@@ -557,138 +557,138 @@ export default function HistoryPage({ user }: { user: any }) {
                     { label: 'Rows', value: selectedQuery.rows },
                     { label: 'Cost', value: `$${selectedQuery.cost}` },
                   ].map((stat) => (
-                    <div key={stat.label} className="bg-surface-container-lowest p-3 border border-outline-variant/10">
-                      <p className="text-[10px] text-on-surface-variant/60 font-bold uppercase">{stat.label}</p>
-                      <p className="font-mono text-sm font-bold">{stat.value}</p>
+                    <div key={stat.label} className="bg-white p-3 border border-slate-200/10 rounded">
+                      <p className="text-[10px] text-slate-500/60 font-bold uppercase">{stat.label}</p>
+                      <p className="text-sm font-bold">{stat.value}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4 block">Process History Lineage</span>
-                <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant/30">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4 block">Process History Lineage</span>
+                <div className="space-y-4 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[1px] before:bg-slate-200/30">
                   {isLoadingLineage ? (
-                    <div className="pl-8 text-xs text-on-surface-variant">Loading lineage...</div>
+                    <div className="pl-8 text-xs text-slate-500">Loading lineage...</div>
                   ) : lineage.length > 0 ? (
                     lineage.map((item, index) => {
                       const isCurrent = item.id.toString() === selectedQuery.id;
                       return (
                         <div key={item.id} className="relative pl-8">
-                          <div className={`absolute left-0 top-1 w-4 h-4  border-4 border-surface-container-low ${isCurrent ? 'bg-primary' : 'bg-outline-variant'}`}></div>
-                          <p className={`text-[11px] font-bold ${isCurrent ? 'text-primary' : 'text-on-surface'}`}>
+                          <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-4 border-slate-50 ${isCurrent ? 'bg-blue-600' : 'bg-slate-200'}`}></div>
+                          <p className={`text-[11px] font-bold ${isCurrent ? 'text-blue-600' : 'text-slate-900'}`}>
                             {index === 0 ? 'Original Query' : 'Derived Query (Re-run)'}
                             {isCurrent && ' (Current)'}
                           </p>
-                          <p className="text-[10px] text-on-surface-variant/70">
+                          <p className="text-[10px] text-slate-500/70">
                             {new Date(item.createTime).toLocaleString()}
                           </p>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="pl-8 text-xs text-on-surface-variant">No lineage data.</div>
+                    <div className="pl-8 text-xs text-slate-500">No lineage data.</div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 bg-surface-container-highest border-t border-outline-variant/10 grid grid-cols-2 gap-3">
-              <button 
+            <div className="p-6 bg-slate-100 border-t border-slate-200/10 grid grid-cols-2 gap-3">
+              <button
                 onClick={() => handleReRun(selectedQuery)}
-                className="flex items-center justify-center gap-2 py-2 border border-primary text-primary bg-primary/5 text-xs font-mono hover:bg-primary/10 transition-colors"
+                className="flex items-center justify-center gap-2 py-2 border border-blue-300 text-blue-600 bg-blue-50 text-xs rounded hover:bg-blue-50 transition-colors"
               >
                 <RefreshCw size={14} />
                 Re-run
               </button>
-              <button className="flex items-center justify-center gap-2 py-2.5 border border-outline-variant text-on-surface  font-bold text-xs uppercase tracking-widest hover:bg-surface-container-high transition-colors active:scale-95">
+              <button className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-900 rounded font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-colors active:scale-95">
                 <Share2 size={14} />
                 Share
               </button>
             </div>
           </aside>
         )}
-      
+
 
       {/* Re-run Modal */}
-      
+
         {isReRunModalOpen && reRunQueryData && (
           <div
             className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
             onClick={() => setIsReRunModalOpen(false)}>
             <div
-              className="bg-surface-container-low border border-outline-variant w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden"
+              className="bg-slate-50 border border-slate-200 w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden rounded-lg"
               onClick={(e) => e.stopPropagation()}>
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-4 border-b border-outline-variant/10 bg-surface-container-highest">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-on-surface">
-                  <Play size={18} className="text-primary" />
+              <div className="flex items-center justify-between p-4 border-b border-slate-200/10 bg-slate-100">
+                <h2 className="text-lg font-bold flex items-center gap-2 text-slate-900">
+                  <Play size={18} className="text-blue-600" />
                   Re-Run Query Results
                 </h2>
-                <button 
+                <button
                   onClick={() => setIsReRunModalOpen(false)}
-                  className="p-1.5 hover:bg-surface-container-high border border-outline-variant/50 text-on-surface-variant transition-colors"
+                  className="p-1.5 hover:bg-slate-50 border border-slate-200/50 text-slate-500 rounded transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              
+
               {/* Modal Content */}
-              <div className="flex-1 overflow-auto p-6 bg-surface custom-scrollbar">
+              <div className="flex-1 overflow-auto p-6 bg-white custom-scrollbar">
                 <div className="mb-6">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">Executing SQL</span>
-                  <div className="bg-[#1e2433] p-4 border border-white/5 font-mono text-sm text-slate-200 overflow-x-auto">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">Executing SQL</span>
+                  <div className="bg-[#1e2433] p-4 border border-white/5 rounded text-sm text-slate-200 overflow-x-auto">
                     <code>{reRunQueryData.sql}</code>
                   </div>
                 </div>
 
-                <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2 block">Execution Result</span>
-                
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 block">Execution Result</span>
+
                 {isReRunning ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
-                    <RefreshCw className="w-8 h-8 animate-spin text-primary mb-4" />
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                    <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mb-4" />
                     <p className="text-sm font-medium">Executing query on {reRunQueryData.database}...</p>
                   </div>
                 ) : reRunError ? (
-                  <div className="bg-error/10 border border-error/20 border border-outline-variant p-4 text-error">
+                  <div className="bg-red-50 border border-red-300/20 p-4 rounded text-red-600">
                     <p className="font-bold text-sm mb-1">Execution Failed</p>
-                    <p className="text-xs font-mono whitespace-pre-wrap">{reRunError}</p>
+                    <p className="text-xs whitespace-pre-wrap">{reRunError}</p>
                   </div>
                 ) : reRunResult ? (
-                  <div className="bg-surface-container-lowest border border-outline-variant/30 overflow-hidden ">
+                  <div className="bg-white border border-slate-200/30 overflow-hidden rounded">
                     {reRunResult.resultType === 'UPDATE' ? (
-                      <div className="p-6 flex flex-col items-center justify-center text-on-surface">
-                        <CheckCircle2 className="w-12 h-12 text-primary mb-3" />
+                      <div className="p-6 flex flex-col items-center justify-center text-slate-900">
+                        <CheckCircle2 className="w-12 h-12 text-blue-600 mb-3" />
                         <p className="text-lg font-bold">Execution Successful</p>
-                        <p className="text-sm text-on-surface-variant mt-1">
-                          Affected Rows: <span className="font-mono text-primary font-bold">{reRunResult.affectedRows}</span>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Affected Rows: <span className="text-blue-600 font-bold">{reRunResult.affectedRows}</span>
                         </p>
                       </div>
                     ) : reRunResult.rows && reRunResult.rows.length > 0 ? (
                       <div className="overflow-x-auto custom-scrollbar max-h-[400px]">
                         <table className="w-full text-left border-collapse text-sm">
-                          <thead className="bg-surface-container-low sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+                          <thead className="bg-slate-50 sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
                             <tr>
-                              <th className="py-3 px-4 border-b border-outline-variant/30 font-bold text-on-surface-variant w-12 text-center">#</th>
+                              <th className="py-3 px-4 border-b border-slate-200/30 font-bold text-slate-500 w-12 text-center">#</th>
                               {reRunResult.columns?.map((col: string, i: number) => (
-                                <th key={i} className="py-3 px-4 border-b border-outline-variant/30 font-bold text-on-surface tracking-wide whitespace-nowrap">
+                                <th key={i} className="py-3 px-4 border-b border-slate-200/30 font-bold text-slate-900 tracking-wide whitespace-nowrap">
                                   {col}
                                 </th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="font-mono text-[13px]">
+                          <tbody className="text-[13px]">
                             {reRunResult.rows.map((row: any, i: number) => (
-                              <tr 
-                                key={i} 
-                                className={`hover:bg-primary/5 transition-colors border-b border-outline-variant/20 last:border-0 ${i % 2 === 0 ? 'bg-surface-container-lowest' : 'bg-surface-container-low'}`}
+                              <tr
+                                key={i}
+                                className={`hover:bg-blue-50 transition-colors border-b border-slate-200/20 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                               >
-                                <td className="py-2.5 px-4 whitespace-nowrap text-on-surface-variant/50 text-center font-sans text-xs">
+                                <td className="py-2.5 px-4 whitespace-nowrap text-slate-500/50 text-center text-xs">
                                   {i + 1}
                                 </td>
                                 {reRunResult.columns?.map((col: string, j: number) => (
-                                  <td key={j} className="py-2.5 px-4 text-on-surface/80 whitespace-nowrap max-w-[250px] truncate">
-                                    {row[col] !== null ? String(row[col]) : <span className="text-on-surface-variant/40 italic">NULL</span>}
+                                  <td key={j} className="py-2.5 px-4 text-slate-900/80 whitespace-nowrap max-w-[250px] truncate">
+                                    {row[col] !== null ? String(row[col]) : <span className="text-slate-500/40 italic">NULL</span>}
                                   </td>
                                 ))}
                               </tr>
@@ -697,7 +697,7 @@ export default function HistoryPage({ user }: { user: any }) {
                         </table>
                       </div>
                     ) : (
-                      <div className="p-8 text-center text-on-surface-variant text-sm">
+                      <div className="p-8 text-center text-slate-500 text-sm">
                         Query executed successfully, but no data was returned.
                       </div>
                     )}

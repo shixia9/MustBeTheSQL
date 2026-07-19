@@ -14,9 +14,9 @@ export default function ModelPage() {
 
   return (
     <ManagementPage title="models" icon={Cpu} tabs={tabs} activeTab="configured">
-      <table className="w-full text-xs font-mono">
+      <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-outline-variant text-on-surface-variant text-left">
+          <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 text-left">
             <th className="py-2 px-2 font-normal">Model</th>
             <th className="py-2 px-2 font-normal">Provider</th>
             <th className="py-2 px-2 font-normal">Default</th>
@@ -24,25 +24,25 @@ export default function ModelPage() {
             <th className="py-2 px-2 font-normal">Created</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-slate-100">
           {configs?.map((cfg: any) => (
-            <tr key={cfg.id} className="border-b border-outline-variant/50 hover:bg-surface-container-high">
-              <td className="py-2 px-2 text-[#38bdf8]">{cfg.configName || cfg.modelName || `#${cfg.id}`}</td>
-              <td className="py-2 px-2 text-on-surface-variant">{cfg.providerType || 'OPENAI_COMPATIBLE'}</td>
+            <tr key={cfg.id} className="hover:bg-slate-50">
+              <td className="py-2 px-2 text-blue-600">{cfg.configName || cfg.modelName || `#${cfg.id}`}</td>
+              <td className="py-2 px-2 text-slate-500">{cfg.providerType || 'OPENAI_COMPATIBLE'}</td>
               <td className="py-2 px-2">
-                {cfg.isDefault && <ZapIcon size={12} className="text-[#f59e0b]" />}
+                {cfg.isDefault && <ZapIcon size={12} className="text-amber-500" />}
               </td>
               <td className="py-2 px-2">
-                <span className={`${cfg.status === 1 ? 'text-[#a3e635]' : 'text-on-surface-variant'}`}>
+                <span className={`${cfg.status === 1 ? 'text-emerald-500' : 'text-slate-500'}`}>
                   {cfg.status === 1 ? 'active' : 'inactive'}
                 </span>
               </td>
-              <td className="py-2 px-2 text-on-surface-variant/60">{cfg.createTime}</td>
+              <td className="py-2 px-2 text-slate-500/60">{cfg.createTime}</td>
             </tr>
           ))}
           {(!configs || configs.length === 0) && (
             <tr>
-              <td colSpan={5} className="py-8 text-center text-on-surface-variant/40">
+              <td colSpan={5} className="py-8 text-center text-slate-500/40">
                 &gt; no models configured — add one in Settings
               </td>
             </tr>

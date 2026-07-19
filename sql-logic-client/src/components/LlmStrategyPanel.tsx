@@ -11,11 +11,6 @@ const STRATEGIES: { value: string; label: string; desc: string }[] = [
   { value: 'SMART', label: '智能评分', desc: '综合成功率/延迟/负载加权评分' },
 ];
 
-/**
- * Phase B (B4/B1): per-config LLM high-availability panel — strategy selector,
- * fallback chain (multi-select other configs), and live health metrics.
- * Embedded under each LLM config card in SettingsPage.
- */
 export default function LlmStrategyPanel({ config, peers }: { config: LlmConfig; peers: LlmConfig[] }) {
   const [open, setOpen] = useState(false);
   const [strategy, setStrategy] = useState<string>(config.strategyType || 'LOCAL');
@@ -65,49 +60,63 @@ export default function LlmStrategyPanel({ config, peers }: { config: LlmConfig;
   };
 
   const otherConfigs = peers.filter(c => c.id !== config.id && c.status === 1);
-  const circuitColor = metrics?.circuitState === 'OPEN' ? 'text-red-400 bg-red-500/10 border-red-500/40'
-    : metrics?.circuitState === 'HALF_OPEN' ? 'text-amber-400 bg-amber-500/10 border-amber-500/40'
-    : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/40';
+  const circuitColor = metrics?.circuitState === 'OPEN'
+    ? 'text-red-600 bg-red-50 border-red-200'
+    : metrics?.circuitState === 'HALF_OPEN'
+    ? 'text-amber-600 bg-amber-50 border-amber-200'
+    : 'text-emerald-600 bg-emerald-50 border-emerald-200';
 
   return (
-    <div className="border-t border-outline-variant/30 mt-1">
+    <div className="border-t border-slate-100 mt-2 pt-2">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-1 py-1.5 text-[10px] uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors"
+        className="w-full flex items-center justify-between py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hover:text-blue-600 transition-colors"
       >
         <span className="flex items-center gap-1.5"><Activity size={11} /> HA 策略与健康状态</span>
         {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
       </button>
 
       {open && (
-        <div className="px-1 pb-3 pt-1 space-y-3">
+        <div className="py-2 space-y-3">
           {/* Health metrics */}
           <div className="flex flex-wrap items-center gap-2 text-[10px]">
-            <span className={`px-1.5 py-0.5 border ${circuitColor}`}>熔断: {metrics?.circuitState || 'CLOSED'}</span>
+            <span className={`px-1.5 py-0.5 rounded border ${circuitColor}`}>
+              熔断: {metrics?.circuitState || 'CLOSED'}
+            </span>
             {metrics?.successRate != null && (
-              <span className="px-1.5 py-0.5 bg-surface-container border border-outline-variant/40">成功率: {(metrics.successRate * 100).toFixed(0)}%</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-600">
+                成功率: {(metrics.successRate * 100).toFixed(0)}%
+              </span>
             )}
             {metrics?.avgLatencyMs != null && (
-              <span className="px-1.5 py-0.5 bg-surface-container border border-outline-variant/40">均延迟: {metrics.avgLatencyMs.toFixed(0)}ms</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-600">
+                均延迟: {metrics.avgLatencyMs.toFixed(0)}ms
+              </span>
             )}
             {metrics?.totalRequests != null && (
-              <span className="px-1.5 py-0.5 bg-surface-container border border-outline-variant/40">总调用: {metrics.totalRequests}</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-600">
+                总调用: {metrics.totalRequests}
+              </span>
             )}
-            <button onClick={loadMetrics} disabled={loadingMetrics} className="ml-1 text-on-surface-variant hover:text-primary">
+            <button onClick={loadMetrics} disabled={loadingMetrics} className="ml-1 text-slate-400 hover:text-blue-600">
               {loadingMetrics ? <Loader2 size={11} className="inline animate-spin" /> : <Zap size={11} />}
             </button>
           </div>
 
           {/* Strategy selector */}
           <div>
-            <label className="text-[10px] uppercase text-on-surface-variant">负载策略</label>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">负载策略</label>
             <div className="mt-1 grid grid-cols-2 gap-1.5">
               {STRATEGIES.map(s => (
                 <button
                   key={s.value}
                   onClick={() => setStrategy(s.value)}
                   title={s.desc}
-                  className={`px-2 py-1.5 text-left text-[11px] border rounded transition-colors ${strategy === s.value ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 hover:bg-surface-container'}`}
+                  className={`px-2 py-1.5 text-left text-[11px] rounded-md border transition-colors ${
+                    strategy === s.value
+                      ? 'border-blue-300 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
                 >
                   {s.label}
                 </button>
@@ -117,16 +126,20 @@ export default function LlmStrategyPanel({ config, peers }: { config: LlmConfig;
 
           {/* Fallback chain */}
           <div>
-            <label className="text-[10px] uppercase text-on-surface-variant">降级回退链 (主实例失败时按序尝试)</label>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">降级回退链 (主实例失败时按序尝试)</label>
             {otherConfigs.length === 0 ? (
-              <p className="mt-1 text-[10px] text-on-surface-variant/70">无其他可用配置，请先在上方新增至少一个 LLM 配置以启用回退。</p>
+              <p className="mt-1 text-[10px] text-slate-400">无其他可用配置，请先在上方新增至少一个 LLM 配置以启用回退。</p>
             ) : (
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {otherConfigs.map(c => (
                   <button
                     key={c.id}
                     onClick={() => toggleFallback(c.id)}
-                    className={`px-2 py-1 text-[11px] border rounded transition-colors ${fallback.includes(c.id) ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 hover:bg-surface-container'}`}
+                    className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${
+                      fallback.includes(c.id)
+                        ? 'border-blue-300 bg-blue-50 text-blue-700'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
                   >
                     {fallback.includes(c.id) ? '✓ ' : ''}{c.configName}
                   </button>
@@ -134,18 +147,24 @@ export default function LlmStrategyPanel({ config, peers }: { config: LlmConfig;
               </div>
             )}
             {fallback.length > 0 && (
-              <p className="mt-1 text-[10px] text-on-surface-variant/70">回退顺序: {fallback.map(id => otherConfigs.find(c => c.id === id)?.configName || id).join(' → ')}</p>
+              <p className="mt-1 text-[10px] text-slate-400">
+                回退顺序: {fallback.map(id => otherConfigs.find(c => c.id === id)?.configName || id).join(' → ')}
+              </p>
             )}
           </div>
 
           {msg && (
-            <div className={`px-2 py-1 text-[10px] border ${msg.type === 'success' ? 'border-primary/40 text-primary' : 'border-red-500/40 text-red-400'}`}>{msg.text}</div>
+            <div className={`px-2 py-1 text-[10px] rounded border ${
+              msg.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-600'
+            }`}>
+              {msg.text}
+            </div>
           )}
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] uppercase tracking-wider bg-primary text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="btn-primary text-[11px]"
           >
             {saving ? <Loader2 size={12} className="animate-spin" /> : null}
             保存策略

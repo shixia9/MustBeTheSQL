@@ -26,13 +26,21 @@ export default function ManagementPage({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant bg-surface flex-shrink-0">
+      <div
+        className="flex items-center gap-3 px-6 py-3 flex-shrink-0"
+        style={{
+          background: 'var(--color-content-bg)',
+          borderBottom: '1px solid var(--color-border-subtle)',
+        }}
+      >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          {Icon && <Icon size={18} className="text-[#38bdf8] flex-shrink-0" />}
+          {Icon && <Icon size={18} className="text-blue-500 flex-shrink-0" />}
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-on-surface truncate">
-              <span className="text-[#a3e635]">$</span> ls /{title.toLowerCase().replace(/\s+/g, '-')}
-              {subtitle && <span className="text-on-surface-variant font-normal">/{subtitle}</span>}
+            <h1 className="text-sm font-semibold text-slate-900 truncate" style={{ letterSpacing: '-0.01em' }}>
+              {title}
+              {subtitle && (
+                <span className="text-slate-400 font-normal ml-1.5">/ {subtitle}</span>
+              )}
             </h1>
           </div>
         </div>
@@ -41,13 +49,19 @@ export default function ManagementPage({
 
       {/* Tab Navigation */}
       {tabs && (
-        <div className="border-b border-outline-variant bg-surface px-4">
+        <div
+          className="px-6"
+          style={{
+            background: 'var(--color-content-bg)',
+            borderBottom: '1px solid var(--color-border-subtle)',
+          }}
+        >
           <TabNav tabs={tabs} activeTab={activeTab || tabs[0]?.key} onTabChange={onTabChange || (() => {})} />
         </div>
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-6" style={{ background: 'var(--color-content-bg-alt)' }}>
         {children}
       </div>
     </div>

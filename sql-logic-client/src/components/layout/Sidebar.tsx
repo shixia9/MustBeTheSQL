@@ -42,19 +42,45 @@ export default function Sidebar() {
     }).catch(() => {});
   }, []);
 
-  const width = sidebarCollapsed ? 'w-[64px]' : 'w-[240px]';
+  const width = sidebarCollapsed ? 'w-[56px]' : 'w-[232px]';
 
   return (
-    <aside className={`${width} sidebar-transition flex flex-col border-r border-outline-variant bg-surface flex-shrink-0 overflow-hidden`}>
-      {/* Top: Navigation */}
-      <div className="flex-1 overflow-y-auto">
+    <aside
+      className={`${width} sidebar-transition flex flex-col flex-shrink-0 overflow-hidden dark-scrollbar`}
+      style={{
+        background: 'linear-gradient(180deg, var(--color-dark-surface) 0%, var(--color-dark-surface-raised) 100%)',
+      }}
+    >
+      {/* Subtle top glow */}
+      {!sidebarCollapsed && (
+        <div
+          className="flex-shrink-0 pointer-events-none"
+          style={{
+            height: 1,
+            margin: '0 12px',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(91,127,217,0.25) 30%, rgba(91,127,217,0.25) 70%, transparent 100%)',
+          }}
+        />
+      )}
+
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto dark-scrollbar py-2">
         {!sidebarCollapsed && (
-          <div className="px-3 py-3 text-[10px] uppercase tracking-[0.15em] text-on-surface-variant select-none">
-            $ ls /pages
+          <div
+            className="px-4 py-2 select-none"
+            style={{
+              color: 'var(--color-dark-ink-tertiary)',
+              fontSize: '10px',
+              fontWeight: 600,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Navigation
           </div>
         )}
 
-        <nav className="px-2 py-1">
+        <nav className="px-2 space-y-0.5">
           {navItems.map(item => {
             const isActive = location.pathname === item.path ||
               (item.path !== '/' && location.pathname.startsWith(item.path));
@@ -64,19 +90,26 @@ export default function Sidebar() {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-xs transition-colors
-                  ${isActive
-                    ? 'bg-primary/10 text-[#38bdf8] border-l-2 border-[#38bdf8]'
-                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border-l-2 border-transparent'
-                  }`}
+                className={isActive ? 'nav-item-active' : 'nav-item-idle'}
                 title={sidebarCollapsed ? t(item.label as any) || item.label : undefined}
               >
-                <Icon size={16} />
+                <Icon size={sidebarCollapsed ? 18 : 16} />
                 {!sidebarCollapsed && (
                   <>
-                    <span className="flex-1 text-left">{t(item.label as any) || item.label}</span>
+                    <span className="flex-1 text-left truncate">
+                      {t(item.label as any) || item.label}
+                    </span>
                     {item.shortcut && (
-                      <span className="text-[10px] text-on-surface-variant/50">{item.shortcut}</span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          color: 'var(--color-dark-ink-tertiary)',
+                          fontWeight: 400,
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {item.shortcut}
+                      </span>
                     )}
                   </>
                 )}
@@ -86,45 +119,119 @@ export default function Sidebar() {
         </nav>
 
         {/* Divider */}
-        <div className="mx-3 my-2 border-t border-outline-variant" />
+        <div className="mx-3 my-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }} />
 
         {/* Recent Tasks */}
         {!sidebarCollapsed && (
           <>
-            <div className="px-3 py-2 text-[10px] uppercase tracking-[0.15em] text-on-surface-variant select-none">
-              $ ls /tasks --recent
+            <div
+              className="px-4 py-2 select-none"
+              style={{
+                color: 'var(--color-dark-ink-tertiary)',
+                fontSize: '10px',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Recent
             </div>
-            <div className="px-2 overflow-y-auto max-h-[200px]">
+            <div className="px-2 overflow-y-auto max-h-[200px] dark-scrollbar">
               {recentTasks.length > 0 ? recentTasks.slice(0, 7).map((conv: any) => (
                 <button
                   key={conv.id}
                   onClick={() => navigate(`/chat/${conv.id}`)}
-                  className="w-full text-left px-3 py-1.5 text-[11px] text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors truncate"
+                  className="w-full text-left px-3 py-1.5 rounded-md transition-colors truncate"
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: 'var(--color-dark-ink-secondary)',
+                    letterSpacing: '-0.01em',
+                    transitionDuration: '150ms',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = '#d0d3dc';
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = 'var(--color-dark-ink-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  <span>{conv.title || `Conversation #${conv.id}`}</span>
+                  {conv.title || `Conversation #${conv.id}`}
                 </button>
               )) : (
-                <div className="text-[11px] text-on-surface-variant/40 px-3 py-2">No recent tasks</div>
+                <div
+                  className="px-4 py-3 select-none"
+                  style={{ fontSize: '11px', color: 'var(--color-dark-ink-tertiary)', fontWeight: 400 }}
+                >
+                  No recent tasks
+                </div>
               )}
             </div>
           </>
         )}
+
+        {/* Collapsed recent dots */}
+        {sidebarCollapsed && recentTasks.length > 0 && (
+          <div className="flex flex-col items-center gap-1.5 pt-2">
+            {recentTasks.slice(0, 5).map((conv: any) => (
+              <button
+                key={conv.id}
+                onClick={() => navigate(`/chat/${conv.id}`)}
+                className="w-1.5 h-1.5 rounded-full transition-colors"
+                style={{ background: 'var(--color-dark-ink-tertiary)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-dark-ink)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-dark-ink-tertiary)'; }}
+                title={conv.title || `#${conv.id}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Bottom: UserBar */}
-      <div className="border-t border-outline-variant px-3 py-2.5">
+      {/* User section */}
+      <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
         {sidebarCollapsed ? (
-          <div className="flex justify-center" title="User">
-            {React.createElement(getIcon('user'), { size: 16, className: 'text-on-surface-variant' })}
+          <div className="flex justify-center py-3" title="User">
+            {React.createElement(getIcon('user'), {
+              size: 18,
+              style: { color: 'var(--color-dark-ink-secondary)' },
+            })}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-              {React.createElement(getIcon('user'), { size: 14, className: 'text-primary' })}
+          <div className="flex items-center gap-2.5 px-3 py-3">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--color-sidebar-active)' }}
+            >
+              {React.createElement(getIcon('user'), {
+                size: 14,
+                style: { color: 'var(--color-primary)' },
+              })}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] text-on-surface truncate">{user?.username || 'user'}@db</div>
-              <div className="text-[9px] text-on-surface-variant/60">{user?.email || ''}</div>
+              <div
+                className="truncate"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'var(--color-dark-ink)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {user?.username || 'user'}
+              </div>
+              <div
+                className="truncate"
+                style={{
+                  fontSize: '10.5px',
+                  fontWeight: 400,
+                  color: 'var(--color-dark-ink-tertiary)',
+                }}
+              >
+                {user?.email || ''}
+              </div>
             </div>
           </div>
         )}
