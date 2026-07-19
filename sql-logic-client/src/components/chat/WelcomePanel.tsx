@@ -84,7 +84,7 @@ export default function WelcomePanel({ onSuggestionClick }: {
             lineHeight: 1.5,
           }}
         >
-          {t('welcome.subtitle') || 'How can I help you analyze your data today?'}
+          How can I help you analyze your data today?
         </p>
       </div>
 
@@ -121,7 +121,7 @@ export default function WelcomePanel({ onSuggestionClick }: {
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    {t('welcome.suggestions.' + i + '.title') || item.title}
+                    {item.title}
                   </div>
                   <div
                     style={{
@@ -132,7 +132,7 @@ export default function WelcomePanel({ onSuggestionClick }: {
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    {t('welcome.suggestions.' + i + '.description') || item.description}
+                    {item.description}
                   </div>
                 </div>
               </div>

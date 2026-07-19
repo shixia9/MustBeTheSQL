@@ -193,7 +193,7 @@ export default function ChatPage() {
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
-            placeholder={t('Enter your analysis question...') || 'Ask anything about your data...'}
+            placeholder="Ask anything about your data..."
             disabled={isStreaming}
             className="flex-1 bg-transparent border-none outline-none"
             style={{

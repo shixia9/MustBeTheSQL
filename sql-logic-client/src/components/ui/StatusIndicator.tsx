@@ -5,7 +5,7 @@ type Status = 'live' | 'busy' | 'idle' | 'done' | 'error';
 const statusConfig: Record<Status, { icon: string; label: string; color: string }> = {
   live: { icon: 'live', label: 'Live', color: 'var(--color-success)' },
   busy: { icon: 'running', label: 'Busy', color: 'var(--color-semantic-gate)' },
-  idle: { icon: 'pending', label: 'Idle', color: 'var(--color-dark-ink-tertiary)' },
+  idle: { icon: 'pending', label: 'Idle', color: 'var(--ink-tertiary)' },
   done: { icon: 'success', label: 'Done', color: 'var(--color-success)' },
   error: { icon: 'error', label: 'Error', color: 'var(--color-error)' },
 };

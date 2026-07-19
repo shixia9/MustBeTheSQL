@@ -46,9 +46,10 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`${width} sidebar-transition flex flex-col flex-shrink-0 overflow-hidden dark-scrollbar`}
+      className={`${width} sidebar-transition flex flex-col flex-shrink-0 overflow-hidden`}
       style={{
-        background: 'linear-gradient(180deg, var(--color-dark-surface) 0%, var(--color-dark-surface-raised) 100%)',
+        background: 'linear-gradient(180deg, var(--shell-bg) 0%, var(--shell-bg-end) 100%)',
+        borderRight: '0.5px solid var(--shell-border)',
       }}
     >
       {/* Subtle top glow */}
@@ -58,18 +59,18 @@ export default function Sidebar() {
           style={{
             height: 1,
             margin: '0 12px',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(91,127,217,0.25) 30%, rgba(91,127,217,0.25) 70%, transparent 100%)',
+            background: 'linear-gradient(90deg, transparent 0%, var(--shell-top-glow) 30%, var(--shell-top-glow) 70%, transparent 100%)',
           }}
         />
       )}
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto dark-scrollbar py-2">
+      <div className="flex-1 overflow-y-auto py-2">
         {!sidebarCollapsed && (
           <div
             className="px-4 py-2 select-none"
             style={{
-              color: 'var(--color-dark-ink-tertiary)',
+              color: 'var(--shell-text-dim)',
               fontSize: '10px',
               fontWeight: 600,
               letterSpacing: '0.04em',
@@ -103,7 +104,7 @@ export default function Sidebar() {
                       <span
                         style={{
                           fontSize: '10px',
-                          color: 'var(--color-dark-ink-tertiary)',
+                          color: 'var(--shell-text-dim)',
                           fontWeight: 400,
                           letterSpacing: '0.02em',
                         }}
@@ -119,7 +120,7 @@ export default function Sidebar() {
         </nav>
 
         {/* Divider */}
-        <div className="mx-3 my-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }} />
+        <div className="mx-3 my-3" style={{ borderTop: '0.5px solid var(--shell-divider)' }} />
 
         {/* Recent Tasks */}
         {!sidebarCollapsed && (
@@ -127,7 +128,7 @@ export default function Sidebar() {
             <div
               className="px-4 py-2 select-none"
               style={{
-                color: 'var(--color-dark-ink-tertiary)',
+                color: 'var(--shell-text-dim)',
                 fontSize: '10px',
                 fontWeight: 600,
                 letterSpacing: '0.04em',
@@ -136,7 +137,7 @@ export default function Sidebar() {
             >
               Recent
             </div>
-            <div className="px-2 overflow-y-auto max-h-[200px] dark-scrollbar">
+            <div className="px-2 overflow-y-auto max-h-[200px]">
               {recentTasks.length > 0 ? recentTasks.slice(0, 7).map((conv: any) => (
                 <button
                   key={conv.id}
@@ -145,16 +146,16 @@ export default function Sidebar() {
                   style={{
                     fontSize: '12px',
                     fontWeight: 500,
-                    color: 'var(--color-dark-ink-secondary)',
+                    color: 'var(--shell-text)',
                     letterSpacing: '-0.01em',
                     transitionDuration: '150ms',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.color = '#d0d3dc';
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    e.currentTarget.style.color = 'var(--shell-text-active)';
+                    e.currentTarget.style.background = 'var(--shell-hover)';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.color = 'var(--color-dark-ink-secondary)';
+                    e.currentTarget.style.color = 'var(--shell-text)';
                     e.currentTarget.style.background = 'transparent';
                   }}
                 >
@@ -163,7 +164,7 @@ export default function Sidebar() {
               )) : (
                 <div
                   className="px-4 py-3 select-none"
-                  style={{ fontSize: '11px', color: 'var(--color-dark-ink-tertiary)', fontWeight: 400 }}
+                  style={{ fontSize: '11px', color: 'var(--shell-text-dim)', fontWeight: 400 }}
                 >
                   No recent tasks
                 </div>
@@ -180,9 +181,9 @@ export default function Sidebar() {
                 key={conv.id}
                 onClick={() => navigate(`/chat/${conv.id}`)}
                 className="w-1.5 h-1.5 rounded-full transition-colors"
-                style={{ background: 'var(--color-dark-ink-tertiary)' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-dark-ink)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-dark-ink-tertiary)'; }}
+                style={{ background: 'var(--shell-text-dim)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--shell-text-active)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--shell-text-dim)'; }}
                 title={conv.title || `#${conv.id}`}
               />
             ))}
@@ -191,19 +192,19 @@ export default function Sidebar() {
       </div>
 
       {/* User section */}
-      <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ borderTop: '0.5px solid var(--shell-divider)' }}>
         {sidebarCollapsed ? (
           <div className="flex justify-center py-3" title="User">
             {React.createElement(getIcon('user'), {
               size: 18,
-              style: { color: 'var(--color-dark-ink-secondary)' },
+              style: { color: 'var(--shell-text)' },
             })}
           </div>
         ) : (
           <div className="flex items-center gap-2.5 px-3 py-3">
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'var(--color-sidebar-active)' }}
+              style={{ background: 'var(--shell-active)' }}
             >
               {React.createElement(getIcon('user'), {
                 size: 14,
@@ -216,7 +217,7 @@ export default function Sidebar() {
                 style={{
                   fontSize: '12px',
                   fontWeight: 500,
-                  color: 'var(--color-dark-ink)',
+                  color: 'var(--shell-text-active)',
                   letterSpacing: '-0.01em',
                 }}
               >
@@ -227,7 +228,7 @@ export default function Sidebar() {
                 style={{
                   fontSize: '10.5px',
                   fontWeight: 400,
-                  color: 'var(--color-dark-ink-tertiary)',
+                  color: 'var(--shell-text-dim)',
                 }}
               >
                 {user?.email || ''}

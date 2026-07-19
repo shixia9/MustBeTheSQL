@@ -19,35 +19,38 @@ export default function TopNav() {
   const goProfile = () => navigate('/profile');
   const CollapseIcon = getIcon(sidebarCollapsed ? 'expand' : 'collapse');
 
+  const shellText = 'var(--shell-text)';
+  const shellTextDim = 'var(--shell-text-dim)';
+
   return (
     <header
       className="flex items-center h-11 px-3 flex-shrink-0 z-50 gap-2"
       style={{
-        background: 'var(--color-dark-surface)',
-        borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+        background: 'var(--shell-bg)',
+        borderBottom: '0.5px solid var(--shell-border)',
       }}
     >
       {/* Sidebar toggle */}
       <button
         onClick={toggleSidebar}
         className="btn-ghost p-1.5"
-        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        style={{ color: shellTextDim, border: 'none' }}
         title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         <CollapseIcon size={16} />
       </button>
 
-      {/* Brand / Model selector area */}
+      {/* Brand */}
       <div className="flex items-center gap-2">
         <span
           className="text-[12.5px] font-semibold select-none"
-          style={{ color: 'var(--color-dark-ink)', letterSpacing: '-0.01em' }}
+          style={{ color: 'var(--shell-text-active)', letterSpacing: '-0.01em' }}
         >
           MBS
         </span>
         <span
           className="text-[10px] font-medium select-none hidden sm:inline"
-          style={{ color: 'var(--color-dark-ink-tertiary)', letterSpacing: '0.02em' }}
+          style={{ color: shellTextDim, letterSpacing: '0.02em' }}
         >
           /
         </span>
@@ -62,12 +65,12 @@ export default function TopNav() {
       <TokenBudgetBar used={1200} total={8192} />
 
       {/* Divider */}
-      <div style={{ width: 0.5, height: 20, background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+      <div style={{ width: 0.5, height: 20, background: 'var(--shell-border)', margin: '0 4px' }} />
 
       {/* Icon buttons */}
       <button
         className="btn-ghost p-1.5"
-        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        style={{ color: shellTextDim, border: 'none' }}
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       >
@@ -76,7 +79,7 @@ export default function TopNav() {
 
       <button
         className="btn-ghost p-1.5"
-        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        style={{ color: shellTextDim, border: 'none' }}
         title="Toggle language"
       >
         {React.createElement(getIcon('languages'), { size: 15 })}
@@ -85,7 +88,7 @@ export default function TopNav() {
       <button
         className="btn-ghost p-1.5"
         onClick={goProfile}
-        style={{ color: 'var(--color-dark-ink-secondary)', border: 'none' }}
+        style={{ color: shellTextDim, border: 'none' }}
         title="Profile"
       >
         {React.createElement(getIcon('user'), { size: 15 })}
