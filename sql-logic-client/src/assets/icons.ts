@@ -10,7 +10,8 @@ import {
   ExternalLink, Upload, Download, RefreshCw, Zap, AlertTriangle,
   BarChart3, Table2, FileCode2, FileText as FileTextIcon,
   Globe, Server, Shield, Key, Wrench, FolderOpen, GitBranch,
-  Terminal, type LucideIcon
+  Terminal, TrendingUp, DollarSign, Percent, FileSearch,
+  type LucideIcon
 } from 'lucide-react';
 
 const iconMap: Record<string, LucideIcon> = {
@@ -73,6 +74,12 @@ const iconMap: Record<string, LucideIcon> = {
   table: Table2,
   code: FileCode2,
   report: FileTextIcon,
+
+  // Welcome / suggestions
+  trendingUp: TrendingUp,
+  dollarSign: DollarSign,
+  percent: Percent,
+  fileSearch: FileSearch,
 };
 
 export function getIcon(name: string): LucideIcon {

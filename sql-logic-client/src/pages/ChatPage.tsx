@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useI18n } from '../i18n';
 import { api } from '../api/client';
 import AgentExecutionView from '../components/agent/AgentExecutionView';
+import WelcomePanel from '../components/chat/WelcomePanel';
 
 interface StepData {
   nodeName: string;
@@ -138,18 +139,32 @@ export default function ChatPage() {
     setHitlPending(null);
   };
 
+  const handleSuggestionClick = (prompt: string) => {
+    setInputValue(prompt);
+    handleStream(prompt);
+  };
+
+  const hasContent = turns.length > 0 || currentTurn !== null || conversationId;
+
   return (
     <div className="flex flex-col h-full">
-      <AgentExecutionView
-        turns={[...turns, ...(currentTurn ? [currentTurn] : [])]}
-        isStreaming={isStreaming}
-        hitlPending={hitlPending}
-        onHitlConfirm={handleHITLConfirm}
-        autoConfirm={autoConfirm}
-        onAutoConfirmChange={setAutoConfirm}
-        selectedDb={selectedDb}
-        onDbChange={setSelectedDb}
-      />
+      {hasContent ? (
+        <AgentExecutionView
+          turns={[...turns, ...(currentTurn ? [currentTurn] : [])]}
+          isStreaming={isStreaming}
+          hitlPending={hitlPending}
+          onHitlConfirm={handleHITLConfirm}
+          autoConfirm={autoConfirm}
+          onAutoConfirmChange={setAutoConfirm}
+          selectedDb={selectedDb}
+          onDbChange={setSelectedDb}
+        />
+      ) : (
+        <WelcomePanel onSuggestionClick={(prompt) => {
+          setInputValue(prompt);
+          handleStream(prompt);
+        }} />
+      )}
       <div className="border-t border-outline-variant bg-surface px-4 py-3 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-[#a3e635] font-mono text-sm">$</span>
