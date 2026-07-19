@@ -212,7 +212,7 @@ export default function HistoryPage({ user }: { user: any }) {
   };
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen flex bg-surface">
+    <div className="min-h-full flex">
       {/* Query Management Table Area */}
       <section className="flex-1 p-8 overflow-hidden flex flex-col gap-8">
         <div className="flex items-end justify-between">
@@ -718,6 +718,6 @@ export default function HistoryPage({ user }: { user: any }) {
           onCancel={() => setConfirmId(null)}
         />
       )}
-    </main>
+    </div>
   );
 }

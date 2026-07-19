@@ -241,7 +241,7 @@ export default function AgentStudioPage({ user }: { user: any }) {
   const selected = agents.find(a => a.id === selectedId);
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface text-on-surface font-mono">
+    <div className="min-h-full text-on-surface font-mono">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* ── Header ── */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-dashed border-outline-variant/40">
@@ -619,6 +619,6 @@ export default function AgentStudioPage({ user }: { user: any }) {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

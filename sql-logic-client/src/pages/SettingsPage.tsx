@@ -158,7 +158,7 @@ export default function SettingsPage({ user }: { user: any }) {
   const placeholders = providerPlaceholders[formData.providerType] || providerPlaceholders.OPENAI_COMPATIBLE;
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-6xl mx-auto px-8 py-10">
         <div className="mb-6">
           <h1 className="text-sm font-mono font-semibold text-on-surface">{t('settings.title')}</h1>
@@ -477,6 +477,6 @@ export default function SettingsPage({ user }: { user: any }) {
 
         {/* Phase B (B3): HA strategy panels are embedded inline per-config above */}
       </div>
-    </main>
+    </div>
   );
 }

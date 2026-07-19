@@ -67,7 +67,7 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
 
   if (!user) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
           <div className="border border-outline-variant bg-surface-container-lowest p-8 text-center">
             <div className="p-3 rounded-xl bg-primary/10 inline-flex mb-4">
@@ -99,26 +99,26 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
           <div className="border border-outline-variant bg-surface-container-lowest p-12 text-center">
             <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-3" />
             <p className="text-xs font-mono text-on-surface-variant">Loading invitation details...</p>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
           <div className="border border-error/30 bg-error/5 p-6 text-center">
             <AlertTriangle size={28} className="text-error mx-auto mb-3" />
@@ -126,13 +126,13 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
             <p className="text-xs font-mono text-on-surface-variant/70">{error}</p>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (accepted) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
           <div className="border border-success/30 bg-success/5 p-8 text-center">
             <CheckCircle2 size={36} className="text-success mx-auto mb-3" />
@@ -148,7 +148,7 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
             </button>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -158,7 +158,7 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
 
   if (isExpired || !invitation.isActive) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
           <div className="border border-amber-500/30 bg-amber-500/5 p-8 text-center">
             <Clock size={28} className="text-amber-500 mx-auto mb-3" />
@@ -178,12 +178,12 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
             </button>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-lg mx-auto p-6 mt-12">
         <div className="border border-outline-variant bg-surface-container-lowest overflow-hidden">
           {/* Header */}
@@ -248,6 +248,6 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

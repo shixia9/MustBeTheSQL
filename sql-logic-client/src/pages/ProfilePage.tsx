@@ -124,7 +124,7 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
   };
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-5xl mx-auto px-8 py-10">
         
         {/* Header */}
@@ -314,6 +314,6 @@ export default function ProfilePage({ user, onUserUpdate }: ProfilePageProps) {
           onCancel={() => setConfirmStep(0)}
         />
       )}
-    </main>
+    </div>
   );
 }

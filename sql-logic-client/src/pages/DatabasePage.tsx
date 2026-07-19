@@ -6,6 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 interface DatabasePageProps { user?: any; }
 
 export default function DatabasePage({ user }: DatabasePageProps) {
+  const uid = user?.id || 1;
   const [conns, setConns] = useState<any[]>([]);
   const [sid, setSid] = useState<number | 'new' | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
@@ -15,18 +16,18 @@ export default function DatabasePage({ user }: DatabasePageProps) {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => { if (user.id) load(); }, [user]);
+  useEffect(() => { if (uid) load(); }, [uid]);
 
-  const load = async () => { setLoading(true); try { const d = await api.get('/database/list?userId=' + user.id); if (d.code === 200) { setConns(d.data); if (d.data.length > 0 && sid === null) setSid(d.data[0].id); } } catch {} finally { setLoading(false); } };
+  const load = async () => { setLoading(true); try { const d = await api.get('/database/list?userId=' + uid); if (d.code === 200) { setConns(d.data); if (d.data.length > 0 && sid === null) setSid(d.data[0].id); } } catch {} finally { setLoading(false); } };
 
   useEffect(() => { if (sid === 'new') { setF({ name: '', dbType: 'mysql', host: '', port: 3306, username: '', password: '' }); } else if (sid) { const c = conns.find(x => x.id === sid); if (c) setF({ name: c.name || '', dbType: c.dbType || 'mysql', host: c.host || '', port: c.port || 3306, username: c.username || '', password: '' }); } }, [sid, conns]);
 
   const toast_ = (m: string, t: 'ok' | 'err' = 'ok') => { setToast({ msg: m, type: t }); setTimeout(() => setToast(null), 3000); };
-  const testConn = async () => { setTesting(true); try { const p: any = { ...f, userId: user.id }; if (sid !== 'new') p.id = sid; const d = await api.post('/database/test', p); toast_(d.code === 200 && d.data === true ? 'OK' : (d.message || 'Failed'), d.code === 200 && d.data === true ? 'ok' : 'err'); } catch { toast_('Error', 'err'); } finally { setTesting(false); } };
-  const saveConn = async () => { setSaving(true); try { const p: any = { ...f, userId: user.id }; const upd = sid !== 'new'; if (upd) p.id = sid; const d = upd ? await api.put('/database/update?userId=' + user.id, p) : await api.post('/database/add', p); if (d.code === 200) { toast_(upd ? 'Updated' : 'Created', 'ok'); await load(); if (!upd) setSid(d.data.id); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } finally { setSaving(false); } };
-  const delConn = async () => { if (sid === 'new') return; setConfirmDelete(false); try { const d = await api.delete('/database/delete/' + sid + '?userId=' + user.id); if (d.code === 200) { toast_('Deleted', 'ok'); setSid(null); load(); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } };
+  const testConn = async () => { setTesting(true); try { const p: any = { ...f, userId: uid }; if (sid !== 'new') p.id = sid; const d = await api.post('/database/test', p); toast_(d.code === 200 && d.data === true ? 'OK' : (d.message || 'Failed'), d.code === 200 && d.data === true ? 'ok' : 'err'); } catch { toast_('Error', 'err'); } finally { setTesting(false); } };
+  const saveConn = async () => { setSaving(true); try { const p: any = { ...f, userId: uid }; const upd = sid !== 'new'; if (upd) p.id = sid; const d = upd ? await api.put('/database/update?userId=' + uid, p) : await api.post('/database/add', p); if (d.code === 200) { toast_(upd ? 'Updated' : 'Created', 'ok'); await load(); if (!upd) setSid(d.data.id); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } finally { setSaving(false); } };
+  const delConn = async () => { if (sid === 'new') return; setConfirmDelete(false); try { const d = await api.delete('/database/delete/' + sid + '?userId=' + uid); if (d.code === 200) { toast_('Deleted', 'ok'); setSid(null); load(); } else toast_(d.message || 'Failed', 'err'); } catch { toast_('Error', 'err'); } };
   const isTest = sid !== 'new' && conns.find(c => c.id === sid)?.isTest === 1;  return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-7xl mx-auto p-6">
         <header className="mb-6">
           <h1 className="text-sm font-mono font-semibold text-on-surface">Database Connections</h1>
@@ -157,6 +158,6 @@ export default function DatabasePage({ user }: DatabasePageProps) {
         />
       )}
       </div>
-    </main>
+    </div>
   );
 }

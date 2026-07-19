@@ -204,7 +204,7 @@ export default function WorkspaceManagePage({ user }: Props) {
   const totalMembers = workspaces.reduce((sum, w) => sum + (w.memberCount || 0), 0);
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -740,6 +740,6 @@ export default function WorkspaceManagePage({ user }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+    </div>
   );
 }
