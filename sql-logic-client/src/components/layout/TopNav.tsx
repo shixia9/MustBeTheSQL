@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { useLayout } from '../../contexts/LayoutContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLlmConfig } from '../../contexts/LlmConfigContext';
 import { getIcon } from '../../assets/icons';
 import StatusIndicator from '../ui/StatusIndicator';
@@ -11,16 +12,10 @@ import ModelSelector from '../ui/ModelSelector';
 export default function TopNav() {
   const { t } = useI18n();
   const { toggleSidebar, sidebarCollapsed } = useLayout();
-  const { selectedConfigId } = useLlmConfig();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    const { api } = await import('../../api/client');
-    await api.post('/user/logout', {});
-    const storageUtils = (await import('../../utils/storageUtils')).default;
-    storageUtils.deleteUser();
-    navigate('/login');
-  };
+  const goProfile = () => navigate('/profile');
 
   const CollapseIcon = getIcon(sidebarCollapsed ? 'expand' : 'collapse');
 
@@ -46,7 +41,11 @@ export default function TopNav() {
         {React.createElement(getIcon('languages'), { size: 14 })}
       </button>
 
-      <button className="btn-ghost p-1.5 text-error hover:text-error/80" onClick={handleLogout} title="Logout">
+      <button className="btn-ghost p-1.5" onClick={goProfile} title="Profile">
+        {React.createElement(getIcon('user'), { size: 14 })}
+      </button>
+
+      <button className="btn-ghost p-1.5 text-error hover:text-error/80" onClick={logout} title="Logout">
         {React.createElement(getIcon('logout'), { size: 14 })}
       </button>
     </header>

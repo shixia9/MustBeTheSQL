@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLayout } from '../../contexts/LayoutContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n';
 import { getIcon } from '../../assets/icons';
 import { conversationApi } from '../../api/client';
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const { sidebarCollapsed } = useLayout();
   const { t } = useI18n();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [recentTasks, setRecentTasks] = useState<any[]>([]);
@@ -121,8 +123,8 @@ export default function Sidebar() {
               {React.createElement(getIcon('user'), { size: 14, className: 'text-primary' })}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] text-on-surface truncate">analyst@db</div>
-              <div className="text-[9px] text-on-surface-variant/60">workspace: default</div>
+              <div className="text-[11px] text-on-surface truncate">{user?.username || 'user'}@db</div>
+              <div className="text-[9px] text-on-surface-variant/60">{user?.email || ''}</div>
             </div>
           </div>
         )}

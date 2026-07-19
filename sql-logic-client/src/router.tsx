@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ChatPage from './pages/ChatPage';
 import KnowledgePage from './pages/KnowledgePage';
 import KnowledgeDetailPage from './pages/KnowledgeDetailPage';
@@ -16,14 +17,12 @@ import McpServerPage from './pages/McpServerPage';
 import HistoryPage from './pages/HistoryPage';
 import SchemaBrowserPage from './pages/SchemaBrowserPage';
 import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage';
+import ProfilePageInner from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
 
-const dummyUser = { id: 1, username: 'analyst', email: 'analyst@db.local', tokenQuota: 10000 };
-
 function LoginWrapper() {
-  return <LoginPage onLogin={() => window.location.href = '/'} />;
+  return <LoginPage onLogin={() => { window.location.href = '/'; }} />;
 }
 
 function InviteWrapper() {
@@ -31,9 +30,18 @@ function InviteWrapper() {
   return <JoinWorkspacePage token={token} user={null} onPageChange={() => {}} />;
 }
 
+function AppShell() {
+  return (
+    <AuthProvider>
+      <AppLayout />
+    </AuthProvider>
+  );
+}
+
 function ProfileWrapper() {
-  const [user, setUser] = useState<any>(dummyUser);
-  return <ProfilePage user={user} onUserUpdate={(u: any) => setUser(u)} />;
+  const { user, updateUser } = useAuth();
+  if (!user) return null;
+  return <ProfilePageInner user={user} onUserUpdate={updateUser} />;
 }
 
 export const router = createBrowserRouter([
@@ -41,7 +49,7 @@ export const router = createBrowserRouter([
   { path: '/invite/:token', element: <InviteWrapper /> },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <AppShell />,
     children: [
       { index: true, element: <ChatPage /> },
       { path: 'chat/:conversationId', element: <ChatPage /> },
@@ -53,15 +61,15 @@ export const router = createBrowserRouter([
       { path: 'scheduled-tasks', element: <ScheduledTaskPage /> },
       { path: 'models', element: <ModelPage /> },
       { path: 'datasources', element: <DatasourcePage /> },
-      { path: 'agent-studio', element: <AgentStudioPage user={dummyUser} /> },
-      { path: 'agent-studio/:agentId', element: <AgentStudioPage user={dummyUser} /> },
+      { path: 'agent-studio', element: <AgentStudioPage user={null} /> },
+      { path: 'agent-studio/:agentId', element: <AgentStudioPage user={null} /> },
       { path: 'memory', element: <MemoryPage /> },
       { path: 'mcp-servers', element: <McpServerPage /> },
-      { path: 'history', element: <HistoryPage user={dummyUser} /> },
-      { path: 'schema', element: <SchemaBrowserPage user={dummyUser} /> },
-      { path: 'workspace', element: <SchemaBrowserPage user={dummyUser} /> },
-      { path: 'workspace/:workspaceId', element: <SchemaBrowserPage user={dummyUser} /> },
-      { path: 'settings', element: <SettingsPage user={dummyUser} /> },
+      { path: 'history', element: <HistoryPage user={null} /> },
+      { path: 'schema', element: <SchemaBrowserPage user={null} /> },
+      { path: 'workspace', element: <SchemaBrowserPage user={null} /> },
+      { path: 'workspace/:workspaceId', element: <SchemaBrowserPage user={null} /> },
+      { path: 'settings', element: <SettingsPage user={null} /> },
       { path: 'profile', element: <ProfileWrapper /> },
     ],
   },
