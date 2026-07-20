@@ -34,6 +34,7 @@ const MSG_COLORS: Record<string, string> = {
 function extractSummary(step: StepData): string | null {
   const o = step.output;
   if (!o) return null;
+  if (o.errorMsg) return `Error: ${String(o.errorMsg).slice(0, 300)}`;
   if (o.report) return `Report: ${String(o.report).slice(0, 200)}`;
   if (o.sql) return `SQL: ${String(o.sql).slice(0, 300)}`;
   if (o.plan) return `Plan: ${String(o.plan).slice(0, 200)}`;
@@ -41,6 +42,8 @@ function extractSummary(step: StepData): string | null {
   if (o.toolName) return `Tool: ${o.toolName} → ${String(o.toolResult || '').slice(0, 150)}`;
   if (o.nextNode) return `Routing → ${o.nextNode}`;
   if (o.sqlExecutionResult) return `Result: ${JSON.stringify(o.sqlExecutionResult).slice(0, 200)}`;
+  if (o.content) return String(o.content).slice(0, 300);
+  if (o.agentSuccess === false) return 'Agent execution failed — check backend logs for details';
   return null;
 }
 
