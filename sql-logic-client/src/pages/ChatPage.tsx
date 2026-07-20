@@ -42,7 +42,7 @@ export default function ChatPage() {
     abortRef.current = controller;
 
     try {
-      const response = await fetch('/api/v1/agent/sql/stream', {
+      const response = await fetch('/api/v1/agentic/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,7 +130,7 @@ export default function ChatPage() {
 
   const handleHITLConfirm = (approved: boolean, feedback?: string) => {
     if (!hitlPending) return;
-    fetch('/api/v1/agent/sql/continue', {
+    fetch('/api/v1/agentic/continue', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ threadId: hitlPending.threadId, approved, feedback }),
@@ -208,7 +208,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Auto-confirm toggle */}
             <button
-              onClick={() => onAutoConfirmChange(!autoConfirm)}
+              onClick={() => setAutoConfirm(!autoConfirm)}
               className="select-none transition-colors"
               style={{
                 fontSize: '10.5px',
