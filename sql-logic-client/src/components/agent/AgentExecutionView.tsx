@@ -67,7 +67,7 @@ export default function AgentExecutionView({
       </div>
 
       {/* Right: Output Panel */}
-      <div className="overflow-auto flex-shrink-0" style={{ width: rightPanelWidth }}>
+      <div className="overflow-hidden flex-shrink-0 h-full" style={{ width: rightPanelWidth }}>
         <OutputPanel output={latestOutput} steps={allSteps} turns={turns} />
       </div>
 

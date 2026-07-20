@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getIcon } from '../../assets/icons';
 
 interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
@@ -88,8 +90,37 @@ export default function OutputPanel({ output, steps, turns }: {
             )}
             {reportSteps.length > 0 ? (
               reportSteps.map((s, i) => (
-                <div key={i} className="whitespace-pre-wrap" style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--color-ink)' }}>
-                  {s.output?.report || s.content || 'Report content pending...'}
+                <div key={i} className="text-xs leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ children }) => <h1 className="text-sm font-bold mt-3 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-xs font-bold mt-2 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-0.5" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
+                      p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
+                      ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
+                      ol: ({ children }) => <ol className="text-xs list-decimal ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ol>,
+                      li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
+                      code: ({ className, children, ...props }: any) => {
+                        const isBlock = Boolean(className) || (typeof children === 'string' && children.includes('\n'));
+                        return isBlock ? (
+                          <pre className="text-[10px] p-2 rounded overflow-x-auto max-h-32 font-mono whitespace-pre-wrap my-1" style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-secondary)', borderLeft: '2px solid var(--color-primary)' }}>
+                            <code className={className} {...props}>{children}</code>
+                          </pre>
+                        ) : (
+                          <code className="text-[10px] px-1 py-0.5 rounded font-mono" style={{ background: 'var(--color-primary-soft, rgba(56,189,248,0.1))', color: 'var(--color-primary)' }} {...props}>{children}</code>
+                        );
+                      },
+                      blockquote: ({ children }) => <blockquote className="border-l-2 border-primary/30 pl-3 my-1 text-xs italic" style={{ color: 'var(--color-ink-tertiary)' }}>{children}</blockquote>,
+                      table: ({ children }) => <table className="text-[10px] w-full border-collapse my-1 rounded" style={{ border: '1px solid var(--color-border-subtle)' }}>{children}</table>,
+                      th: ({ children }) => <th className="px-2 py-1 text-left font-semibold border-b" style={{ color: 'var(--color-ink)', background: 'var(--color-app-bg)', borderColor: 'var(--color-border-subtle)' }}>{children}</th>,
+                      td: ({ children }) => <td className="px-2 py-1 border-b" style={{ color: 'var(--color-ink-secondary)', borderColor: 'var(--color-border-subtle)' }}>{children}</td>,
+                      hr: () => <hr className="my-2" style={{ borderColor: 'var(--color-border-subtle)' }} />,
+                    }}
+                  >
+                    {s.output?.report || s.content || 'Report content pending...'}
+                  </ReactMarkdown>
                 </div>
               ))
             ) : (

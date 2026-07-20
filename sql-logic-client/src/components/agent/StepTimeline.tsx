@@ -18,9 +18,13 @@ const NODE_LABELS: Record<string, string> = {
   MANAGER: 'Orchestrator',
   PLANNER: 'Planner',
   DATA_SCIENTIST: 'Data Scientist',
+  DATASCIENTIST: 'Data Scientist',
   CODE_ASSISTANT: 'Code Assistant',
+  CODEASSISTANT: 'Code Assistant',
   DASHBOARD: 'Dashboard',
+  DASHBOARDASSISTANT: 'Dashboard',
   TOOL_ASSISTANT: 'Tool Assistant',
+  TOOLASSISTANT: 'Tool Assistant',
 };
 
 const MSG_COLORS: Record<string, string> = {
