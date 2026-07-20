@@ -14,18 +14,18 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: '/', label: 'chat', icon: 'chat', shortcut: '⌘K' },
-  { path: '/knowledge', label: 'knowledge', icon: 'knowledge' },
-  { path: '/skills', label: 'skills', icon: 'skills' },
-  { path: '/datasources', label: 'datasources', icon: 'datasources' },
-  { path: '/prompts', label: 'prompts', icon: 'prompts' },
-  { path: '/connectors', label: 'connectors', icon: 'connectors' },
-  { path: '/scheduled-tasks', label: 'scheduledTasks', icon: 'scheduledTasks' },
-  { path: '/models', label: 'models', icon: 'models' },
-  { path: '/agent-studio', label: 'agentStudio', icon: 'agentStudio' },
-  { path: '/memory', label: 'memory', icon: 'memory' },
-  { path: '/history', label: 'history', icon: 'history' },
-  { path: '/settings', label: 'settings', icon: 'settings' },
+  { path: '/', label: 'nav.chat', icon: 'chat', shortcut: '⌘K' },
+  { path: '/knowledge', label: 'nav.knowledge', icon: 'knowledge' },
+  { path: '/skills', label: 'nav.skills', icon: 'skills' },
+  { path: '/datasources', label: 'nav.datasources', icon: 'datasources' },
+  { path: '/prompts', label: 'nav.prompts', icon: 'prompts' },
+  { path: '/connectors', label: 'nav.connectors', icon: 'connectors' },
+  { path: '/scheduled-tasks', label: 'nav.scheduledTasks', icon: 'scheduledTasks' },
+  { path: '/models', label: 'nav.models', icon: 'models' },
+  { path: '/agent-studio', label: 'nav.agentStudio', icon: 'agentStudio' },
+  { path: '/memory', label: 'nav.memory', icon: 'memory' },
+  { path: '/history', label: 'nav.history', icon: 'history' },
+  { path: '/settings', label: 'nav.settings', icon: 'settings' },
 ];
 
 export default function Sidebar() {
@@ -77,7 +77,7 @@ export default function Sidebar() {
               textTransform: 'uppercase',
             }}
           >
-            Navigation
+            {t('nav.navigation')}
           </div>
         )}
 
@@ -135,7 +135,7 @@ export default function Sidebar() {
                 textTransform: 'uppercase',
               }}
             >
-              Recent
+              {t('nav.recent')}
             </div>
             <div className="px-2 overflow-y-auto max-h-[200px]">
               {recentTasks.length > 0 ? recentTasks.slice(0, 7).map((conv: any) => (
@@ -166,7 +166,7 @@ export default function Sidebar() {
                   className="px-4 py-3 select-none"
                   style={{ fontSize: '11px', color: 'var(--shell-text-dim)', fontWeight: 400 }}
                 >
-                  No recent tasks
+                  {t('nav.noRecentTasks')}
                 </div>
               )}
             </div>

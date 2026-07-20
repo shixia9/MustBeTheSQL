@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useI18n } from '../../i18n';
 import { getIcon } from '../../assets/icons';
 
 interface Suggestion {
@@ -49,14 +48,13 @@ export default function WelcomePanel({ onSuggestionClick }: {
   onSuggestionClick: (prompt: string) => void;
 }) {
   const { user } = useAuth();
-  const { t } = useI18n();
   const greeting = useMemo(getGreeting, []);
 
   const displayName = user?.username || user?.nickname || 'analyst';
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center min-h-full px-6 py-12"
+      className="flex flex-col items-center justify-center h-full px-6 py-12"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.33, 1, 0.68, 1] }}
@@ -88,7 +86,7 @@ export default function WelcomePanel({ onSuggestionClick }: {
         </p>
       </div>
 
-      {/* Suggestion cards */}
+      {/* Suggestion cards — 2x2 grid */}
       <div
         className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full"
         style={{ maxWidth: '600px' }}

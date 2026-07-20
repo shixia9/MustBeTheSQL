@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { getIcon } from '../../assets/icons';
 
-interface StepData { nodeName: string; status: string; content?: string; output?: any }
+interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
 interface TurnData { question: string; steps: StepData[] }
 
 const outputTabs = [
-  { key: 'chart', label: 'Chart', icon: 'chart' },
-  { key: 'table', label: 'Table', icon: 'table' },
   { key: 'report', label: 'Report', icon: 'report' },
-  { key: 'code', label: 'Code', icon: 'code' },
+  { key: 'code', label: 'SQL / Code', icon: 'code' },
+  { key: 'table', label: 'Data', icon: 'table' },
+  { key: 'chart', label: 'Chart', icon: 'chart' },
 ];
 
 export default function OutputPanel({ output, steps, turns }: {
@@ -18,24 +18,40 @@ export default function OutputPanel({ output, steps, turns }: {
 }) {
   const [activeTab, setActiveTab] = useState('report');
 
-  const latestCompleted = [...steps].reverse().find(s => s.status === 'completed');
-  const reportSteps = steps.filter(s => s.nodeName === 'REPORT' || s.nodeName === 'DASHBOARD');
-  const sqlSteps = steps.filter(s =>
-    s.nodeName === 'SQL_GENERATION' || s.nodeName === 'SQL_EXECUTION' || s.nodeName === 'DATA_SCIENTIST'
+  const reportSteps = steps.filter(s =>
+    s.nodeName === 'REPORT' || s.nodeName === 'DASHBOARD'
   );
+  const sqlSteps = steps.filter(s =>
+    s.nodeName === 'SQL_GENERATION' || s.nodeName === 'SQL_EXECUTION'
+    || s.nodeName === 'SQL_FIXER' || s.nodeName === 'DATA_SCIENTIST'
+  );
+  const codeSteps = steps.filter(s =>
+    s.nodeName === 'PYTHON_GENERATION' || s.nodeName === 'PYTHON_EXECUTION'
+    || s.nodeName === 'CODE_ASSISTANT'
+  );
+  const planSteps = steps.filter(s => s.nodeName === 'PLANNER' || s.nodeName === 'MANAGER');
+
+  const allCode = [...sqlSteps, ...codeSteps];
 
   return (
-    <div className="flex flex-col h-full border-l border-outline-variant bg-surface">
+    <div className="flex flex-col h-full" style={{
+      borderLeft: '1px solid var(--color-border-subtle)',
+      background: 'var(--color-content-bg)',
+    }}>
       {/* Tab bar */}
-      <div className="flex border-b border-outline-variant bg-surface-container-low px-2">
+      <div className="flex px-1.5 pt-1.5 pb-0 gap-0.5" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
         {outputTabs.map(tab => {
           const Icon = getIcon(tab.icon);
           return (
             <button
               key={tab.key}
-              className={`tab-item flex items-center gap-1`}
               onClick={() => setActiveTab(tab.key)}
-              style={activeTab === tab.key ? { borderBottomColor: '#38bdf8', color: '#38bdf8' } : {}}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors duration-100"
+              style={{
+                color: activeTab === tab.key ? 'var(--color-ink)' : 'var(--color-ink-tertiary)',
+                borderBottom: activeTab === tab.key ? '2px solid var(--color-primary)' : '2px solid transparent',
+                marginBottom: '-1px',
+              }}
             >
               <Icon size={12} />
               {tab.label}
@@ -46,50 +62,117 @@ export default function OutputPanel({ output, steps, turns }: {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
+        {/* Report tab */}
         {activeTab === 'report' && (
-          <div className="font-sans text-sm text-on-surface leading-relaxed">
+          <div className="space-y-4">
+            {planSteps.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-ink-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ color: '#64748b' }}>Plan</span>
+                </div>
+                {planSteps.map((s, i) => (
+                  <div key={i} className="mb-1">
+                    {s.output?.plan && (
+                      <pre className="p-2 rounded text-xs overflow-auto" style={{
+                        background: 'var(--color-app-bg)',
+                        color: 'var(--color-ink-secondary)',
+                        fontFamily: '"JetBrains Mono", monospace',
+                        maxHeight: '200px',
+                      }}>
+                        {s.output.plan}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             {reportSteps.length > 0 ? (
               reportSteps.map((s, i) => (
-                <div key={i} className="mb-4 whitespace-pre-wrap">{s.content || 'Report content pending...'}</div>
+                <div key={i} className="whitespace-pre-wrap" style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--color-ink)' }}>
+                  {s.output?.report || s.content || 'Report content pending...'}
+                </div>
               ))
-            ) : latestCompleted ? (
-              <div className="whitespace-pre-wrap">{latestCompleted.content || 'Processing...'}</div>
             ) : (
-              <div className="text-on-surface-variant/40 font-mono text-xs flex items-center justify-center h-32">
-                &gt; awaiting agent execution...
+              <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
+                Awaiting agent execution...
               </div>
             )}
           </div>
         )}
 
+        {/* Code tab */}
         {activeTab === 'code' && (
-          <div className="font-mono text-xs">
-            {sqlSteps.length > 0 ? (
-              sqlSteps.map((s, i) => (
-                <div key={i} className="mb-3">
-                  <div className="text-[10px] text-on-surface-variant mb-1">{s.nodeName}</div>
-                  <pre className="p-3 bg-[#090d13] rounded overflow-auto text-[#a3e635] text-[11px]">
-                    {s.content || '-- no SQL generated'}
+          <div className="space-y-3">
+            {allCode.length > 0 ? (
+              allCode.map((s, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-ink-tertiary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {s.nodeName.replace('_', ' ')}
+                  </div>
+                  {s.output?.sql && (
+                    <pre className="p-3 rounded-lg text-xs overflow-auto" style={{
+                      background: '#0d1117',
+                      color: '#a3e635',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      lineHeight: 1.6,
+                      maxHeight: '300px',
+                    }}>
+                      {s.output.sql}
+                    </pre>
+                  )}
+                  {s.output?.pythonCode && (
+                    <pre className="p-3 rounded-lg text-xs overflow-auto" style={{
+                      background: '#0d1117',
+                      color: '#38bdf8',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      lineHeight: 1.6,
+                      maxHeight: '300px',
+                    }}>
+                      {s.output.pythonCode}
+                    </pre>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
+                No code output yet
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Data / Table tab */}
+        {activeTab === 'table' && (
+          <div className="space-y-3">
+            {sqlSteps.filter(s => s.output?.sqlExecutionResult).length > 0 ? (
+              sqlSteps.filter(s => s.output?.sqlExecutionResult).map((s, i) => (
+                <div key={i}>
+                  <div style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-ink-tertiary)', marginBottom: '4px' }}>
+                    Query Result
+                  </div>
+                  <pre className="p-3 rounded-lg text-xs overflow-auto" style={{
+                    background: 'var(--color-app-bg)',
+                    color: 'var(--color-ink)',
+                    fontFamily: '"JetBrains Mono", monospace',
+                    lineHeight: 1.6,
+                    maxHeight: '300px',
+                  }}>
+                    {JSON.stringify(s.output.sqlExecutionResult, null, 2)}
                   </pre>
                 </div>
               ))
             ) : (
-              <div className="text-on-surface-variant/40 flex items-center justify-center h-32">
-                &gt; no code output yet
+              <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
+                Execution results will appear here
               </div>
             )}
           </div>
         )}
 
-        {activeTab === 'table' && (
-          <div className="text-on-surface-variant/40 font-mono text-xs flex items-center justify-center h-32">
-            &gt; table view — pending
-          </div>
-        )}
-
+        {/* Chart tab */}
         {activeTab === 'chart' && (
-          <div className="text-on-surface-variant/40 font-mono text-xs flex items-center justify-center h-32">
-            &gt; chart view — pending
+          <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
+            Chart view — pending visualization integration
           </div>
         )}
       </div>
