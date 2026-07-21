@@ -198,7 +198,7 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-full relative" style={{ background: 'var(--color-app-bg)' }}>
       {/* Content area */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {hasContent ? (
           <AgentExecutionView
             turns={[...turns, ...(currentTurn ? [currentTurn] : [])]}
