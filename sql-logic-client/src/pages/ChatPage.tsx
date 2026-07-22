@@ -38,6 +38,8 @@ export default function ChatPage() {
   const [databases, setDatabases] = useState<{ id: number; name: string; dbType: string }[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
+  // Guard against duplicate turn finalization in dev StrictMode
+  const turnFinalizedRef = useRef(false);
 
   // Load database connections on mount
   useEffect(() => {
@@ -52,10 +54,19 @@ export default function ChatPage() {
         }
       }
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Abort stream on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const handleStream = useCallback(async (userInput: string) => {
     setIsStreaming(true);
+    turnFinalizedRef.current = false;
     const turn: TurnData = { question: userInput, steps: [] };
     setCurrentTurn(turn);
     const controller = new AbortController();
@@ -133,6 +144,15 @@ export default function ChatPage() {
                     ? { ...s, status: 'completed' as const, content: JSON.stringify(stepData), output: stepData }
                     : s
                 );
+              } else if (parsed.outputType === 'AWAITING_CLARIFICATION') {
+                // ManagerAgent requests user clarification
+                const nodeName = parsed.nodeName || 'MANAGER';
+                const reason = parsed.data?.reason || '';
+                updated.steps = updated.steps.map(s =>
+                  s.nodeName === nodeName
+                    ? { ...s, status: 'running' as const, content: `Clarification needed: ${reason}` }
+                    : s
+                );
               } else if (parsed.type === 'ERROR') {
                 const nodeName = parsed.nodeName;
                 if (nodeName) {
@@ -168,10 +188,16 @@ export default function ChatPage() {
       }
     } finally {
       setIsStreaming(false);
-      setCurrentTurn(prev => {
-        if (prev) setTurns(prevTurns => [...prevTurns, prev]);
-        return null;
-      });
+      // Move currentTurn → turns atomically, guarded against double-fire
+      if (!turnFinalizedRef.current) {
+        turnFinalizedRef.current = true;
+        setCurrentTurn(prev => {
+          if (prev) {
+            setTurns(prevTurns => [...prevTurns, prev]);
+          }
+          return null;
+        });
+      }
     }
   }, [activeConnectionId, selectedConfig, autoConfirm]);
 
