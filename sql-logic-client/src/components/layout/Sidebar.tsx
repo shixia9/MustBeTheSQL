@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { path: '/scheduled-tasks', label: 'nav.scheduledTasks', icon: 'scheduledTasks' },
   { path: '/models', label: 'nav.models', icon: 'models' },
   { path: '/agent-studio', label: 'nav.agentStudio', icon: 'agentStudio' },
+  { path: '/flow-editor', label: 'nav.flowEditor', icon: 'gitBranch' },
   { path: '/memory', label: 'nav.memory', icon: 'memory' },
   { path: '/history', label: 'nav.history', icon: 'history' },
   { path: '/settings', label: 'nav.settings', icon: 'settings' },

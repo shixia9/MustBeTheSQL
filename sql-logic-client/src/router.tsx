@@ -20,6 +20,8 @@ import SettingsPage from './pages/SettingsPage';
 import ProfilePageInner from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
+import FlowEditor from './pages/FlowEditor';
+import SkillEditor from './pages/SkillEditor';
 
 function LoginWrapper() {
   return <LoginPage onLogin={() => { window.location.href = '/'; }} />;
@@ -56,6 +58,9 @@ export const router = createBrowserRouter([
       { path: 'knowledge', element: <KnowledgePage /> },
       { path: 'knowledge/:spaceId', element: <KnowledgeDetailPage /> },
       { path: 'skills', element: <SkillsPage /> },
+      { path: 'skill-editor', element: <SkillEditor /> },
+      { path: 'skill-editor/:name', element: <SkillEditor /> },
+      { path: 'flow-editor', element: <FlowEditor /> },
       { path: 'prompts', element: <PromptPage /> },
       { path: 'connectors', element: <ConnectorPage /> },
       { path: 'scheduled-tasks', element: <ScheduledTaskPage /> },

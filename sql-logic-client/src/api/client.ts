@@ -193,3 +193,30 @@ export const conversationApi = {
   getDetails: (conversationId: number) => api.get<any[]>(`/conversations/${conversationId}/details`),
   delete: (id: number) => api.delete<void>(`/conversations/${id}`),
 };
+
+/** Workflow CRUD + execution. */
+export const workflowApi = {
+  listNodes: () => api.get<any[]>('/workflows/nodes'),
+  list: () => api.get<any[]>('/workflows'),
+  get: (id: string) => api.get<any>(`/workflows/${id}`),
+  create: (body: any) => api.post<{id:string;name:string}>('/workflows', body),
+  update: (id: string, body: any) => api.put<{id:string;name:string}>(`/workflows/${id}`, body),
+  delete: (id: string) => api.delete<void>(`/workflows/${id}`),
+  execute: (id: string) => apiFetch<any>(`/workflows/${id}/execute`, { method: 'POST' }),
+};
+
+/** Skill CRUD + Hub. */
+export const skillApi = {
+  list: () => api.get<any[]>('/skills'),
+  get: (name: string) => api.get<any>(`/skills/${name}`),
+  create: (body: any) => api.post<any>('/skills', body),
+  update: (name: string, body: any) => api.put<any>(`/skills/${name}`, body),
+  delete: (name: string) => api.delete<void>(`/skills/${name}`),
+  hubBrowse: (category?: string, tag?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (tag) params.set('tag', tag);
+    return api.get<any[]>(`/hub/skills?${params.toString()}`);
+  },
+  hubInstall: (name: string) => api.post<any>(`/hub/skills/${name}/install`),
+};
