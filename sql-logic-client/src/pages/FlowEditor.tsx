@@ -30,6 +30,8 @@ function FlowEditorInner() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [runPrompt, setRunPrompt] = useState('');
+  const [showRunModal, setShowRunModal] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -126,9 +128,17 @@ function FlowEditorInner() {
 
   const handleExecute = async () => {
     if (!workflowId) { await handleSave(); return; }
-    setExecuting(true);
-    try { await workflowApi.execute(workflowId); }
-    finally { setExecuting(false); }
+    if (!runPrompt.trim()) { setShowRunModal(true); return; }
+    setExecuting(true); setShowRunModal(false);
+    try {
+      await workflowApi.execute(workflowId, { userInput: runPrompt.trim() });
+      setRunPrompt('');
+    } finally { setExecuting(false); }
+  };
+
+  const handleRunClick = () => {
+    if (!workflowId) { handleSave().then(() => setShowRunModal(true)); return; }
+    setShowRunModal(true);
   };
 
   const addStartEnd = () => {

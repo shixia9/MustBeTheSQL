@@ -202,7 +202,7 @@ export const workflowApi = {
   create: (body: any) => api.post<{id:string;name:string}>('/workflows', body),
   update: (id: string, body: any) => api.put<{id:string;name:string}>(`/workflows/${id}`, body),
   delete: (id: string) => api.delete<void>(`/workflows/${id}`),
-  execute: (id: string) => apiFetch<any>(`/workflows/${id}/execute`, { method: 'POST' }),
+  execute: (id: string, body?: any) => apiFetch<any>(`/workflows/${id}/execute`, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
 };
 
 /** Skill CRUD + Hub. */
