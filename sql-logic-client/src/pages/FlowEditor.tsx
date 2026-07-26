@@ -5,7 +5,7 @@ import {
   type Node, type Edge, MarkerType, BackgroundVariant
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Plus, Save, Play, FolderOpen, Download, Trash2, Loader, X } from 'lucide-react';
+import { Plus, Save, Play, FolderOpen, Download, Trash2, Loader } from 'lucide-react';
 import { workflowApi } from '../api/client';
 import type {
   FlowDocumentJSON, NodeTypeMeta, FlowNodeJSON,
@@ -17,6 +17,7 @@ import ResourceNode from '../components/workflow/nodes/ResourceNode';
 import StartNode from '../components/workflow/nodes/StartNode';
 import EndNode from '../components/workflow/nodes/EndNode';
 import NodeConfigPanel from '../components/workflow/NodeConfigPanel';
+import ExecutionTimelineModal from '../components/workflow/ExecutionTimelineModal';
 
 // Custom node type registry — maps FlowNode.type to React Flow component
 const customNodeTypes = {
@@ -74,8 +75,8 @@ function FlowEditorInner() {
   const [showRunModal, setShowRunModal] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [nodeStatuses, setNodeStatuses] = useState<NodeStatusMap>({});
-  const [executionOutput, setExecutionOutput] = useState<string[]>([]);
-  const [showOutputPanel, setShowOutputPanel] = useState(false);
+  const [executionEvents, setExecutionEvents] = useState<NodeExecutionEvent[]>([]);
+  const [showTimeline, setShowTimeline] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Load node types and saved workflows
@@ -201,15 +202,17 @@ function FlowEditorInner() {
   const handleExecute = async () => {
     if (!workflowId) {
       await handleSave();
-      // Re-check after save
       return;
     }
     if (!runPrompt.trim()) { setShowRunModal(true); return; }
     setExecuting(true);
     setShowRunModal(false);
-    setExecutionOutput([]);
-    setShowOutputPanel(true);
+    setExecutionEvents([]);
+    setShowTimeline(true);
     setNodeStatuses({});
+
+    // Collect events locally to avoid stale closure issues
+    const collected: NodeExecutionEvent[] = [];
 
     try {
       const stream = await workflowApi.executeStream(workflowId, {
@@ -230,21 +233,27 @@ function FlowEditorInner() {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const event: NodeExecutionEvent = JSON.parse(line.slice(6));
-              handleExecutionEvent(event);
-            } catch {
-              // Non-JSON line, append to output
-              setExecutionOutput(prev => [...prev, line]);
-            }
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          // Strip ALL "data:" prefixes (Spring WebFlux adds one, backend may also add)
+          let jsonStr = trimmed;
+          while (jsonStr.startsWith('data:')) jsonStr = jsonStr.slice(5).trim();
+          if (!jsonStr.startsWith('{')) continue;
+          try {
+            const event: NodeExecutionEvent = JSON.parse(jsonStr);
+            collected.push(event);
+            setExecutionEvents([...collected]);
+            handleExecutionEvent(event);
+          } catch {
+            // Ignore non-JSON lines
           }
         }
       }
       setRunPrompt('');
     } catch (e: any) {
       console.error('Execution failed', e);
-      setExecutionOutput(prev => [...prev, `ERROR: ${e.message}`]);
+      collected.push({ type: 'ERROR', message: e.message });
+      setExecutionEvents([...collected]);
     } finally {
       setExecuting(false);
     }
@@ -255,7 +264,6 @@ function FlowEditorInner() {
       case 'NODE_STARTED':
         if (event.nodeId) {
           setNodeStatuses(prev => ({ ...prev, [event.nodeId]: 'running' }));
-          // Also update the node data
           setNodes(nds => nds.map(n =>
             n.id === event.nodeId
               ? { ...n, data: { ...n.data, execStatus: 'running' as NodeExecStatus } }
@@ -271,9 +279,6 @@ function FlowEditorInner() {
               ? { ...n, data: { ...n.data, execStatus: 'success' as NodeExecStatus } }
               : n
           ));
-          setExecutionOutput(prev => [...prev,
-            `[${event.label || event.agentName || event.nodeId}] ${truncateOutput(event.output || '')}`,
-          ]);
         }
         break;
       case 'NODE_FAILED':
@@ -284,14 +289,10 @@ function FlowEditorInner() {
               ? { ...n, data: { ...n.data, execStatus: 'fail' as NodeExecStatus } }
               : n
           ));
-          setExecutionOutput(prev => [...prev, `[FAILED] ${event.label || event.nodeId}: ${event.error || ''}`]);
         }
         break;
       case 'WORKFLOW_COMPLETED':
-        setExecutionOutput(prev => [...prev, '--- WORKFLOW COMPLETED ---']);
-        break;
       case 'ERROR':
-        setExecutionOutput(prev => [...prev, `ERROR: ${event.message || 'Unknown error'}`]);
         break;
     }
   };
@@ -379,11 +380,6 @@ function FlowEditorInner() {
               <Trash2 size={14} />
             </button>
           </>
-        )}
-        {showOutputPanel && (
-          <button onClick={() => setShowOutputPanel(false)} className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ ...isSmallText, color: 'var(--color-ink-tertiary)', border: '1px solid var(--color-border-subtle)' }}>
-            <X size={12} />
-          </button>
         )}
       </div>
 
@@ -490,37 +486,13 @@ function FlowEditorInner() {
           onClose={() => setSelectedNodeId(null)}
         />
 
-        {/* Execution output panel (overlay at bottom) */}
-        {showOutputPanel && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 240,
-              left: 220,
-              height: 180,
-              background: '#1a1a2e',
-              borderTop: '1px solid var(--color-border-default)',
-              color: '#e0e0e0',
-              fontFamily: 'monospace',
-              fontSize: 11,
-              padding: 10,
-              overflowY: 'auto',
-              zIndex: 10,
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 6, color: '#4dc9f6', fontSize: 11 }}>
-              Execution Output
-              <span style={{ float: 'right', cursor: 'pointer', color: '#888' }} onClick={() => { setShowOutputPanel(false); setExecutionOutput([]); }}>&#x2715;</span>
-            </div>
-            {executionOutput.map((line, i) => (
-              <div key={i} style={{ padding: '1px 0', whiteSpace: 'pre-wrap' }}>{line}</div>
-            ))}
-            {executionOutput.length === 0 && (
-              <div style={{ color: '#666' }}>Waiting for execution events...</div>
-            )}
-          </div>
-        )}
+        {/* Execution timeline modal */}
+        <ExecutionTimelineModal
+          open={showTimeline}
+          onClose={() => { setShowTimeline(false); setExecutionEvents([]); }}
+          events={executionEvents}
+          executing={executing}
+        />
       </div>
 
       {/* Save Modal */}
@@ -586,16 +558,4 @@ function FlowEditorInner() {
       )}
     </div>
   );
-}
-
-function truncateOutput(output: string, maxLen = 200): string {
-  if (!output) return '(empty)';
-  try {
-    const obj = JSON.parse(output);
-    if (obj.content) return obj.content.substring(0, maxLen);
-    if (obj.error) return `Error: ${obj.error}`;
-    return output.substring(0, maxLen);
-  } catch {
-    return output.substring(0, maxLen);
-  }
 }
