@@ -55,3 +55,19 @@ export interface WorkflowListItem {
 
 /** Execution status for debug panel */
 export type NodeExecStatus = 'idle' | 'running' | 'success' | 'fail';
+
+/** Per-node execution event from SSE stream */
+export interface NodeExecutionEvent {
+  type: 'NODE_STARTED' | 'NODE_COMPLETED' | 'NODE_FAILED' | 'WORKFLOW_COMPLETED' | 'ERROR';
+  nodeId?: string;
+  nodeType?: string;
+  label?: string;
+  agentName?: string;
+  output?: string;
+  error?: string;
+  message?: string;
+  nodeOutputs?: Record<string, string>;
+}
+
+/** Maps node IDs to their runtime execution status */
+export type NodeStatusMap = Record<string, NodeExecStatus>;

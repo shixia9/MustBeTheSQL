@@ -27,7 +27,7 @@ export default function AppBuilderConfig() {
         }
       }
     }).catch(() => {});
-    workflowApi.list().then(r => { if (r.data) setWorkflows(r.data); }).catch(() => {});
+    workflowApi.list().then(r => { if (Array.isArray(r)) setWorkflows(r); }).catch(() => {});
   }, [appId]);
 
   const save = async () => {

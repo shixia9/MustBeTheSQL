@@ -196,14 +196,45 @@ export const conversationApi = {
 
 /** Workflow CRUD + execution. */
 export const workflowApi = {
-  listNodes: () => api.get<any[]>('/workflows/nodes'),
-  list: () => api.get<any[]>('/workflows'),
-  get: (id: string) => api.get<any>(`/workflows/${id}`),
-  create: (body: any) => api.post<{id:string;name:string}>('/workflows', body),
-  update: (id: string, body: any) => api.put<{id:string;name:string}>(`/workflows/${id}`, body),
+  listNodes: async () => {
+    const r = await api.get<any>('/workflows/nodes');
+    return unwrap<any[]>(r);
+  },
+  list: async () => {
+    const r = await api.get<any>('/workflows');
+    return unwrap<any[]>(r);
+  },
+  get: async (id: string) => {
+    const r = await api.get<any>(`/workflows/${id}`);
+    return unwrap<any>(r);
+  },
+  create: async (body: any) => {
+    const r = await api.post<{id:string;name:string}>('/workflows', body);
+    return unwrap<{id:string;name:string}>(r);
+  },
+  update: async (id: string, body: any) => {
+    const r = await api.put<{id:string;name:string}>(`/workflows/${id}`, body);
+    return unwrap<{id:string;name:string}>(r);
+  },
   delete: (id: string) => api.delete<void>(`/workflows/${id}`),
-  execute: (id: string, body?: any) => apiFetch<any>(`/workflows/${id}/execute`, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  /** Execute a workflow and stream SSE events via ReadableStream. */
+  executeStream: (id: string, body?: any): Promise<ReadableStream<Uint8Array> | null> =>
+    fetch(`${BASE_URL}/workflows/${id}/execute`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(res => {
+      if (!res.ok) throw new Error(`Workflow execute failed: ${res.status}`);
+      return res.body;
+    }),
 };
+
+/** Unwrap API response: handle both { code, message, data } wrapper and raw data. */
+function unwrap<T>(r: any): T {
+  if (r && typeof r === 'object' && 'data' in r) return r.data as T;
+  return r as T;
+}
 
 /** Skill CRUD + Hub. */
 export const skillApi = {
