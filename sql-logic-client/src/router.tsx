@@ -22,6 +22,9 @@ import LoginPage from './pages/LoginPage';
 import JoinWorkspacePage from './pages/JoinWorkspacePage';
 import FlowEditor from './pages/FlowEditor';
 import SkillEditor from './pages/SkillEditor';
+import AppBuilder from './pages/AppBuilder';
+import AppBuilderConfig from './pages/AppBuilderConfig';
+import EvaluationPage from './pages/EvaluationPage';
 
 function LoginWrapper() {
   return <LoginPage onLogin={() => { window.location.href = '/'; }} />;
@@ -61,6 +64,9 @@ export const router = createBrowserRouter([
       { path: 'skill-editor', element: <SkillEditor /> },
       { path: 'skill-editor/:name', element: <SkillEditor /> },
       { path: 'flow-editor', element: <FlowEditor /> },
+      { path: 'app-builder', element: <AppBuilder /> },
+      { path: 'app-builder/:appId', element: <AppBuilderConfig /> },
+      { path: 'eval', element: <EvaluationPage /> },
       { path: 'prompts', element: <PromptPage /> },
       { path: 'connectors', element: <ConnectorPage /> },
       { path: 'scheduled-tasks', element: <ScheduledTaskPage /> },

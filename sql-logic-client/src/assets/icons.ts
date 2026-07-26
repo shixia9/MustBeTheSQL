@@ -10,7 +10,7 @@ import {
   ExternalLink, Upload, Download, RefreshCw, Zap, AlertTriangle,
   BarChart3, Table2, FileCode2, FileText as FileTextIcon,
   Globe, Server, Shield, Key, Wrench, FolderOpen, GitBranch,
-  Terminal, TrendingUp, DollarSign, Percent, FileSearch,
+  Terminal, TrendingUp, DollarSign, Percent, FileSearch, Layout,
   type LucideIcon
 } from 'lucide-react';
 
@@ -25,6 +25,8 @@ const iconMap: Record<string, LucideIcon> = {
   scheduledTasks: Clock,
   models: Cpu,
   agentStudio: Bot,
+  appBuilder: Layout,
+  flowEditor: GitBranch,
   memory: Brain,
   history: History,
   settings: Settings,

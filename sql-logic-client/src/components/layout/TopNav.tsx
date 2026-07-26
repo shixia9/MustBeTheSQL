@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n';
 import { useLayout } from '../../contexts/LayoutContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { api } from '../../api/client';
 import { getIcon } from '../../assets/icons';
 import StatusIndicator from '../ui/StatusIndicator';
 import TokenBudgetBar from '../ui/TokenBudgetBar';
@@ -18,6 +19,13 @@ export default function TopNav() {
   const { t, locale, setLocale } = useI18n();
   const { toggleSidebar, sidebarCollapsed } = useLayout();
   const { user, logout } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    api.get<boolean>('/user/admin-check').then(r => {
+      if (r.data === true || (r as any).code === 200) setIsAdmin(true);
+    }).catch(() => {});
+  }, []);
   const { theme, setTheme } = useSettings();
   const navigate = useNavigate();
   const [langOpen, setLangOpen] = useState(false);
@@ -161,6 +169,17 @@ export default function TopNav() {
       >
         {React.createElement(getIcon('user'), { size: 15 })}
       </button>
+
+      {isAdmin && (
+        <button
+          className="btn-ghost p-1.5"
+          onClick={() => window.open('http://localhost:3001', '_blank')}
+          style={{ color: shellTextDim, border: 'none' }}
+          title="Admin Panel"
+        >
+          {React.createElement(getIcon('shield'), { size: 15 })}
+        </button>
+      )}
 
       <button
         className="btn-ghost p-1.5"
