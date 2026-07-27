@@ -230,6 +230,44 @@ export const workflowApi = {
     }),
 };
 
+/** Saved database connection (subset of DbConnectionConf relevant to the UI). */
+interface DbConnectionMeta {
+  id: number;
+  name: string;
+  dbType?: string;
+  host?: string;
+  port?: number;
+  dbName?: string;
+}
+interface SchemaMeta { name: string; }
+interface TableMeta { name: string; type?: string; comment?: string; }
+
+/** Database connection management + table listing. */
+export const databaseApi = {
+  listConnections: async (): Promise<DbConnectionMeta[]> => {
+    const r = await api.get<DbConnectionMeta[]>('/database/list');
+    return unwrap(r);
+  },
+  listTables: async (connectionId: number): Promise<string[]> => {
+    const r = await api.get<string[]>(`/database/${connectionId}/tables`);
+    return unwrap(r);
+  },
+};
+
+/** Schema browser — schemas / tables under a given connection. */
+export const schemaApi = {
+  listSchemas: async (connectionId: number): Promise<SchemaMeta[]> => {
+    const r = await api.get<SchemaMeta[]>(`/schema/schemas?connectionId=${connectionId}`);
+    return unwrap(r);
+  },
+  listTables: async (connectionId: number, schemaName?: string): Promise<TableMeta[]> => {
+    const params = new URLSearchParams({ connectionId: String(connectionId) });
+    if (schemaName) params.set('schemaName', schemaName);
+    const r = await api.get<TableMeta[]>(`/schema/tables?${params.toString()}`);
+    return unwrap(r);
+  },
+};
+
 /** Unwrap API response: handle both { code, message, data } wrapper and raw data. */
 function unwrap<T>(r: any): T {
   if (r && typeof r === 'object' && 'data' in r) return r.data as T;

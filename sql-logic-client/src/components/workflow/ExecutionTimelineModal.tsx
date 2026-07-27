@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, XCircle, Loader, ChevronDown, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { NodeExecutionEvent } from '../../types/flow';
 
 interface TimelineEntry {
@@ -113,17 +116,64 @@ export default function ExecutionTimelineModal({ open, onClose, events, executin
     });
   };
 
-  const formatOutput = (output: string | undefined): string => {
-    if (!output) return '(empty)';
+  /**
+   * Convert a node's raw output string into a readable, markdown-friendly text.
+   * Agent outputs are JSON ({content, actionOutput, error}); the end node emits a
+   * WORKFLOW_RESULT aggregate; resource nodes emit a summary. We extract the most
+   * human-readable field and fall back to pretty-printed JSON for anything else.
+   */
+  const formatOutput = (output: string | undefined): { text: string; isRawJson: boolean } => {
+    if (!output) return { text: '(empty)', isRawJson: false };
+
+    let parsed: any = null;
     try {
-      const obj = JSON.parse(output);
-      if (obj.content) return obj.content;
-      if (obj.error) return `Error: ${obj.error}`;
-      if (obj.actionOutput) return obj.actionOutput;
-      return output;
+      parsed = JSON.parse(output);
     } catch {
-      return output;
+      // Not JSON — treat as plain text / markdown.
+      return { text: output, isRawJson: false };
     }
+
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.error) return { text: `**Error:** ${parsed.error}`, isRawJson: false };
+
+      const content = typeof parsed.content === 'string' ? parsed.content.trim() : '';
+      if (content) return { text: content, isRawJson: false };
+
+      const action = typeof parsed.actionOutput === 'string' ? parsed.actionOutput.trim() : '';
+      if (action) return { text: action, isRawJson: false };
+
+      // End node: aggregate of all upstream node outputs.
+      if (parsed.type === 'WORKFLOW_RESULT' && parsed.results) {
+        const sections: string[] = [];
+        for (const [nodeId, val] of Object.entries(parsed.results as Record<string, any>)) {
+          const s = typeof val === 'string' ? val : JSON.stringify(val);
+          let inner = s;
+          try {
+            const o = JSON.parse(s);
+            if (o.error) inner = `**Error:** ${o.error}`;
+            else inner = (typeof o.content === 'string' && o.content.trim()) || (typeof o.actionOutput === 'string' && o.actionOutput.trim()) || s;
+          } catch {
+            /* keep raw string */
+          }
+          sections.push(`### ${nodeId}\n\n${inner}`);
+        }
+        return { text: sections.join('\n\n') || '(no results)', isRawJson: false };
+      }
+
+      // Resource node summary (produced by the backend in readable form).
+      if (parsed.type === 'resource') {
+        const parts: string[] = [];
+        if (parsed.title) parts.push(`**${parsed.title}**`);
+        if (parsed.summary) parts.push(parsed.summary);
+        if (Array.isArray(parsed.tables) && parsed.tables.length) parts.push(`**Tables:** ${parsed.tables.join(', ')}`);
+        if (parts.length) return { text: parts.join('\n\n'), isRawJson: false };
+      }
+
+      // Unknown JSON shape — pretty-print so it is at least legible.
+      return { text: JSON.stringify(parsed, null, 2), isRawJson: true };
+    }
+
+    return { text: String(parsed), isRawJson: false };
   };
 
   const getNodeTypeBadge = (nodeType: string) => {
@@ -212,11 +262,17 @@ export default function ExecutionTimelineModal({ open, onClose, events, executin
           {entries.map((entry, i) => {
             const isLast = i === entries.length - 1;
             const isExpanded = expandedNodes.has(entry.nodeId);
-            const outputText = formatOutput(entry.output);
-            const hasOutput = entry.output && outputText.length > 0;
+            const { text: outputText, isRawJson } = formatOutput(entry.output);
+            const hasOutput = entry.output && outputText.length > 0 && outputText !== '(empty)';
 
             return (
-              <div key={entry.nodeId + '_' + entry.status} style={{ position: 'relative', paddingLeft: 28 }}>
+              <motion.div
+                key={entry.nodeId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease: 'easeOut' }}
+                style={{ position: 'relative', paddingLeft: 28 }}
+              >
                 {/* Timeline line */}
                 {!isLast && (
                   <div style={{
@@ -283,21 +339,36 @@ export default function ExecutionTimelineModal({ open, onClose, events, executin
                         {isExpanded ? 'Hide' : 'Show'} output
                       </button>
                       {isExpanded && (
-                        <pre style={{
-                          margin: '6px 0 0 0', padding: '8px 10px',
-                          background: colorPanelBg,
-                          border: `1px solid ${colorBorderSubtle}`,
-                          borderRadius: 6,
-                          fontSize: 11, lineHeight: 1.5,
-                          color: colorInk,
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          maxHeight: 200,
-                          overflowY: 'auto',
-                          fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
-                        }}>
-                          {outputText}
-                        </pre>
+                        isRawJson ? (
+                          <pre style={{
+                            margin: '6px 0 0 0', padding: '8px 10px',
+                            background: colorPanelBg,
+                            border: `1px solid ${colorBorderSubtle}`,
+                            borderRadius: 6,
+                            fontSize: 11, lineHeight: 1.5,
+                            color: colorInk,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                            maxHeight: 200,
+                            overflowY: 'auto',
+                            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+                          }}>
+                            {outputText}
+                          </pre>
+                        ) : (
+                          <div className="md-output" style={{
+                            margin: '6px 0 0 0', padding: '8px 12px',
+                            background: colorPanelBg,
+                            border: `1px solid ${colorBorderSubtle}`,
+                            borderRadius: 6,
+                            maxHeight: 240,
+                            overflowY: 'auto',
+                            fontSize: 12, lineHeight: 1.55,
+                            color: colorInk,
+                          }}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{outputText}</ReactMarkdown>
+                          </div>
+                        )
                       )}
                     </>
                   )}
@@ -314,7 +385,7 @@ export default function ExecutionTimelineModal({ open, onClose, events, executin
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
 
@@ -332,6 +403,33 @@ export default function ExecutionTimelineModal({ open, onClose, events, executin
       </div>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .md-output > :first-child { margin-top: 0; }
+        .md-output > :last-child { margin-bottom: 0; }
+        .md-output h1, .md-output h2, .md-output h3, .md-output h4 {
+          margin: 10px 0 6px; font-size: 12.5px; font-weight: 700; line-height: 1.3;
+        }
+        .md-output h3 { font-size: 12px; }
+        .md-output p { margin: 4px 0; }
+        .md-output ul, .md-output ol { margin: 4px 0; padding-left: 18px; }
+        .md-output li { margin: 2px 0; }
+        .md-output code {
+          font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+          font-size: 11px; background: var(--color-app-bg);
+          padding: 1px 4px; border-radius: 4px;
+        }
+        .md-output pre {
+          background: var(--color-app-bg); padding: 8px 10px; border-radius: 6px;
+          overflow-x: auto; margin: 6px 0;
+        }
+        .md-output pre code { background: none; padding: 0; }
+        .md-output table { border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 11px; }
+        .md-output th, .md-output td { border: 1px solid var(--color-border-subtle); padding: 4px 6px; text-align: left; }
+        .md-output th { background: var(--color-app-bg); font-weight: 600; }
+        .md-output blockquote {
+          margin: 4px 0; padding-left: 10px; border-left: 2px solid var(--color-border-subtle);
+          color: var(--color-ink-secondary);
+        }
+        .md-output a { color: #5b7fd9; }
       `}</style>
     </div>
   );

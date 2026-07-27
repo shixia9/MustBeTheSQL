@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Node } from '@xyflow/react';
 import type { NodeTypeMeta } from '../../types/flow';
+import { databaseApi, schemaApi } from '../../api/client';
 
 interface NodeConfigPanelProps {
   node: Node | null;
@@ -11,6 +12,58 @@ interface NodeConfigPanelProps {
 
 export default function NodeConfigPanel({ node, nodeTypes, onChange, onClose }: NodeConfigPanelProps) {
   const [localData, setLocalData] = useState<Record<string, any>>((node?.data as any) || {});
+
+  // Cascading DB selector state (connection → schema → table) for resource nodes.
+  const [connections, setConnections] = useState<{ id: number; name: string; dbType?: string }[]>([]);
+  const [schemas, setSchemas] = useState<{ name: string }[]>([]);
+  const [tables, setTables] = useState<{ name: string; type?: string }[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
+
+  const inputsValues = (localData.inputsValues || (node?.data as any)?.inputsValues || {});
+  const connId = inputsValues.connectionId != null ? String(inputsValues.connectionId) : '';
+  const schemaName: string = inputsValues.schemaName || '';
+  const tableName: string = inputsValues.tableName || '';
+
+  const setInputsValue = (key: string, value: any) => {
+    setLocalData(prev => ({
+      ...prev,
+      inputsValues: {
+        ...(prev.inputsValues || (node?.data as any)?.inputsValues || {}),
+        [key]: value,
+      },
+    }));
+  };
+
+  // Load saved connections once.
+  useEffect(() => {
+    let alive = true;
+    setDbLoading(true);
+    databaseApi.listConnections()
+      .then(list => { if (alive) setConnections(list || []); })
+      .catch(() => { if (alive) setConnections([]); })
+      .finally(() => { if (alive) setDbLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  // Load schemas when the selected connection changes.
+  useEffect(() => {
+    if (!connId) { setSchemas([]); return; }
+    let alive = true;
+    schemaApi.listSchemas(Number(connId))
+      .then(list => { if (alive) setSchemas(list || []); })
+      .catch(() => { if (alive) setSchemas([]); });
+    return () => { alive = false; };
+  }, [connId]);
+
+  // Load tables when the selected schema changes.
+  useEffect(() => {
+    if (!connId || !schemaName) { setTables([]); return; }
+    let alive = true;
+    schemaApi.listTables(Number(connId), schemaName)
+      .then(list => { if (alive) setTables(list || []); })
+      .catch(() => { if (alive) setTables([]); });
+    return () => { alive = false; };
+  }, [connId, schemaName]);
 
   if (!node) {
     return (
@@ -56,6 +109,18 @@ export default function NodeConfigPanel({ node, nodeTypes, onChange, onClose }: 
     marginBottom: 4,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.5px',
+  };
+
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '6px 10px',
+    borderRadius: 6,
+    border: '1px solid var(--color-border-default)',
+    fontSize: 12,
+    background: 'var(--color-app-bg)',
+    color: 'var(--color-ink)',
+    outline: 'none',
+    boxSizing: 'border-box',
   };
 
   return (
@@ -150,6 +215,62 @@ export default function NodeConfigPanel({ node, nodeTypes, onChange, onClose }: 
           <div style={{ fontSize: 10, color: 'var(--color-ink-tertiary)', marginTop: 4 }}>
             {availableAgents.find(a => (a.defaults?.agentName || a.label) === (localData.agentName || d.agentName))?.description || ''}
           </div>
+
+          {/* Database context for the Data Scientist agent so it knows which
+              connection / schema / table to query (optional — can also come from
+              an upstream Database resource node). */}
+          {(localData.agentName || d.agentName) === 'DataScientistAgent' && (
+            <>
+              <div style={hintStyle}>Connection</div>
+              <select
+                value={connId}
+                onChange={e => {
+                  setInputsValue('connectionId', e.target.value);
+                  setInputsValue('schemaName', '');
+                  setInputsValue('tableName', '');
+                }}
+                style={selectStyle}
+              >
+                <option value="">{dbLoading ? 'Loading…' : '-- Select Connection --'}</option>
+                {connections.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.dbType ? ` (${c.dbType})` : ''}
+                  </option>
+                ))}
+              </select>
+
+              <div style={hintStyle}>Schema</div>
+              <select
+                value={schemaName}
+                onChange={e => {
+                  setInputsValue('schemaName', e.target.value);
+                  setInputsValue('tableName', '');
+                }}
+                disabled={!connId}
+                style={{ ...selectStyle, opacity: connId ? 1 : 0.5, cursor: connId ? 'pointer' : 'not-allowed' }}
+              >
+                <option value="">-- All Schemas --</option>
+                {schemas.map(s => (
+                  <option key={s.name} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+
+              <div style={hintStyle}>Table (optional)</div>
+              <select
+                value={tableName}
+                onChange={e => setInputsValue('tableName', e.target.value)}
+                disabled={!connId || !schemaName}
+                style={{ ...selectStyle, opacity: (connId && schemaName) ? 1 : 0.5, cursor: (connId && schemaName) ? 'pointer' : 'not-allowed' }}
+              >
+                <option value="">-- All Tables --</option>
+                {tables.map(t => (
+                  <option key={t.name} value={t.name}>
+                    {t.name}{t.type ? ` [${t.type}]` : ''}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </>
       )}
 
@@ -219,25 +340,54 @@ export default function NodeConfigPanel({ node, nodeTypes, onChange, onClose }: 
               </option>
             ))}
           </select>
-          <div style={hintStyle}>Connection ID</div>
-          <input
-            value={(localData.inputsValues || d.inputsValues)?.connectionId || ''}
-            onChange={e => handleChange('inputsValues', {
-              ...(localData.inputsValues || d.inputsValues || {}),
-              connectionId: e.target.value,
-            })}
-            style={{
-              width: '100%',
-              padding: '6px 10px',
-              borderRadius: 6,
-              border: '1px solid var(--color-border-default)',
-              fontSize: 12,
-              background: 'var(--color-app-bg)',
-              color: 'var(--color-ink)',
-              outline: 'none',
-              boxSizing: 'border-box',
+          <div style={hintStyle}>Connection</div>
+          <select
+            value={connId}
+            onChange={e => {
+              setInputsValue('connectionId', e.target.value);
+              setInputsValue('schemaName', '');
+              setInputsValue('tableName', '');
             }}
-          />
+            style={selectStyle}
+          >
+            <option value="">{dbLoading ? 'Loading…' : '-- Select Connection --'}</option>
+            {connections.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.dbType ? ` (${c.dbType})` : ''}
+              </option>
+            ))}
+          </select>
+
+          <div style={hintStyle}>Schema</div>
+          <select
+            value={schemaName}
+            onChange={e => {
+              setInputsValue('schemaName', e.target.value);
+              setInputsValue('tableName', '');
+            }}
+            disabled={!connId}
+            style={{ ...selectStyle, opacity: connId ? 1 : 0.5, cursor: connId ? 'pointer' : 'not-allowed' }}
+          >
+            <option value="">-- All Schemas --</option>
+            {schemas.map(s => (
+              <option key={s.name} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+
+          <div style={hintStyle}>Table (optional)</div>
+          <select
+            value={tableName}
+            onChange={e => setInputsValue('tableName', e.target.value)}
+            disabled={!connId || !schemaName}
+            style={{ ...selectStyle, opacity: (connId && schemaName) ? 1 : 0.5, cursor: (connId && schemaName) ? 'pointer' : 'not-allowed' }}
+          >
+            <option value="">-- All Tables --</option>
+            {tables.map(t => (
+              <option key={t.name} value={t.name}>
+                {t.name}{t.type ? ` [${t.type}]` : ''}
+              </option>
+            ))}
+          </select>
         </>
       )}
 
