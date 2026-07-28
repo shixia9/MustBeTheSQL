@@ -3,6 +3,7 @@ import { Clock, Plus, Trash2, Pencil, Loader2, Play, Pause } from 'lucide-react'
 import ManagementPage from '../components/layout/ManagementPage';
 import { scheduledTaskApi } from '../api/client';
 import type { ScheduledTask } from '../api/client';
+import { useFlash } from '../hooks/useFlash';
 
 export default function ScheduledTaskPage() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -12,12 +13,7 @@ export default function ScheduledTaskPage() {
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState<number | null>(null);
   const [form, setForm] = useState({ name: '', cronExpr: '', taskType: '', payload: '' });
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 2500);
-  };
+  const { msg, flash } = useFlash();
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);

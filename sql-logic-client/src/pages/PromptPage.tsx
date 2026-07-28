@@ -3,6 +3,7 @@ import { FileText, Plus, Trash2, Pencil, Loader2 } from 'lucide-react';
 import ManagementPage from '../components/layout/ManagementPage';
 import { promptApi } from '../api/client';
 import type { PromptTemplate } from '../api/client';
+import { useFlash } from '../hooks/useFlash';
 
 export default function PromptPage() {
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
@@ -12,12 +13,7 @@ export default function PromptPage() {
   const [editing, setEditing] = useState<PromptTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', content: '', description: '' });
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 2500);
-  };
+  const { msg, flash } = useFlash();
 
   const fetchPrompts = useCallback(async () => {
     setLoading(true);

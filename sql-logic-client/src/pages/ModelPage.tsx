@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Cpu, Plus, Trash2, Pencil, Loader2, Zap, Activity, AlertCircle, CheckCircle } from 'lucide-react';
 import ManagementPage from '../components/layout/ManagementPage';
 import { llmConfigApi, llmStrategyApi } from '../api/client';
+import { useFlash } from '../hooks/useFlash';
 
 interface LlmConfig {
   id: number;
@@ -40,17 +41,12 @@ export default function ModelPage() {
   const [editing, setEditing] = useState<LlmConfig | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState<number | null>(null);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { msg, flash } = useFlash();
   const [form, setForm] = useState({
     configName: '', providerType: 'OPENAI_COMPATIBLE', baseUrl: '', apiKey: '', modelName: '', isDefault: false,
   });
   const [metrics, setMetrics] = useState<Record<number, LlmMetrics>>({});
   const [strategyForm, setStrategyForm] = useState<Record<number, { strategyType: string; fallbackChain: string }>>({});
-
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 3000);
-  };
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);

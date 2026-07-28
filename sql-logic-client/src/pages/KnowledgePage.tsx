@@ -4,6 +4,7 @@ import { BookOpen, Plus, Trash2, Pencil, Loader2, Database } from 'lucide-react'
 import ManagementPage from '../components/layout/ManagementPage';
 import { databaseApi, businessKnowledgeApi } from '../api/client';
 import type { BusinessKnowledgeItem } from '../api/client';
+import { useFlash } from '../hooks/useFlash';
 
 const tabs = [
   { key: 'glossary', label: 'Glossary' },
@@ -23,16 +24,11 @@ export default function KnowledgePage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<BusinessKnowledgeItem | null>(null);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { msg, flash } = useFlash();
   // glossary form
   const [glossaryForm, setGlossaryForm] = useState({ term: '', description: '', synonyms: '' });
   // qa form
   const [qaForm, setQaForm] = useState({ question: '', answer: '' });
-
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 2500);
-  };
 
   const fetchConnections = useCallback(async () => {
     try {

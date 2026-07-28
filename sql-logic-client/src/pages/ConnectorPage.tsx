@@ -3,6 +3,7 @@ import { Plug, Plus, Trash2, Pencil, Loader2, Link2, Unlink } from 'lucide-react
 import ManagementPage from '../components/layout/ManagementPage';
 import { connectorApi, databaseApi } from '../api/client';
 import type { ConnectorTemplate, ActiveConnector } from '../api/client';
+import { useFlash } from '../hooks/useFlash';
 
 const tabs = [
   { key: 'templates', label: 'Templates' },
@@ -23,12 +24,7 @@ export default function ConnectorPage() {
   const [tplForm, setTplForm] = useState({ name: '', connectorType: 'REST', config: '', description: '' });
   const [activeForm, setActiveForm] = useState({ name: '', templateId: '', connectionId: '' });
   const [showActiveForm, setShowActiveForm] = useState(false);
-  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  const flash = (type: 'success' | 'error', text: string) => {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 2500);
-  };
+  const { msg, flash } = useFlash();
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
