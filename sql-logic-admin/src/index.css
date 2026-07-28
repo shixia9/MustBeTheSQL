@@ -14,11 +14,13 @@
   --color-register: #3c5eb8;
   --color-sig-green: #2d8b5a;
   --color-sig-red: #ce4a3f;
+  --color-sig-amber: #d4932b;
 
   /* ── Opacity variants ── */
   --color-register-soft: rgba(60, 94, 184, 0.08);
   --color-sig-green-soft: rgba(45, 139, 90, 0.08);
   --color-sig-red-soft: rgba(206, 74, 63, 0.07);
+  --color-sig-amber-soft: rgba(212, 147, 43, 0.10);
 
   /* ── Radius ── */
   --radius-sm: 3px;
@@ -171,6 +173,12 @@
            font-mono text-[10px] font-semibold uppercase tracking-wider;
     background: var(--color-sig-red-soft);
     color: var(--color-sig-red);
+  }
+  .badge-warn {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full
+           font-mono text-[10px] font-semibold uppercase tracking-wider;
+    background: var(--color-sig-amber-soft);
+    color: var(--color-sig-amber);
   }
 
   /* ── Sidebar nav item ── */

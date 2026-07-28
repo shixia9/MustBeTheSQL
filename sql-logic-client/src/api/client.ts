@@ -110,8 +110,139 @@ export const workspaceApi = {
 
 /** LLM provider test connection helper. */
 export const llmConfigApi = {
+  list: async () => {
+    const r = await api.get<any[]>('/llm-config/list');
+    return unwrap<any[]>(r);
+  },
+  create: async (body: any) => {
+    const r = await api.post<any>('/llm-config/create', body);
+    return unwrap<any>(r);
+  },
+  update: async (configId: number, body: any) => {
+    const r = await api.put<any>(`/llm-config/update`, { configId, ...body });
+    return unwrap<any>(r);
+  },
+  delete: (configId: number) => api.delete<void>(`/llm-config/${configId}`),
   test: (configId: number) =>
     api.post<{ success: boolean; latencyMs: number; message?: string }>(`/llm-config/${configId}/test`, {}),
+  setDefault: (configId: number) => api.post<void>(`/llm-config/${configId}/setDefault`, {}),
+  getMetrics: async (configId: number) => {
+    const r = await api.get<any>(`/llm-config/${configId}/metrics`);
+    return unwrap<any>(r);
+  },
+};
+
+/** Business knowledge (glossary + few-shot QA) CRUD scoped to a database connection. */
+export interface BusinessKnowledgeItem {
+  id: number;
+  connectionId: number;
+  vectorType: string; // GLOSSARY_KNOWLEDGE | QUESTION_KNOWLEDGE
+  term?: string;
+  description?: string;
+  synonyms?: string;
+  question?: string;
+  answer?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const businessKnowledgeApi = {
+  list: async (connectionId: number): Promise<BusinessKnowledgeItem[]> => {
+    const r = await api.get<BusinessKnowledgeItem[]>(`/business-knowledge/list?connectionId=${connectionId}`);
+    return unwrap<BusinessKnowledgeItem[]>(r);
+  },
+  create: (body: Partial<BusinessKnowledgeItem>) =>
+    api.post<BusinessKnowledgeItem>('/business-knowledge/create', body),
+  update: (body: Partial<BusinessKnowledgeItem> & { id: number }) =>
+    api.put<BusinessKnowledgeItem>('/business-knowledge/update', body),
+  delete: (knowledgeId: number) => api.delete<void>(`/business-knowledge/${knowledgeId}`),
+};
+
+/** Prompt template CRUD. */
+export interface PromptTemplate {
+  id: number;
+  name: string;
+  content: string;
+  description?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const promptApi = {
+  list: async (): Promise<PromptTemplate[]> => {
+    const r = await api.get<PromptTemplate[]>('/prompts/list');
+    return unwrap<PromptTemplate[]>(r);
+  },
+  create: (body: { name: string; content: string; description?: string }) =>
+    api.post<PromptTemplate>('/prompts/create', body),
+  update: (body: Partial<PromptTemplate> & { id: number }) =>
+    api.put<PromptTemplate>('/prompts/update', body),
+  delete: (id: number) => api.delete<void>(`/prompts/${id}`),
+};
+
+/** Connector templates + active connectors CRUD. */
+export interface ConnectorTemplate {
+  id: number;
+  name: string;
+  connectorType: string;
+  config?: string;
+  description?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export interface ActiveConnector {
+  id: number;
+  templateId?: number;
+  connectionId?: number;
+  name: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const connectorApi = {
+  listTemplates: async (): Promise<ConnectorTemplate[]> => {
+    const r = await api.get<ConnectorTemplate[]>('/connectors/templates');
+    return unwrap<ConnectorTemplate[]>(r);
+  },
+  createTemplate: (body: { name: string; connectorType: string; config?: string; description?: string }) =>
+    api.post<ConnectorTemplate>('/connectors/templates', body),
+  updateTemplate: (body: Partial<ConnectorTemplate> & { id: number }) =>
+    api.put<ConnectorTemplate>('/connectors/templates', body),
+  deleteTemplate: (id: number) => api.delete<void>(`/connectors/templates/${id}`),
+  listActive: async (): Promise<ActiveConnector[]> => {
+    const r = await api.get<ActiveConnector[]>('/connectors/active');
+    return unwrap<ActiveConnector[]>(r);
+  },
+  createActive: (body: { name: string; templateId?: number; connectionId?: number }) =>
+    api.post<ActiveConnector>('/connectors/active', body),
+  deleteActive: (id: number) => api.delete<void>(`/connectors/active/${id}`),
+};
+
+/** Scheduled task CRUD + toggle. */
+export interface ScheduledTask {
+  id: number;
+  name: string;
+  cronExpr: string;
+  taskType?: string;
+  payload?: string;
+  status?: number; // 0 = paused, 1 = running
+  lastRunTime?: string;
+  nextRunTime?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+export const scheduledTaskApi = {
+  list: async (): Promise<ScheduledTask[]> => {
+    const r = await api.get<ScheduledTask[]>('/scheduled-tasks/list');
+    return unwrap<ScheduledTask[]>(r);
+  },
+  create: (body: { name: string; cronExpr: string; taskType?: string; payload?: string }) =>
+    api.post<ScheduledTask>('/scheduled-tasks/create', body),
+  update: (body: Partial<ScheduledTask> & { id: number }) =>
+    api.put<ScheduledTask>('/scheduled-tasks/update', body),
+  delete: (id: number) => api.delete<void>(`/scheduled-tasks/${id}`),
+  toggle: (id: number) => api.put<ScheduledTask>(`/scheduled-tasks/${id}/toggle`),
 };
 
 /** LLM HA strategy + metrics. */
