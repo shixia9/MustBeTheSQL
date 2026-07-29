@@ -1,0 +1,8 @@
+{
+  "label": "API 说明",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "description": "REST 接口概览，以及如何跳转 / 嵌入 Java 后端 Swagger（OpenAPI）接口文档。"
+  }
+}

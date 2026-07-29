@@ -1,0 +1,384 @@
+/**
+ * Must Be The SQL — Docusaurus theme override (Linear-style)
+ * ---------------------------------------------------------------------------
+ * Synced to the product app palette:
+ *   primary        #5b7fd9   (app --color-primary)
+ *   primary-hover  #6b8fe6
+ *   primary-glow   rgba(91,127,217,0.35)
+ *   light bg       #fafbfc   surface #ffffff   ink #10131f
+ *   dark  bg       #0d0f14   surface #161821   ink #e4e6ee
+ * Font: Inter (sans) + JetBrains Mono (code)
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ── Primary brand scale (derived from #5b7fd9) ─────────────────────── */
+  --ifm-color-primary-darkest: #3d5bb0;
+  --ifm-color-primary-darker: #4567bf;
+  --ifm-color-primary-dark: #4e74cf;
+  --ifm-color-primary: #5b7fd9;
+  --ifm-color-primary-light: #6f92e0;
+  --ifm-color-primary-lighter: #93b0e9;
+  --ifm-color-primary-lightest: #c3d4f4;
+
+  /* ── Surfaces ───────────────────────────────────────────────────────── */
+  --ifm-background-color: #fafbfc;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #10131f;
+  --ifm-heading-color: #10131f;
+  --ifm-heading-font-weight: 600;
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --ifm-font-family-base: 'Inter', ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, SFMono-Regular,
+    Menlo, Consolas, monospace;
+  --ifm-font-size-base: 15.4px;
+  --ifm-line-height-base: 1.7;
+
+  /* ── Geometry / radii ───────────────────────────────────────────────── */
+  --ifm-global-radius: 8px;
+  --ifm-code-border-radius: 6px;
+  --ifm-pagination-border-radius: 8px;
+
+  /* ── Borders / shadows (Linear-soft) ────────────────────────────────── */
+  --ifm-border-color: rgba(0, 0, 0, 0.08);
+  --ifm-toc-border-color: rgba(0, 0, 0, 0.06);
+  --ifm-hr-border-color: rgba(0, 0, 0, 0.06);
+  --ifm-pre-background: #1e2030;
+  --ifm-blockquote-color: #5e6278;
+  --ifm-link-color: #5b7fd9;
+  --ifm-link-hover-color: #6b8fe6;
+  --ifm-menu-color: #5e6278;
+  --ifm-menu-color-active: #10131f;
+
+  --doc-sidebar-width: 280px;
+  --doc-sidebar-hidden-width: 30px;
+
+  /* Custom tokens reused below */
+  --mbs-glow: 0 0 0 3px rgba(91, 127, 217, 0.22);
+  --mbs-card-shadow: 0 1px 2px rgba(16, 19, 31, 0.04),
+    0 1px 3px rgba(16, 19, 31, 0.04);
+  --mbs-card-shadow-hover: 0 4px 16px rgba(16, 19, 31, 0.08);
+  --mbs-ink-secondary: #5e6278;
+  --mbs-ink-tertiary: #9498ae;
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary-darkest: #3d5bb0;
+  --ifm-color-primary-darker: #4567bf;
+  --ifm-color-primary-dark: #4e74cf;
+  --ifm-color-primary: #5b7fd9;
+  --ifm-color-primary-light: #6f92e0;
+  --ifm-color-primary-lighter: #93b0e9;
+  --ifm-color-primary-lightest: #c3d4f4;
+
+  --ifm-background-color: #0d0f14;
+  --ifm-background-surface-color: #161821;
+  --ifm-font-color-base: #e4e6ee;
+  --ifm-heading-color: #e4e6ee;
+
+  --ifm-border-color: rgba(255, 255, 255, 0.08);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.06);
+  --ifm-hr-border-color: rgba(255, 255, 255, 0.06);
+  --ifm-blockquote-color: #9498ae;
+  --ifm-link-color: #6f92e0;
+  --ifm-link-hover-color: #93b0e9;
+  --ifm-menu-color: #9498ae;
+  --ifm-menu-color-active: #e4e6ee;
+
+  --mbs-glow: 0 0 0 3px rgba(91, 127, 217, 0.35);
+  --mbs-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --mbs-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --mbs-ink-secondary: #9498ae;
+  --mbs-ink-tertiary: #636882;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Base typography
+════════════════════════════════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.012em;
+}
+
+a {
+  transition: color 0.15s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Navbar — flat, subtle bottom hairline, brand glow on hover
+════════════════════════════════════════════════════════════════════════ */
+.navbar {
+  box-shadow: none;
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+  backdrop-filter: saturate(180%) blur(8px);
+  background-color: rgba(250, 251, 252, 0.8);
+  height: 60px;
+}
+[data-theme='dark'] .navbar {
+  background-color: rgba(13, 15, 20, 0.8);
+}
+.navbar__logo {
+  height: 28px;
+  margin-right: 10px;
+}
+.navbar__title {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+.navbar__link {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--mbs-ink-secondary);
+  border-radius: 6px;
+  padding: 6px 10px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.navbar__link:hover {
+  color: var(--ifm-font-color-base);
+  background: rgba(91, 127, 217, 0.08);
+  text-decoration: none;
+}
+.navbar__link--active {
+  color: var(--ifm-color-primary);
+  background: rgba(91, 127, 217, 0.1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Sidebar — quiet, focused, active item with brand tint
+════════════════════════════════════════════════════════════════════════ */
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--ifm-toc-border-color);
+}
+.menu__link {
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--ifm-menu-color);
+  padding: 6px 10px;
+  margin: 1px 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.menu__link:hover {
+  background: rgba(91, 127, 217, 0.08);
+  color: var(--ifm-menu-color-active);
+}
+.menu__link--active {
+  color: var(--ifm-color-primary);
+  background: rgba(91, 127, 217, 0.1);
+  font-weight: 600;
+}
+.menu__link--active:not(.menu__link--sublist) {
+  background: rgba(91, 127, 217, 0.12);
+}
+.menu__list-item-collapsible > .menu__link {
+  text-transform: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--mbs-ink-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Buttons — Linear pill, soft shadow
+════════════════════════════════════════════════════════════════════════ */
+.button {
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 9px 16px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.button--primary {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 1px 2px rgba(91, 127, 217, 0.25);
+}
+.button--primary:hover {
+  background: var(--ifm-color-primary-light);
+  border-color: var(--ifm-color-primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(91, 127, 217, 0.35);
+}
+.button--secondary {
+  background: transparent;
+  border-color: var(--ifm-border-color);
+  color: var(--ifm-font-color-base);
+}
+.button--secondary:hover {
+  background: rgba(91, 127, 217, 0.08);
+  border-color: var(--ifm-color-primary);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Code blocks — dark surface in both themes, JetBrains Mono
+════════════════════════════════════════════════════════════════════════ */
+code {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.86em;
+  border-radius: 5px;
+  padding: 0.16em 0.42em;
+  background: rgba(91, 127, 217, 0.1);
+  color: var(--ifm-color-primary);
+  border: 1px solid rgba(91, 127, 217, 0.14);
+}
+[data-theme='dark'] code {
+  background: rgba(91, 127, 217, 0.16);
+  color: var(--ifm-color-primary-lighter);
+}
+pre code {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+pre {
+  border-radius: 10px;
+  border: 1px solid var(--ifm-toc-border-color);
+  box-shadow: var(--mbs-card-shadow);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Admonitions — softer, brand-tinted
+════════════════════════════════════════════════════════════════════════ */
+.admonition {
+  border-radius: 10px;
+  border: 1px solid var(--ifm-toc-border-color);
+  box-shadow: none;
+}
+.admonition.admonition-note,
+.admonition.admonition-info {
+  background: rgba(91, 127, 217, 0.06);
+  border-color: rgba(91, 127, 217, 0.16);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Cards / homepage features
+════════════════════════════════════════════════════════════════════════ */
+.card {
+  border-radius: 10px;
+  border: 1px solid var(--ifm-toc-border-color);
+  box-shadow: var(--mbs-card-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--mbs-card-shadow-hover);
+  border-color: rgba(91, 127, 217, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Footer
+════════════════════════════════════════════════════════════════════════ */
+.footer {
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+.footer--dark {
+  background: #0a0c11;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Table of contents (right rail)
+════════════════════════════════════════════════════════════════════════ */
+.table-of-contents__link {
+  font-size: 13.5px;
+  color: var(--mbs-ink-secondary);
+  border-radius: 5px;
+  padding: 3px 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.table-of-contents__link:hover {
+  color: var(--ifm-color-primary);
+  background: rgba(91, 127, 217, 0.08);
+  text-decoration: none;
+}
+.table-of-contents__link--active {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Tables
+════════════════════════════════════════════════════════════════════════ */
+table {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--ifm-toc-border-color);
+}
+th {
+  background: rgba(91, 127, 217, 0.06);
+  font-weight: 600;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Homepage hero (docs/index.mdx)
+════════════════════════════════════════════════════════════════════════ */
+.hero-banner {
+  text-align: center;
+  padding: 56px 24px 40px;
+  margin: -24px -24px 32px;
+  border-radius: 0 0 16px 16px;
+  background: radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(91, 127, 217, 0.18),
+      transparent 60%
+    ),
+    var(--ifm-background-color);
+  border-bottom: 1px solid var(--ifm-toc-border-color);
+}
+.hero-banner h1 {
+  font-size: 44px;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #5b7fd9 0%, #4dc9f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-banner .lead {
+  font-size: 18px;
+  color: var(--mbs-ink-secondary);
+  max-width: 640px;
+  margin: 0 auto 24px;
+}
+.hero-cta {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+
+/* Local search modal polish */
+[class*='searchLocalSearchBar'] button,
+[class*='searchBoxInput'] {
+  border-radius: 8px;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

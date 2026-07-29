@@ -1,0 +1,95 @@
+name: Build & Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sql-logic-docs/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref
+concurrency:
+  group: deploy-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build Docusaurus
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sql-logic-docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: sql-logic-docs/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-build
+          path: sql-logic-docs/build
+          retention-days: 14
+
+  # ── Option A: GitHub Pages ──────────────────────────────────────────────
+  # Set repository → Settings → Pages → Source: GitHub Actions
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-build
+          path: build
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ── Option B: self-hosted via SSH/rsync ─────────────────────────────────
+  # Uncomment and fill secrets (DOCS_HOST, DOCS_USER, DOCS_PATH, DOCS_SSH_KEY)
+  # deploy-selfhost:
+  #   name: Deploy to self-hosted server
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main'
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: docs-build
+  #         path: build
+  #     - name: rsync to server
+  #       uses: burnett01/rsync-deployments@7.0.1
+  #       with:
+  #         switches: -avzr --delete
+  #         path: build/
+  #         remote_path: ${{ secrets.DOCS_PATH }}
+  #         remote_host: ${{ secrets.DOCS_HOST }}
+  #         remote_user: ${{ secrets.DOCS_USER }}
+  #         remote_key: ${{ secrets.DOCS_SSH_KEY }}

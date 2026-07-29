@@ -1,0 +1,8 @@
+{
+  "label": "项目结构",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "Must Be The SQL 的整体架构：React SPA 前端与 Java Spring Boot 后端的模块划分与协作方式。"
+  }
+}
