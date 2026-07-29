@@ -38,34 +38,64 @@ export default function DashboardGrid({ dashboard }: Props) {
 
   if (charts.length === 0) {
     return (
-      <div className="p-4 text-sm text-on-surface-variant/60">
-        No charts in dashboard
+      <div className="rounded-lg border p-6 text-center" style={{
+        borderColor: 'var(--color-border-subtle)',
+        background: 'var(--color-panel-bg)',
+      }}>
+        <span className="text-sm" style={{ color: 'var(--color-ink-tertiary)' }}>
+          No charts in dashboard
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container rounded-xl border p-4" style={{
+      borderColor: 'var(--color-border-subtle)',
+      background: 'var(--color-panel-bg)',
+    }}>
       {/* Dashboard header */}
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between mb-4">
         <div>
           {dashboard.title && (
-            <h3 className="text-base font-semibold">{dashboard.title}</h3>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--color-ink)' }}>
+              {dashboard.title}
+            </h3>
           )}
-          <div className="text-xs text-on-surface-variant/50">
-            {charts.length} chart{charts.length !== 1 ? 's' : ''}
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[11px]" style={{ color: 'var(--color-ink-tertiary)' }}>
+              {charts.length} chart{charts.length !== 1 ? 's' : ''}
+            </span>
+            {dashboard.display_strategy && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded" style={{
+                background: 'var(--color-semantic-report-soft)',
+                color: 'var(--color-semantic-report)',
+              }}>
+                {dashboard.display_strategy}
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={handleDownloadPng}
-            className="text-xs px-2 py-1 rounded border border-outline-variant/30 hover:bg-surface-variant/20"
+            className="text-[11px] px-2.5 py-1 rounded-md border transition-colors hover:border-primary/30"
+            style={{
+              color: 'var(--color-ink-secondary)',
+              borderColor: 'var(--color-border-subtle)',
+              background: 'var(--color-app-bg)',
+            }}
           >
             Export PNG
           </button>
           <button
             onClick={handleDownloadPdf}
-            className="text-xs px-2 py-1 rounded border border-outline-variant/30 hover:bg-surface-variant/20"
+            className="text-[11px] px-2.5 py-1 rounded-md border transition-colors hover:border-primary/30"
+            style={{
+              color: 'var(--color-ink-secondary)',
+              borderColor: 'var(--color-border-subtle)',
+              background: 'var(--color-app-bg)',
+            }}
           >
             Export PDF
           </button>
@@ -73,13 +103,23 @@ export default function DashboardGrid({ dashboard }: Props) {
       </div>
 
       {/* Chart grid */}
-      <div id="dashboard-grid" className={`grid ${gridCols} gap-3 bg-white p-2 rounded`}>
+      <div id="dashboard-grid" className={`grid ${gridCols} gap-3`}>
         {charts.map((item, i) => (
-          <div key={i} className="dashboard-chart-cell">
+          <div key={i} className="rounded-lg border p-3" style={{
+            borderColor: 'var(--color-border-subtle)',
+            background: 'var(--color-app-bg)',
+          }}>
             {item.error ? (
-              <div className="rounded border border-red-300/30 bg-red-50/10 p-3">
-                <div className="text-sm font-medium text-red-600">{item.title || `Chart ${i + 1}`}</div>
-                <div className="text-xs text-red-500 mt-1">{item.error}</div>
+              <div className="rounded-md p-3" style={{
+                background: 'var(--color-error-soft)',
+                border: '1px solid rgba(217, 69, 69, 0.15)',
+              }}>
+                <div className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>
+                  {item.title || `Chart ${i + 1}`}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--color-error)' }}>
+                  {item.error}
+                </div>
               </div>
             ) : item.data && item.data.length > 0 ? (
               <AutoChart
@@ -94,9 +134,13 @@ export default function DashboardGrid({ dashboard }: Props) {
                 height={220}
               />
             ) : (
-              <div className="rounded border border-outline-variant/20 bg-surface p-3">
-                <div className="text-sm font-medium">{item.title || `Chart ${i + 1}`}</div>
-                <div className="text-xs text-on-surface-variant/40 mt-1">No data available</div>
+              <div className="flex flex-col items-center justify-center py-6 gap-1">
+                <span className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
+                  {item.title || `Chart ${i + 1}`}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--color-ink-tertiary)' }}>
+                  No data available
+                </span>
               </div>
             )}
           </div>
@@ -104,7 +148,7 @@ export default function DashboardGrid({ dashboard }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="text-xs text-on-surface-variant/30 mt-2 text-right">
+      <div className="text-[10px] mt-3 text-right" style={{ color: 'var(--color-ink-tertiary)' }}>
         Generated at {new Date().toLocaleString()}
       </div>
     </div>

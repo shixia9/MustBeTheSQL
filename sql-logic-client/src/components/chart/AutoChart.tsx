@@ -26,9 +26,7 @@ import { type ParsedVisChart } from '../../utils/visContentParser';
 
 interface Props {
   chart: ParsedVisChart;
-  /** Show the chart type selector dropdown (default true) */
   showTypeSelector?: boolean;
-  /** Height for the responsive container */
   height?: number;
 }
 
@@ -96,7 +94,12 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
   }, [chart.data, labelCol, metricCols]);
 
   if (!chart.data || chart.data.length === 0) {
-    return <div className="text-sm text-on-surface-variant/60 p-4">No data to display</div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-8 gap-1" style={{ color: 'var(--color-ink-tertiary)' }}>
+        <span className="text-sm">No data to display</span>
+        {chart.sql && <span className="text-[10px] font-mono opacity-40">{chart.sql.substring(0, 60)}...</span>}
+      </div>
+    );
   }
 
   const handleTypeChange = (newType: ChartTypeCode) => {
@@ -111,30 +114,40 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
     }
   };
 
-  const renderChart = () => {
-    const effectiveType = validation.type;
+  const effectiveType = validation.type;
+  const typeLabel = effectiveType.replace('response_', '').replace('_chart', '').replace(/_/g, ' ');
 
+  const renderChart = () => {
     if (effectiveType === 'response_table') {
       return (
-        <div className="overflow-x-auto max-h-64">
+        <div className="overflow-x-auto max-h-72 rounded-md border" style={{ borderColor: 'var(--color-border-subtle)' }}>
           <table className="min-w-full text-xs font-mono border-collapse">
             <thead>
-              <tr className="bg-surface-variant/30">
+              <tr style={{ background: 'var(--color-app-bg-alt)' }}>
                 {columns.map(col => (
-                  <th key={col} className="px-2 py-1 text-left border border-outline-variant/20">{col}</th>
+                  <th key={col} className="px-3 py-1.5 text-left font-semibold border-b" style={{ borderColor: 'var(--color-border-subtle)', color: 'var(--color-ink)' }}>
+                    {col}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {chart.data.slice(0, 50).map((row, i) => (
-                <tr key={i} className="hover:bg-surface-variant/10">
+                <tr key={i} className="transition-colors" style={{ background: i % 2 === 0 ? 'transparent' : 'var(--color-app-bg)' }}>
                   {columns.map(col => (
-                    <td key={col} className="px-2 py-0.5 border border-outline-variant/10">
-                      {row[col] == null ? <span className="text-on-surface-variant/30">NULL</span> : String(row[col]).substring(0, 100)}
+                    <td key={col} className="px-3 py-1 border-b" style={{ borderColor: 'var(--color-border-subtle)', color: row[col] == null ? 'var(--color-ink-tertiary)' : 'var(--color-ink-secondary)' }}>
+                      {row[col] == null ? <span className="italic opacity-30">NULL</span> : String(row[col]).substring(0, 100)}
                     </td>
                   ))}
                 </tr>
               ))}
+              {chart.data.length > 50 && (
+                <tr>
+                  <td colSpan={columns.length} className="px-3 py-1 text-center" style={{ color: 'var(--color-ink-tertiary)', fontSize: '11px' }}>
+                    ... {chart.data.length - 50} more rows
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -144,57 +157,69 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
     if (effectiveType === 'response_indicator' && metricCols.length > 0) {
       const val = chart.data[0]?.[metricCols[0]];
       return (
-        <div className="flex items-center justify-center p-6">
+        <div className="flex items-center justify-center py-8">
           <div className="text-center">
-            <div className="text-3xl font-bold text-primary">{toNum(val).toLocaleString()}</div>
-            <div className="text-sm text-on-surface-variant/60 mt-1">{metricCols[0]}</div>
+            <div className="text-4xl font-bold tracking-tight" style={{ color: 'var(--color-primary)' }}>
+              {toNum(val).toLocaleString()}
+            </div>
+            <div className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-ink-tertiary)' }}>
+              {chart.title || metricCols[0]}
+            </div>
           </div>
         </div>
       );
     }
 
     if (!labelCol && effectiveType !== 'response_pie_chart' && effectiveType !== 'response_donut_chart') {
-      return <div className="text-sm text-on-surface-variant/60 p-4">Cannot render {effectiveType}: no label column found</div>;
+      return (
+        <div className="flex items-center justify-center py-8 text-sm" style={{ color: 'var(--color-ink-tertiary)' }}>
+          Cannot render {typeLabel}: no suitable label column found
+        </div>
+      );
     }
 
     if (metricCols.length === 0) {
-      return <div className="text-sm text-on-surface-variant/60 p-4">No numeric data for chart</div>;
+      return (
+        <div className="flex items-center justify-center py-8 text-sm" style={{ color: 'var(--color-ink-tertiary)' }}>
+          No numeric data available for chart
+        </div>
+      );
     }
 
     return (
       <ResponsiveContainer width="100%" height={height}>
         {effectiveType === 'response_bar_chart' ? (
           <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant) / 0.2)" />
-            {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} interval="preserveStartEnd" />}
-            <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} />
-            <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+            {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} interval="preserveStartEnd" />}
+            <YAxis tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} />
+            <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--color-border-subtle)' }} />
             {metricCols.length <= 3 && <Legend wrapperStyle={{ fontSize: 10 }} />}
             {metricCols.map((mc, i) => (
-              <Bar key={mc} dataKey={mc} fill={COLORS[i % COLORS.length]} radius={[2, 2, 0, 0]} />
+              <Bar key={mc} dataKey={mc} fill={COLORS[i % COLORS.length]} radius={[3, 3, 0, 0]} />
             ))}
           </BarChart>
         ) : effectiveType === 'response_line_chart' || effectiveType === 'response_area_chart' ? (
           effectiveType === 'response_area_chart' ? (
             <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant) / 0.2)" />
-              {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} interval="preserveStartEnd" />}
-              <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} />
-              <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+              {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} interval="preserveStartEnd" />}
+              <YAxis tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} />
+              <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--color-border-subtle)' }} />
               {metricCols.length <= 3 && <Legend wrapperStyle={{ fontSize: 10 }} />}
               {metricCols.map((mc, i) => (
-                <Area key={mc} type="monotone" dataKey={mc} fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.2} />
+                <Area key={mc} type="monotone" dataKey={mc} fill={COLORS[i % COLORS.length]} stroke={COLORS[i % COLORS.length]} fillOpacity={0.15} />
               ))}
             </AreaChart>
           ) : (
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant) / 0.2)" />
-              {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} interval="preserveStartEnd" />}
-              <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} />
-              <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+              {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} interval="preserveStartEnd" />}
+              <YAxis tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} />
+              <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--color-border-subtle)' }} />
               {metricCols.length <= 3 && <Legend wrapperStyle={{ fontSize: 10 }} />}
               {metricCols.map((mc, i) => (
-                <Line key={mc} type="monotone" dataKey={mc} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 2 }} />
+                <Line key={mc} type="monotone" dataKey={mc} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
               ))}
             </LineChart>
           )
@@ -211,48 +236,65 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
                 <Pie
                   data={pieData} dataKey="value" nameKey="name"
                   cx="50%" cy="50%"
-                  outerRadius={80}
-                  innerRadius={effectiveType === 'response_donut_chart' ? 45 : 0}
+                  outerRadius={90}
+                  innerRadius={effectiveType === 'response_donut_chart' ? 50 : 0}
                   label={({ name, percent }: any) => `${name ?? ''} ${((percent as number) * 100).toFixed(0)}%`}
-                  labelLine={false}
+                  labelLine={{ strokeWidth: 1, stroke: 'var(--color-border-default)' }}
                 >
                   {pieData.map((_, i) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace' }} />
+                <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--color-border-subtle)' }} />
               </PieChart>
             );
           })()
         ) : effectiveType === 'response_scatter_chart' ? (
           <ScatterChart margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--outline-variant) / 0.2)" />
-            {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} />}
-            <YAxis dataKey={metricCols[0]} tick={{ fontSize: 9, fill: 'hsl(var(--on-surface-variant) / 0.6)' }} />
-            <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace' }} cursor={{ strokeDasharray: '3 3' }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+            {labelCol && <XAxis dataKey={labelCol} tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} />}
+            <YAxis dataKey={metricCols[0]} tick={{ fontSize: 9, fill: 'var(--color-ink-tertiary)' }} />
+            <Tooltip contentStyle={{ fontSize: 10, fontFamily: 'monospace', borderRadius: '6px', border: '1px solid var(--color-border-subtle)' }} cursor={{ strokeDasharray: '3 3' }} />
             <Scatter data={chartData} fill={COLORS[0]} />
           </ScatterChart>
         ) : (
-          <div className="text-sm text-on-surface-variant/60 p-4">Unsupported chart type: {effectiveType}</div>
+          <div className="flex items-center justify-center py-8 text-sm" style={{ color: 'var(--color-ink-tertiary)' }}>
+            Unsupported chart type: {effectiveType}
+          </div>
         )}
       </ResponsiveContainer>
     );
   };
 
   return (
-    <div id={chartId} className="chart-container rounded border border-outline-variant/20 bg-surface p-3">
+    <div id={chartId} className="chart-container">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          {chart.title && <div className="text-sm font-medium">{chart.title}</div>}
-          {chart.describe && <div className="text-xs text-on-surface-variant/60 mt-0.5">{chart.describe}</div>}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider" style={{
+            background: 'var(--color-primary-soft)',
+            color: 'var(--color-primary)',
+          }}>
+            {typeLabel}
+          </span>
+          {chart.title && (
+            <span className="text-sm font-medium truncate" style={{ color: 'var(--color-ink)' }}>
+              {chart.title}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {showTypeSelector && (
             <select
               value={selectedType}
               onChange={e => handleTypeChange(e.target.value as ChartTypeCode)}
-              className="text-xs bg-surface-variant/30 border border-outline-variant/20 rounded px-1.5 py-0.5"
+              className="text-[11px] rounded-md px-2 py-1 border outline-none cursor-pointer transition-colors"
+              style={{
+                background: 'var(--color-app-bg)',
+                color: 'var(--color-ink-secondary)',
+                borderColor: 'var(--color-border-subtle)',
+                fontFamily: 'inherit',
+              }}
             >
               {CHART_TYPE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -261,7 +303,12 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
           )}
           <button
             onClick={handleDownload}
-            className="text-xs px-1.5 py-0.5 rounded hover:bg-surface-variant/30"
+            className="text-[11px] px-2 py-1 rounded-md border transition-colors hover:border-primary/30"
+            style={{
+              color: 'var(--color-ink-secondary)',
+              borderColor: 'var(--color-border-subtle)',
+              background: 'var(--color-app-bg)',
+            }}
             title="Download as PNG"
           >
             PNG
@@ -269,18 +316,38 @@ export default function AutoChart({ chart, showTypeSelector = true, height = 260
         </div>
       </div>
 
+      {/* Description */}
+      {chart.describe && (
+        <div className="text-[11px] mb-2 leading-relaxed" style={{ color: 'var(--color-ink-tertiary)' }}>
+          {chart.describe}
+        </div>
+      )}
+
       {/* Validation feedback */}
       {validation.reason && (
-        <div className="text-xs text-amber-500 mb-1">{validation.reason}</div>
+        <div className="flex items-center gap-1 text-[11px] mb-2 px-2 py-1 rounded" style={{
+          background: 'rgba(240, 160, 64, 0.08)',
+          color: '#d97706',
+        }}>
+          <span>{validation.reason}</span>
+        </div>
       )}
 
       {/* Chart body */}
-      {renderChart()}
+      <div className="rounded-lg p-2" style={{ background: 'var(--color-app-bg)' }}>
+        {renderChart()}
+      </div>
 
-      {/* Data summary */}
-      <div className="text-xs text-on-surface-variant/40 mt-1">
-        {chart.data.length} rows · {columns.length} columns
-        {chart.sql && <span className="ml-2 font-mono opacity-50">{chart.sql.substring(0, 40)}...</span>}
+      {/* Data summary footer */}
+      <div className="flex items-center gap-3 mt-2 text-[10px]" style={{ color: 'var(--color-ink-tertiary)' }}>
+        <span>{chart.data.length} rows</span>
+        <span>{columns.length} columns</span>
+        {metricCols.length > 0 && <span>{metricCols.length} metric{metricCols.length !== 1 ? 's' : ''}</span>}
+        {chart.sql && (
+          <span className="font-mono truncate hidden sm:inline" style={{ opacity: 0.4 }}>
+            {chart.sql.substring(0, 50)}...
+          </span>
+        )}
       </div>
     </div>
   );
