@@ -94,7 +94,7 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
             )}
             {reportSteps.length > 0 ? (
               reportSteps.map((s, i) => {
-                const raw = s.output?.report || s.content || 'Report content pending...';
+                const raw = s.output?.report || s.output?.content || s.content || 'Report content pending...';
                 const cleanMarkdown = stripVisContent(raw);
                 const visItems = parseVisContent(raw);
                 return (
@@ -226,7 +226,7 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
           <div className="space-y-3">
             {(() => {
               const allContent = steps
-                .map(s => s.output?.report || s.content || '')
+                .map(s => s.output?.report || s.output?.content || s.content || '')
                 .filter(Boolean);
               const allVis = allContent.flatMap(c => parseVisContent(c));
               return allVis.length > 0 ? (
