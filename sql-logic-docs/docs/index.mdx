@@ -1,0 +1,92 @@
+---
+slug: /
+title: 首页
+description: Must Be The SQL — 面向数据科学工作流的可视化 SQL 逻辑引擎产品文档
+hide_table_of_contents: true
+---
+
+<div className="hero-banner">
+
+# Must Be The SQL
+
+<p className="lead">
+  面向数据科学工作流的可视化 SQL 逻辑引擎。<br />
+  通过节点式画布编排 Agent 工作流，连接数据库、执行 SQL、输出可读结果。
+</p>
+
+<div className="hero-cta">
+  <a className="button button--primary button--lg" href="/docs/getting-started/introduction">
+    快速开始 →
+  </a>
+  <a className="button button--secondary button--lg" href="/docs/api/overview">
+    API 说明
+  </a>
+</div>
+
+</div>
+
+## 产品能力
+
+<div className="feature-grid">
+
+<div className="card" style={{padding:'20px'}}>
+
+### ⚙️ 工作流编排
+
+节点式画布（DataScience、DatabaseResource、Agent 等），支持连接级联、Schema/Table 探测与节点间数据流转。
+
+</div>
+
+<div className="card" style={{padding:'20px'}}>
+
+### 🤖 Agent 执行
+
+单 Agent 与多 Agent（agentic workflow）两种模式，内置执行时间线、Markdown 渲染输出与可读结果回显。
+
+</div>
+
+<div className="card" style={{padding:'20px'}}>
+
+### 🗄️ 数据源接入
+
+DatabaseMetaDataService 自动拉取真实表清单与 DDL，支持连接 → Schema → Table 级联选择。
+
+</div>
+
+<div className="card" style={{padding:'20px'}}>
+
+### 📊 LLM 监控
+
+`llm_call_metrics` 数据层统一上报，Admin 控制台提供工作流概览、Agent 步骤指标与令牌统计。
+
+</div>
+
+<div className="card" style={{padding:'20px'}}>
+
+### 🛡️ 独立 Admin 控制台
+
+`sql-logic-admin`（端口 3001）独立 Vite 应用，Dashboard / Workflows / LLM Monitor 多视图。
+
+</div>
+
+<div className="card" style={{padding:'20px'}}>
+
+### 🎨 Linear 风格 UI
+
+统一 `#5b7fd9` 主色调，明暗双模式，Inter + JetBrains Mono 字体栈，动效平滑。
+
+</div>
+
+</div>
+
+## 文档导航
+
+| 模块 | 说明 |
+| --- | --- |
+| [快速开始](/docs/getting-started/introduction) | 环境要求、安装、首个工作流 |
+| [项目结构](/docs/constructure/overview) | 前端 SPA + Spring Boot 后端架构总览 |
+| [使用指南](/docs/guide/workflow-design) | 工作流设计、Agent 执行、Admin 控制台 |
+| [API 说明](/docs/api/overview) | REST 接口与 Swagger / OpenAPI 跳转 |
+| [常见问题](/docs/faq/general) | 高频问题与排错指引 |
+
+> 📌 **文档站点 ≠ 接口文档**：本站为产品使用教程（Docusaurus）；Java 后端 Swagger 接口文档独立运行，见 [API 说明](/docs/api/overview)。

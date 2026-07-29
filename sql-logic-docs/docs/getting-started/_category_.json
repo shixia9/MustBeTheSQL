@@ -1,0 +1,8 @@
+{
+  "label": "快速开始",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "了解 Must Be The SQL 的环境要求、安装步骤与首个工作流的搭建。"
+  }
+}

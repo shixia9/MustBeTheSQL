@@ -1,0 +1,8 @@
+{
+  "label": "常见问题",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "description": "高频问题、部署排错与最佳实践。"
+  }
+}

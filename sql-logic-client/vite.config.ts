@@ -27,6 +27,12 @@ export default defineConfig(({mode}) => {
         '/uploads': {
           target: 'http://localhost:8080',
           changeOrigin: true
+        },
+        // Docs site (Docusaurus runs on :3005 in dev). Proxy /docs so that
+        // dev parity matches production: visit http://localhost:3000/docs
+        '/docs': {
+          target: 'http://localhost:3005',
+          changeOrigin: true
         }
       }
     },
