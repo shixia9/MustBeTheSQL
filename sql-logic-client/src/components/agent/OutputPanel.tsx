@@ -2,6 +2,9 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getIcon } from '../../assets/icons';
+import { parseVisContent, stripVisContent } from '../../utils/visContentParser';
+import AutoChart from '../chart/AutoChart';
+import DashboardGrid from '../dashboard/DashboardGrid';
 
 interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
 interface TurnData { question: string; steps: StepData[] }
@@ -13,7 +16,7 @@ const outputTabs = [
   { key: 'chart', label: 'Chart', icon: 'chart' },
 ];
 
-export default function OutputPanel({ output, steps, turns }: {
+export default function OutputPanel({ output: _output, steps, turns: _turns }: {
   output: any;
   steps: StepData[];
   turns: TurnData[];
@@ -22,6 +25,7 @@ export default function OutputPanel({ output, steps, turns }: {
 
   const reportSteps = steps.filter(s =>
     s.nodeName === 'REPORT' || s.nodeName === 'DASHBOARD'
+    || s.nodeName === 'DASHBOARD_ASSISTANT'
   );
   const sqlSteps = steps.filter(s =>
     s.nodeName === 'SQL_GENERATION' || s.nodeName === 'SQL_EXECUTION'
@@ -89,7 +93,11 @@ export default function OutputPanel({ output, steps, turns }: {
               </div>
             )}
             {reportSteps.length > 0 ? (
-              reportSteps.map((s, i) => (
+              reportSteps.map((s, i) => {
+                const raw = s.output?.report || s.content || 'Report content pending...';
+                const cleanMarkdown = stripVisContent(raw);
+                const visItems = parseVisContent(raw);
+                return (
                 <div key={i} className="text-xs leading-relaxed" style={{ color: 'var(--color-ink)' }}>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
@@ -119,10 +127,23 @@ export default function OutputPanel({ output, steps, turns }: {
                       hr: () => <hr className="my-2" style={{ borderColor: 'var(--color-border-subtle)' }} />,
                     }}
                   >
-                    {s.output?.report || s.content || 'Report content pending...'}
+                    {cleanMarkdown}
                   </ReactMarkdown>
+                  {/* Render vis charts/dashboards extracted from the markdown */}
+                  {visItems.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      {visItems.map((vis, vi) =>
+                        vis.tag === 'vis-dashboard' ? (
+                          <DashboardGrid key={vi} dashboard={vis} />
+                        ) : (
+                          <AutoChart key={vi} chart={vis} height={240} />
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))
+                );
+              })
             ) : (
               <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
                 Awaiting agent execution...
@@ -202,8 +223,26 @@ export default function OutputPanel({ output, steps, turns }: {
 
         {/* Chart tab */}
         {activeTab === 'chart' && (
-          <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
-            Chart view — pending visualization integration
+          <div className="space-y-3">
+            {(() => {
+              const allContent = steps
+                .map(s => s.output?.report || s.content || '')
+                .filter(Boolean);
+              const allVis = allContent.flatMap(c => parseVisContent(c));
+              return allVis.length > 0 ? (
+                allVis.map((vis, i) =>
+                  vis.tag === 'vis-dashboard' ? (
+                    <DashboardGrid key={i} dashboard={vis} />
+                  ) : (
+                    <AutoChart key={i} chart={vis} height={260} />
+                  )
+                )
+              ) : (
+                <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
+                  Charts will appear here when data is visualized
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
