@@ -2,12 +2,13 @@ import { useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getIcon } from '../../assets/icons';
-import { parseVisContent, stripVisContent } from '../../utils/visContentParser';
+import { parseVisContent, stripVisContent, extractHtmlContent, looksLikeChartJson, buildChartSummary } from '../../utils/visContentParser';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 import { api } from '../../api/client';
 import storageUtils from '../../utils/storageUtils';
 import AutoChart from '../chart/AutoChart';
 import DashboardGrid from '../dashboard/DashboardGrid';
+import HtmlReportView from './HtmlReportView';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import SqlResultTable from './cards/SqlResultTable';
 
@@ -21,19 +22,6 @@ const outputTabs = [
   { key: 'chart', label: 'Chart', icon: 'chart' },
 ];
 
-/** Detect if text is raw JSON containing chart definitions from DataScientistAgent */
-function looksLikeChartJson(text: string): boolean {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return false;
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) {
-      return parsed.length > 0 && parsed.some((item: any) => item.display_type && item.sql);
-    }
-    return !!(parsed.display_type && parsed.sql);
-  } catch { return false; }
-}
-
 /** Parse chart JSON into ParsedVisChart-like items with only metadata (no data rows) */
 function parseChartMetaJson(text: string): { title?: string; type: string; sql?: string; thought?: string }[] {
   try {
@@ -46,22 +34,6 @@ function parseChartMetaJson(text: string): { title?: string; type: string; sql?:
       thought: item.thought,
     }));
   } catch { return []; }
-}
-
-/** Build a readable summary from chart JSON metadata */
-function buildChartSummary(text: string): string {
-  try {
-    const parsed = JSON.parse(text.trim());
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    const lines = items.map((item: any, i: number) => {
-      const title = item.title || `Chart ${i + 1}`;
-      const typeName = String(item.display_type || 'table')
-        .replace('response_', '').replace('_chart', '').replace(/_/g, ' ');
-      const thought = item.thought ? ` — ${item.thought}` : '';
-      return `- **${title}** (${typeName})${thought}`;
-    });
-    return `### Chart Analysis\n\nGenerated ${items.length} chart query plan(s):\n\n${lines.join('\n')}`;
-  } catch { return ''; }
 }
 
 /** Extract SQL execution result from step output (various shapes) */
@@ -241,6 +213,38 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
             {reportSteps.length > 0 ? (
               reportSteps.map((s, i) => {
                 const raw = s.output?.report || s.output?.content || s.content || '';
+
+                // If content contains HTML report, render it in sandboxed iframe
+                const htmlContent = extractHtmlContent(raw);
+                if (htmlContent) {
+                  const cleanMarkdown = stripVisContent(raw.replace(/```html[\s\S]*?```/gi, ''));
+                  return (
+                    <div key={i} className="space-y-3">
+                      <HtmlReportView htmlContent={htmlContent} title="Analysis Report" />
+                      {cleanMarkdown && (
+                        <details className="text-xs" style={{ color: 'var(--color-ink-secondary)' }}>
+                          <summary className="cursor-pointer font-medium" style={{ color: 'var(--color-ink-tertiary)' }}>
+                            Text Summary
+                          </summary>
+                          <div className="mt-2 leading-relaxed">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
+                                p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
+                                li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
+                                strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
+                                ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
+                              }}
+                            >
+                              {cleanMarkdown}
+                            </ReactMarkdown>
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  );
+                }
 
                 // If the raw content looks like chart JSON, render chart cards + summary
                 if (looksLikeChartJson(raw)) {

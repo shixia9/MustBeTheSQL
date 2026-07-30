@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useLayout } from '../../contexts/LayoutContext';
 import StepTimeline from './StepTimeline';
 import OutputPanel from './OutputPanel';
+import RightPanelToggle from './RightPanelToggle';
 
 interface TurnData { question: string; steps: StepData[] }
 interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
@@ -9,6 +10,7 @@ interface StepData { nodeName: string; status: string; content?: string; output?
 export default function AgentExecutionView({
   turns, isStreaming, hitlPending, onHitlConfirm,
   autoConfirm, onAutoConfirmChange,
+  hasMultimodalContent,
 }: {
   turns: TurnData[];
   isStreaming: boolean;
@@ -18,9 +20,37 @@ export default function AgentExecutionView({
   onAutoConfirmChange: (v: boolean) => void;
   selectedDb: number | null;
   onDbChange: (v: number) => void;
+  hasMultimodalContent: boolean;
 }) {
-  const { rightPanelWidth, setRightPanelWidth } = useLayout();
+  const {
+    rightPanelWidth, setRightPanelWidth,
+    rightPanelExpanded, setRightPanelExpanded,
+    rightPanelVisible, setRightPanelVisible,
+  } = useLayout();
   const [isDragging, setIsDragging] = useState(false);
+
+  // When streaming starts, show the toggle (collapsed). When streaming stops
+  // and multimodal content exists, auto-expand the right panel.
+  const [wasStreaming, setWasStreaming] = useState(false);
+
+  useEffect(() => {
+    if (isStreaming && !wasStreaming) {
+      // Stream just started
+      setRightPanelVisible(true);
+      setRightPanelExpanded(false);
+    }
+    if (!isStreaming && wasStreaming) {
+      // Stream just ended
+      if (hasMultimodalContent) {
+        setRightPanelExpanded(true);
+      }
+    }
+    setWasStreaming(isStreaming);
+  }, [isStreaming, wasStreaming, hasMultimodalContent, setRightPanelVisible, setRightPanelExpanded]);
+
+  const handleTogglePanel = useCallback(() => {
+    setRightPanelExpanded(!rightPanelExpanded);
+  }, [setRightPanelExpanded, rightPanelExpanded]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,7 +71,7 @@ export default function AgentExecutionView({
     document.addEventListener('mouseup', onMouseUp);
   }, [rightPanelWidth, setRightPanelWidth]);
 
-  // Collect all outputs from the latest turn
+  // Collect all outputs from all turns
   const allSteps: StepData[] = turns.length > 0
     ? turns.flatMap(t => t.steps)
     : [];
@@ -49,27 +79,48 @@ export default function AgentExecutionView({
 
   return (
     <div className="flex-1 flex overflow-hidden" style={{ userSelect: isDragging ? 'none' : undefined }}>
-      {/* Left: Step Timeline */}
+      {/* Left: Step Timeline — always visible */}
       <div className="flex-1 overflow-auto" style={{ minWidth: '320px' }}>
-        <StepTimeline turns={turns} isStreaming={isStreaming} />
-      </div>
-
-      {/* Resizable Divider */}
-      <div
-        className="flex-shrink-0 cursor-col-resize relative group"
-        style={{ width: '4px', background: 'transparent' }}
-        onMouseDown={handleMouseDown}
-      >
-        <div
-          className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px transition-colors duration-150"
-          style={{ background: isDragging ? 'var(--color-primary)' : 'var(--color-border-subtle)' }}
+        <StepTimeline
+          turns={turns}
+          isStreaming={isStreaming}
+          onViewVisualizations={() => setRightPanelExpanded(true)}
         />
       </div>
 
-      {/* Right: Output Panel */}
-      <div className="overflow-hidden flex-shrink-0 h-full" style={{ width: rightPanelWidth }}>
-        <OutputPanel output={latestOutput} steps={allSteps} turns={turns} />
-      </div>
+      {/* Right panel: three states */}
+      {rightPanelVisible && !rightPanelExpanded && (
+        /* State 2: Collapsed — only the toggle bookmark */
+        <RightPanelToggle expanded={false} onClick={handleTogglePanel} visible={true} />
+      )}
+
+      {rightPanelVisible && rightPanelExpanded && (
+        /* State 3: Expanded — full panel with resizable divider */
+        <>
+          {/* Resizable Divider */}
+          <div
+            className="flex-shrink-0 cursor-col-resize relative group"
+            style={{ width: '4px', background: 'transparent' }}
+            onMouseDown={handleMouseDown}
+          >
+            <div
+              className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px transition-colors duration-150"
+              style={{ background: isDragging ? 'var(--color-primary)' : 'var(--color-border-subtle)' }}
+            />
+          </div>
+
+          {/* Output Panel */}
+          <div
+            className="overflow-hidden flex-shrink-0 h-full"
+            style={{ width: rightPanelWidth, transition: 'width 200ms var(--ease-out-fast)' }}
+          >
+            <OutputPanel output={latestOutput} steps={allSteps} turns={turns} />
+          </div>
+
+          {/* Toggle to collapse */}
+          <RightPanelToggle expanded={true} onClick={handleTogglePanel} visible={true} />
+        </>
+      )}
 
       {/* HITL Confirm */}
       {hitlPending && (

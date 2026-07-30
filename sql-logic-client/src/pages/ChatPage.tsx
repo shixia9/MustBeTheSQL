@@ -5,6 +5,7 @@ import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { api } from '../api/client';
+import { hasMultimodalContent } from '../utils/visContentParser';
 import AgentExecutionView from '../components/agent/AgentExecutionView';
 import WelcomePanel from '../components/chat/WelcomePanel';
 import { Database, ChevronDown } from 'lucide-react';
@@ -42,6 +43,7 @@ export default function ChatPage() {
   const [schemas, setSchemas] = useState<string[]>([]);
   const [connPickerOpen, setConnPickerOpen] = useState(false);
   const [schemaPickerOpen, setSchemaPickerOpen] = useState(false);
+  const [hasMultimodal, setHasMultimodal] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   // Guard against duplicate turn finalization in dev StrictMode
@@ -100,6 +102,7 @@ export default function ChatPage() {
 
   const handleStream = useCallback(async (userInput: string) => {
     setIsStreaming(true);
+    setHasMultimodal(false);
     turnFinalizedRef.current = false;
     const turn: TurnData = { question: userInput, steps: [] };
     setCurrentTurn(turn);
@@ -120,6 +123,7 @@ export default function ChatPage() {
           llmConfigId,
           autoConfirm,
           schemaContext: schemaName,
+          htmlReport: true,
         }),
         signal: controller.signal,
         credentials: 'include',
@@ -229,7 +233,14 @@ export default function ChatPage() {
         turnFinalizedRef.current = true;
         setCurrentTurn(prev => {
           if (prev) {
-            setTurns(prevTurns => [...prevTurns, prev]);
+            setTurns(prevTurns => {
+              const newTurns = [...prevTurns, prev];
+              // Detect multimodal content in the latest completed turn
+              if (hasMultimodalContent(prev.steps)) {
+                setHasMultimodal(true);
+              }
+              return newTurns;
+            });
           }
           return null;
         });
@@ -271,6 +282,7 @@ export default function ChatPage() {
             onAutoConfirmChange={setAutoConfirm}
             selectedDb={activeConnectionId}
             onDbChange={(id) => useWorkspaceStore.getState().setActiveConnectionId(id)}
+            hasMultimodalContent={hasMultimodal}
           />
         ) : (
           <WelcomePanel

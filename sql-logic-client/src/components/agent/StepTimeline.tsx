@@ -1,5 +1,8 @@
 import { useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getIcon } from '../../assets/icons';
+import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary } from '../../utils/visContentParser';
 
 interface StepData {
   nodeName: string;
@@ -51,9 +54,12 @@ function extractSummary(step: StepData): string | null {
   return null;
 }
 
-export default function StepTimeline({ turns, isStreaming }: {
+export default function StepTimeline({
+  turns, isStreaming, onViewVisualizations,
+}: {
   turns: TurnData[];
   isStreaming: boolean;
+  onViewVisualizations?: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -61,13 +67,18 @@ export default function StepTimeline({ turns, isStreaming }: {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns]);
 
-  // Flatten all steps from all turns with turn context
   const allSteps: { turnIdx: number; question: string; step: StepData; stepIdx: number }[] = [];
   for (let ti = 0; ti < turns.length; ti++) {
     for (let si = 0; si < turns[ti].steps.length; si++) {
       allSteps.push({ turnIdx: ti, question: turns[ti].question, step: turns[ti].steps[si], stepIdx: si });
     }
   }
+
+  // Find the latest DASHBOARD step with report content (for process summary)
+  const lastDashboardStep = [...allSteps].reverse().find(
+    s => (s.step.nodeName === 'DASHBOARD' || s.step.nodeName === 'DASHBOARDASSISTANT')
+      && (s.step.output?.report || s.step.output?.content)
+  );
 
   if (allSteps.length === 0) {
     return (
@@ -157,7 +168,6 @@ export default function StepTimeline({ turns, isStreaming }: {
                       style={{ background: '#ef4444' }}
                     />
                   )}
-                  {/* Connector line to next step */}
                   {si < turn.steps.length - 1 && (
                     <div className="flex-1 w-px mt-1" style={{ background: 'var(--color-border-subtle)' }} />
                   )}
@@ -230,6 +240,90 @@ export default function StepTimeline({ turns, isStreaming }: {
           })}
         </div>
       ))}
+
+      {/* ── Process Summary (after last turn) ── */}
+      {lastDashboardStep && !isStreaming && (
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>
+              Process Summary
+            </span>
+            {(() => {
+              const raw = lastDashboardStep.step.output?.report
+                || lastDashboardStep.step.output?.content || '';
+              const hasVis = parseVisContent(raw).length > 0;
+              return hasVis && onViewVisualizations ? (
+                <button
+                  onClick={onViewVisualizations}
+                  className="px-2.5 py-1 rounded text-[11px] font-medium transition-colors"
+                  style={{
+                    background: 'var(--color-semantic-report-soft)',
+                    color: 'var(--color-semantic-report)',
+                    border: '0.5px solid rgba(77,201,246,0.25)',
+                  }}
+                >
+                  View Visualizations &rarr;
+                </button>
+              ) : null;
+            })()}
+          </div>
+          <div className="text-xs leading-relaxed" style={{ color: 'var(--color-ink-secondary)' }}>
+            {(() => {
+              const raw = lastDashboardStep.step.output?.report
+                || lastDashboardStep.step.output?.content || '';
+
+              // If the content is raw chart JSON, generate a readable summary
+              if (looksLikeChartJson(raw)) {
+                const summary = buildChartSummary(raw);
+                if (summary) {
+                  return (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
+                        p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
+                        li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
+                        strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
+                        ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
+                      }}
+                    >
+                      {summary}
+                    </ReactMarkdown>
+                  );
+                }
+              }
+
+              const cleanMarkdown = stripVisContent(raw);
+              if (!cleanMarkdown) {
+                return <span style={{ color: 'var(--color-ink-tertiary)' }}>Report content pending...</span>;
+              }
+              return (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }) => <h1 className="text-sm font-bold mt-3 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-xs font-bold mt-2 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-0.5" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
+                    p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
+                    ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
+                    ol: ({ children }) => <ol className="text-xs list-decimal ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ol>,
+                    li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
+                    code: ({ children }: any) => (
+                      <code className="text-[10px] px-1 py-0.5 rounded font-mono" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>{children}</code>
+                    ),
+                    table: ({ children }) => <table className="text-[10px] w-full border-collapse my-1 rounded" style={{ border: '1px solid var(--color-border-subtle)' }}>{children}</table>,
+                    th: ({ children }) => <th className="px-2 py-1 text-left font-semibold border-b" style={{ color: 'var(--color-ink)', background: 'var(--color-app-bg)', borderColor: 'var(--color-border-subtle)' }}>{children}</th>,
+                    td: ({ children }) => <td className="px-2 py-1 border-b" style={{ color: 'var(--color-ink-secondary)', borderColor: 'var(--color-border-subtle)' }}>{children}</td>,
+                  }}
+                >
+                  {cleanMarkdown}
+                </ReactMarkdown>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       <div ref={bottomRef} />
     </div>
