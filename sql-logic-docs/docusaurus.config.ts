@@ -92,8 +92,7 @@ const config: Config = {
       disableSwitch: false,
     },
 
-    image: 'img/og-image.png',
-    metadata: [{name: 'twitter:card', content: 'summary_large_image'}],
+    metadata: [{name: 'twitter:card', content: 'summary'}],
 
     navbar: {
       title: 'Must Be The SQL',
@@ -132,7 +131,7 @@ const config: Config = {
           title: '文档',
           items: [
             {label: '快速开始', to: '/getting-started/introduction'},
-            {label: '项目结构', to: '/constructure/overview'},
+            {label: '核心概念', to: '/constructure/concepts'},
             {label: '使用指南', to: '/guide/workflow-design'},
           ],
         },

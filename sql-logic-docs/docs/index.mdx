@@ -1,92 +1,55 @@
 ---
 slug: /
 title: 首页
-description: Must Be The SQL — 面向数据科学工作流的可视化 SQL 逻辑引擎产品文档
+description: Must Be The SQL 产品文档 — 面向数据团队的可视化 SQL 工作流引擎
 hide_table_of_contents: true
 ---
 
-<div className="hero-banner">
+# 欢迎使用 Must Be The SQL
 
-# Must Be The SQL
+**Must Be The SQL** 是一个面向数据团队的可视化 SQL 工作流引擎。
+在画布上连接数据库、编排 Agent、产出可读结论——无需编写代码，也无需记忆 SQL 语法。
 
-<p className="lead">
-  面向数据科学工作流的可视化 SQL 逻辑引擎。<br />
-  通过节点式画布编排 Agent 工作流，连接数据库、执行 SQL、输出可读结果。
-</p>
+> **新用户？** 从 [快速开始](/docs/getting-started/quickstart) 入手，十分钟跑通你的第一个工作流。
+> **想了解原理？** 阅读 [核心概念](/docs/constructure/concepts)，理解节点、工作流与 Agent 如何协作。
 
-<div className="hero-cta">
-  <a className="button button--primary button--lg" href="/docs/getting-started/introduction">
-    快速开始 →
-  </a>
-  <a className="button button--secondary button--lg" href="/docs/api/overview">
-    API 说明
-  </a>
-</div>
+---
 
-</div>
+## 它能为你做什么
 
-## 产品能力
+- **可视化编排** — 用拖拽画布把「取数 → 分析 → 结论」串成可复用的工作流，告别一次性脚本。
+- **自然语言提问** — 对着数据用大白话提问，由 Agent 自动生成并执行 SQL，结果以可读的方式呈现。
+- **真实数据源感知** — 连接数据库后自动列出 Schema 与表，选中即可用，无需手填连接串。
+- **执行可追溯** — 每一步执行都进入时间线，结果以 Markdown 渲染，过程可回看、可分享。
+- **运维可观测** — 独立控制台提供工作流状态、Agent 步骤指标与 LLM 调用监控。
 
-<div className="feature-grid">
+## 一个典型工作流长什么样
 
-<div className="card" style={{padding:'20px'}}>
+```mermaid
+flowchart LR
+  A[("数据库连接")] --> B["DatabaseResource 节点<br/>选中表与 Schema"]
+  B --> C["Agent 节点<br/>自然语言提问"]
+  C --> D["可读结果<br/>Markdown 渲染"]
+  style A fill:#eef,stroke:#5b7fd9
+  style D fill:#efe,stroke:#3b8c5e
+```
 
-### ⚙️ 工作流编排
+你把「数据从哪来」交给 DatabaseResource 节点，把「想要什么」交给 Agent 节点，剩下的交给引擎。
 
-节点式画布（DataScience、DatabaseResource、Agent 等），支持连接级联、Schema/Table 探测与节点间数据流转。
+## 文档导览
 
-</div>
+| 章节 | 适合谁 | 回答什么问题 |
+| --- | --- | --- |
+| [快速开始](/docs/getting-started/introduction) | 第一次接触的人 | 它是什么、装在哪、怎么跑起来 |
+| [核心概念](/docs/constructure/concepts) | 想理解原理的人 | 节点、工作流、Agent、连接之间是什么关系 |
+| [使用指南](/docs/guide/workflow-design) | 日常使用者 | 怎么设计、执行、监控一个工作流 |
+| [API 说明](/docs/api/overview) | 需要对接的开发者 | 有哪些接口、怎么跳转 Swagger |
+| [常见问题](/docs/faq/general) | 遇到问题的人 | 高频疑问与排错指引 |
 
-<div className="card" style={{padding:'20px'}}>
+## 下一步
 
-### 🤖 Agent 执行
+**🚀 [快速开始 →](/docs/getting-started/quickstart)** — 十分钟完成安装并跑通第一个工作流。
 
-单 Agent 与多 Agent（agentic workflow）两种模式，内置执行时间线、Markdown 渲染输出与可读结果回显。
-
-</div>
-
-<div className="card" style={{padding:'20px'}}>
-
-### 🗄️ 数据源接入
-
-DatabaseMetaDataService 自动拉取真实表清单与 DDL，支持连接 → Schema → Table 级联选择。
-
-</div>
-
-<div className="card" style={{padding:'20px'}}>
-
-### 📊 LLM 监控
-
-`llm_call_metrics` 数据层统一上报，Admin 控制台提供工作流概览、Agent 步骤指标与令牌统计。
-
-</div>
-
-<div className="card" style={{padding:'20px'}}>
-
-### 🛡️ 独立 Admin 控制台
-
-`sql-logic-admin`（端口 3001）独立 Vite 应用，Dashboard / Workflows / LLM Monitor 多视图。
-
-</div>
-
-<div className="card" style={{padding:'20px'}}>
-
-### 🎨 Linear 风格 UI
-
-统一 `#5b7fd9` 主色调，明暗双模式，Inter + JetBrains Mono 字体栈，动效平滑。
-
-</div>
-
-</div>
-
-## 文档导航
-
-| 模块 | 说明 |
-| --- | --- |
-| [快速开始](/docs/getting-started/introduction) | 环境要求、安装、首个工作流 |
-| [项目结构](/docs/constructure/overview) | 前端 SPA + Spring Boot 后端架构总览 |
-| [使用指南](/docs/guide/workflow-design) | 工作流设计、Agent 执行、Admin 控制台 |
-| [API 说明](/docs/api/overview) | REST 接口与 Swagger / OpenAPI 跳转 |
-| [常见问题](/docs/faq/general) | 高频问题与排错指引 |
-
-> 📌 **文档站点 ≠ 接口文档**：本站为产品使用教程（Docusaurus）；Java 后端 Swagger 接口文档独立运行，见 [API 说明](/docs/api/overview)。
+:::note 文档与接口文档的区别
+本站是**产品使用手册**（怎么用），由 Docusaurus 构建。Java 后端的接口契约由独立的 Swagger（OpenAPI）提供，两者分开。需要时可在 [API 说明](/docs/api/overview) 中一键跳转。
+:::

@@ -1,55 +1,146 @@
 ---
 sidebar_position: 1
 title: 工作流设计
-description: 在画布上编排节点与数据流
+description: 在画布上编排节点、连线与数据流
 ---
 
 # 工作流设计
 
-工作流画布是 Must Be The SQL 的核心交互界面。本章介绍节点类型、连线规则与数据流转。
+本章教你如何从零设计一个工作流。设计工作流就是回答三个问题：
 
-## 节点类型
+1. **数据从哪来？** → 用数据节点
+2. **要对数据做什么？** → 用 Agent 或处理节点
+3. **结果给谁？** → 看执行时间线
 
-| 节点 | 作用 | 关键配置 |
-| --- | --- | --- |
-| **DataScience** | 数据科学操作节点 | 连接 → Schema → Table 级联选择 |
-| **DatabaseResource** | 数据库资源节点 | 选中表后自动拉取表清单与 DDL |
-| **Agent** | Agent 执行节点 | 接收上游输出作为上下文 |
-
-:::info 级联下拉
-DataScience 与 DatabaseResource 节点使用「连接 → Schema → Table」三级级联下拉，而不是文本输入连接 ID。表清单来自后端 `DatabaseMetaDataService`。
-:::
-
-## 添加节点
-
-1. 从左侧节点面板拖拽节点到画布。
-2. 选中节点，右侧 `NodeConfigPanel.tsx` 面板展开配置项。
-3. 对于 DataScience / DatabaseResource：先选连接，再选 Schema，最后选 Table。
-4. 选中 Table 后，后端拉取该表的 DDL 注入节点上下文。
-
-## 连线与数据流
-
-- 从上游节点的输出端口拖到下游节点的输入端口。
-- 下游节点的 `inputsValues` 会被引擎合并进执行上下文。
-- Agent 节点可以把上游 DatabaseResource 的输出（表数据 / DDL）作为自然语言意图的素材。
+## 设计流程总览
 
 ```mermaid
 flowchart LR
-  DB["DatabaseResource<br/>(table + DDL)"] --> A["Agent<br/>(NL intent)"] --> Out["可读结果<br/>(Markdown)"]
+  Plan["规划：要几个节点<br/>各自负责什么"] --> Place["放置：拖节点到画布"]
+  Place --> Config["配置：选连接/表/提问"]
+  Config --> Connect["连线：定义执行顺序"]
+  Connect --> Run["运行：查看结果"]
+  Run --> Tweak["调优：改配置重跑"]
+  Tweak -.迭代.-> Config
+  style Plan fill:#fffbe6,stroke:#f0a040
+  style Run fill:#efe,stroke:#3b8c5e
 ```
 
-## 执行
+## 第一步：规划节点
 
-点击画布右上角 **运行**，工作流从入度 0 的节点开始按拓扑序执行。每个节点执行完成后，结果进入执行时间线。
+动手前先在脑中画一张草图。以「对比两张表的增长趋势」为例：
 
-### 时间线行为
+```mermaid
+flowchart LR
+  A["取表 A"] --> C["Agent：对比 A 与 B"]
+  B["取表 B"] --> C
+  C --> R["结论"]
+  style R fill:#efe,stroke:#3b8c5e
+```
 
-- 卡片使用 `motion.div` 入场动画：`opacity 0→1`、`y 10→0`、280ms ease-out。
-- React key 使用稳定的 `entry.nodeId`，避免状态切换时的重复节点。
-- 结果由 `formatOutput` 用 `react-markdown` + `remark-gfm` 渲染；无法解析为 Markdown 时回退为 `<pre>` 展示原始 JSON。
+需要 2 个数据节点 + 1 个 Agent，共 3 个节点。规划清楚了，放置时就不会乱。
 
-:::tip 保留配置
-`WorkflowEngine.executeNode` 必须合并节点的 `inputsValues`，否则画布上配置的连接、Schema、Table 等数据会在执行中丢失。
+## 第二步：放置并配置节点
+
+从左侧节点面板把节点拖到画布，然后在右侧配置面板填写：
+
+### 数据节点（DatabaseResource）
+
+数据节点用**级联下拉**选择数据，不手填连接串：
+
+```mermaid
+flowchart LR
+  S1["选 连接"] --> S2["选 Schema"] --> S3["选 表"]
+  S3 --> Auto["后端自动拉取表结构"]
+  style S1 fill:#eef,stroke:#5b7fd9
+```
+
+选中表后，表的结构会自动注入节点上下文，下游 Agent 就能知道有哪些字段可用。
+
+### Agent 节点
+
+Agent 节点的核心配置是**一句自然语言提问**。写得越具体，结果越准。
+
+| ✅ 好的提问 | ❌ 模糊的提问 |
+| --- | --- |
+| 统计这张表每天的行数，按日期升序 | 看看数据 |
+| 找出金额最高的前 10 笔订单 | 分析一下 |
+| 计算各品类的月度环比增长率 | 有什么趋势 |
+
+:::tip 提问技巧
+把「字段、时间范围、排序、聚合维度」都说清楚。Agent 会据此生成更精准的 SQL。
 :::
 
-下一步：[Agent 执行](/docs/guide/agent-execution)。
+## 第三步：连线
+
+从上游节点的 **输出端口** 拖到下游节点的 **输入端口**。连线决定了两件事：
+
+- **数据流** — 上游输出会作为下游输入。
+- **执行顺序** — 引擎按拓扑序执行，被依赖的节点先跑。
+
+```mermaid
+flowchart LR
+  N1["节点 1"] -- 数据 --> N2["节点 2"]
+  N2 -- 数据 --> N3["节点 3"]
+  N1 -.N2 依赖 N1.-> N2
+```
+
+:::warning 避免环路
+工作流必须是**有向无环图**。如果连线形成了环，引擎会报错并拒绝执行。设计时让数据始终「从左向右」流动即可避免。
+:::
+
+## 第四步：运行
+
+点击画布右上角 **运行**。引擎会：
+
+1. 找出所有「入度为 0」的节点先执行；
+2. 每个节点完成后，检查它的下游是否「所有上游都已完成」，是则执行；
+3. 结果实时推送到执行时间线。
+
+## 执行时间线
+
+每个节点执行完毕，都会在时间线里生成一张结果卡片：
+
+```mermaid
+flowchart LR
+  Node["节点执行完毕"] --> Card["结果卡片弹入时间线"]
+  Card --> MD{"能解析为 Markdown?"}
+  MD -- 是 --> Render["渲染表格/列表/代码"]
+  MD -- 否 --> Pre["回退显示原始 JSON"]
+  style Card fill:#eef,stroke:#5b7fd9
+  style Render fill:#efe,stroke:#3b8c5e
+```
+
+- 卡片按执行顺序依次出现，带有平滑的入场动画。
+- 结果优先用 Markdown 渲染，保证可读。
+- 每个节点的输入输出都可回看，方便排查问题。
+
+## 第五步：调优
+
+结果不理想时，**不用重画工作流**——改对应节点的配置再运行即可：
+
+- 提问不准 → 修改 Agent 的自然语言描述。
+- 取错表 → 重新选择 DatabaseResource 的表。
+- 缺数据 → 新增一个数据节点连进来。
+
+工作流本身就是「可保存、可复用、可迭代」的模板。
+
+## 进阶：多输入汇聚
+
+当你需要把多个数据源的结果喂给同一个 Agent 时，只要把多条连线都连到那个 Agent 的输入即可：
+
+```mermaid
+flowchart LR
+  D1["数据源 1"] --> A["Agent"]
+  D2["数据源 2"] --> A
+  D3["数据源 3"] --> A
+  A --> R["综合结论"]
+  style R fill:#efe,stroke:#3b8c5e
+```
+
+引擎会等三个数据源全部就绪后，再执行这个 Agent。这是工作流相比线性脚本最强大的能力。
+
+## 下一步
+
+- 让 Agent 帮你写 SQL → [Agent 执行](/docs/guide/agent-execution)
+- 回看执行情况 → [控制台](/docs/guide/admin-dashboard)

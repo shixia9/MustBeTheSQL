@@ -1,62 +1,89 @@
 ---
 sidebar_position: 2
 title: 嵌入 OpenAPI 文档
-description: 把 Swagger / OpenAPI 嵌入或跳转到文档站
+description: 把 Swagger 嵌入或跳转到文档站
 ---
 
 # 嵌入 OpenAPI 文档
 
-有三种方式把后端 OpenAPI 文档与本站结合，按侵入性从低到高排列。
+把后端 Swagger 与本站结合，有三种方式，按「维护成本从低到高」排列。绝大多数团队用方式一就够了。
+
+## 选型一览
+
+```mermaid
+flowchart LR
+  Q["要嵌入 Swagger？"] --> Q1{"维护成本敏感？"}
+  Q1 -- 是，越省事越好 --> M1["方式一：跳转链接"]
+  Q1 -- 想留在站内 --> Q2{"需要版本快照？"}
+  Q2 -- 否 --> M2["方式二：iframe 嵌入"]
+  Q2 -- 是 --> M3["方式三：OpenAPI 插件"]
+  style M1 fill:#efe,stroke:#3b8c5e
+  style M3 fill:#fffbe6,stroke:#f0a040
+```
 
 ## 方式一：跳转链接（推荐）
 
-零维护，后端 Swagger 更新即生效：
+**零维护，Swagger 永远最新。** 后端一更新，链接到的内容自动更新。
 
 ```markdown
 完整接口契约见 [Swagger UI](https://api.example.com/swagger-ui.html)。
 ```
 
+适合 99% 的场景。只有当你需要「离线」或「版本快照」时，才考虑另外两种。
+
 ## 方式二：iframe 嵌入页面
 
-在 Docusaurus 里用 MDX 嵌入一个 iframe 页面。新建 `docs/api/swagger-embed.mdx`：
+让用户不离开文档站就能调接口。新建一个 `.mdx` 文件：
 
 ```mdx
 ---
 title: 在线接口调试
-description: 嵌入后端 Swagger UI
 ---
 
 import BrowserOnly from '@docusaurus/BrowserOnly';
-
-# 在线接口调试
 
 <BrowserOnly>
   {() => (
     <iframe
       src="https://api.example.com/swagger-ui.html"
-      style={{ width: '100%', height: '80vh', border: '1px solid var(--ifm-toc-border-color)', borderRadius: 10 }}
+      style={{ width: '100%', height: '80vh', border: '1px solid #ddd' }}
       title="Swagger UI"
     />
   )}
 </BrowserOnly>
 ```
 
-:::tip 为什么用 BrowserOnly
-iframe 在 SSR 阶段无法访问浏览器环境，用 `BrowserOnly` 包裹避免构建期报错。
+:::tip 为什么要用 BrowserOnly
+iframe 在构建期无法访问浏览器环境，用 `BrowserOnly` 包裹可以避免构建报错。
+:::
+
+:::warning 跨域问题
+如果文档站和 Swagger 不同源，浏览器可能拦截。解决办法是用 Nginx 把 `/api/`、`/swagger-ui/` 反代到后端，让两者同源。
 :::
 
 ## 方式三：Docusaurus OpenAPI 插件
 
-如果想把 OpenAPI 规范「原生」渲染为 Docusaurus 页面，使用社区插件 [`docusaurus-plugin-openapi-docs`](https://github.com/PaloAltoNetworks/docusaurus-plugin-openapi-docs)：
+把 OpenAPI 规范「原生」渲染成 Docusaurus 页面，每个接口标签自动生成一个页面。适合需要把接口固化进文档版本的场景。
 
 ```bash
 npm install --save docusaurus-plugin-openapi-docs
 ```
 
-把后端导出的 `openapi.json` 放进仓库，插件会按 tag 生成文档页。**注意**：这种方式需要每次后端变更后重新导出规范并提交，维护成本高于方式一。
+把后端导出的 `openapi.json` 放进仓库，插件按标签生成页面。
 
-## 生产建议
+:::warning 维护成本
+这种方式要求「后端每次变更 → 重新导出 openapi.json → 提交到仓库」。如果团队没有自动化这条链路，接口很容易和实际后端脱节。能用方式一就别用方式三。
+:::
 
-- **首选方式一**：零维护、永远最新。
-- 需要离线 / 版本快照时，再用方式三把 `openapi.json` 固化进仓库。
-- 不要把后端字段细节复制进产品教程，避免双向维护漂移。
+## 建议
+
+| 你的情况 | 推荐方式 |
+| --- | --- |
+| 刚起步，人少 | 方式一 |
+| 希望体验一体化 | 方式二 |
+| 有版本快照 / 离线需求 | 方式三 |
+
+## 下一步
+
+- 回到 [API 概览](/docs/api/overview)
+- 部署相关问题 → [排错指引](/docs/faq/troubleshooting)

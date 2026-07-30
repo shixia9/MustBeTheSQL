@@ -4,15 +4,22 @@
 
 > 📌 文档站点（本工程）≠ Java 后端 Swagger 接口文档。两者分开，本站可在 [API 说明](docs/api/overview) 中跳转 / 嵌入 Swagger。
 
-## 设计基线（与产品一致）
+## 设计基线
+
+采用 **Docusaurus 官方默认主题**（classic preset），仅保留品牌级配置，保证响应式与成熟开源文档一致的观感：
 
 | 项 | 值 |
 | --- | --- |
-| 主色 | `#5b7fd9`（`--color-primary`） |
+| 主题 | 官方默认主题（classic preset），无自定义组件覆盖 |
+| 主色 | `#5b7fd9`（品牌蓝，与 Logo 一致） |
 | 字体 | `Inter`（正文） + `JetBrains Mono`（代码） |
-| 明暗 | 双模式开启，默认浅色，`respectPrefersColorScheme` |
+| 明暗 | 双模式开启，默认浅色，`respectPrefersColorScheme`，保留切换按钮 |
+| Logo | `static/img/logo.svg`（明暗模式同源，确保双模式显示一致） |
+| 图表 | Mermaid（`@docusaurus/theme-mermaid`），服务端渲染为 SVG |
 | 搜索 | 本地搜索 `@easyops-cn/docusaurus-search-local`（无需 Algolia） |
 | 部署 | 同域名子路径 `baseUrl='/docs/'` → `https://example.com/docs/` |
+
+> 主题相关代码集中在 `src/css/custom.css`：只包含主色色阶与字体两个品牌令牌，移除了所有组件级覆盖。
 
 ## 一、初始化步骤
 
