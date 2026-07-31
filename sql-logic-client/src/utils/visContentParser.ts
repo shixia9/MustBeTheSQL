@@ -82,3 +82,60 @@ export function stripVisContent(text: string): string {
   if (!text) return '';
   return text.replace(/```(?:vis-db-chart|vis-dashboard)\s*\n[\s\S]*?```/g, '').trim();
 }
+
+/**
+ * Check if any step output contains multimodal vis content or HTML report.
+ */
+export function hasMultimodalContent(steps: { output?: any; content?: string }[]): boolean {
+  for (const step of steps) {
+    const raw = step.output?.report || step.output?.content || step.content || '';
+    if (parseVisContent(raw).length > 0) return true;
+    if (/```html[\s\S]*?```/.test(raw)) return true;
+  }
+  return false;
+}
+
+/**
+ * Extract HTML content from a ```html code fence in text.
+ * Returns the inner HTML string, or null if no HTML fence is found.
+ */
+export function extractHtmlContent(text: string): string | null {
+  if (!text) return null;
+  const match = /```html\s*\n?([\s\S]*?)```/i.exec(text);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Detect if text is raw JSON containing chart definitions from DataScientistAgent.
+ */
+export function looksLikeChartJson(text: string): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return false;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.length > 0 && parsed.some((item: any) => item.display_type && item.sql);
+    }
+    return !!(parsed.display_type && parsed.sql);
+  } catch { return false; }
+}
+
+/**
+ * Build a readable markdown summary from chart JSON metadata.
+ */
+export function buildChartSummary(text: string): string {
+  if (!text) return '';
+  try {
+    const parsed = JSON.parse(text.trim());
+    const items = Array.isArray(parsed) ? parsed : [parsed];
+    const lines = items.map((item: any, i: number) => {
+      const title = item.title || `Chart ${i + 1}`;
+      const typeName = String(item.display_type || 'table')
+        .replace('response_', '').replace('_chart', '').replace(/_/g, ' ');
+      const thought = item.thought ? ` — ${item.thought}` : '';
+      return `- **${title}** (${typeName})${thought}`;
+    });
+    return `### Chart Analysis\n\nGenerated ${items.length} chart query plan(s):\n\n${lines.join('\n')}`;
+  } catch { return ''; }
+}

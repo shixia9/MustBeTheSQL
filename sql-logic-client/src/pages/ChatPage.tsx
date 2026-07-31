@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { useConversationStore, type TurnData } from '../stores/conversationStore';
 import { api, conversationApi } from '../api/client';
+import { hasMultimodalContent } from '../utils/visContentParser';
 import AgentExecutionView from '../components/agent/AgentExecutionView';
 import WelcomePanel from '../components/chat/WelcomePanel';
 import { Database, ChevronDown } from 'lucide-react';
@@ -46,6 +47,7 @@ export default function ChatPage() {
   const [schemas, setSchemas] = useState<string[]>([]);
   const [connPickerOpen, setConnPickerOpen] = useState(false);
   const [schemaPickerOpen, setSchemaPickerOpen] = useState(false);
+  const [hasMultimodal, setHasMultimodal] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   // Guard against duplicate turn finalization in dev StrictMode
@@ -144,6 +146,7 @@ export default function ChatPage() {
 
   const handleStream = useCallback(async (userInput: string) => {
     setIsStreaming(true);
+    setHasMultimodal(false);
     turnFinalizedRef.current = false;
     completedConvIdRef.current = conversationId || null;
     const turn: TurnData = { question: userInput, steps: [] };
@@ -166,6 +169,7 @@ export default function ChatPage() {
           autoConfirm,
           schemaContext: schemaName,
           conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
+          htmlReport: true,
         }),
         signal: controller.signal,
         credentials: 'include',
@@ -306,6 +310,10 @@ export default function ChatPage() {
             if (completedConvIdRef.current && completedConvIdRef.current !== conversationId) {
               navigate(`/chat/${completedConvIdRef.current}`, { replace: true });
             }
+            // Detect multimodal content in the latest completed turn
+            if (hasMultimodalContent(prev.steps)) {
+              setHasMultimodal(true);
+            }
           }
           return null;
         });
@@ -347,6 +355,7 @@ export default function ChatPage() {
             onAutoConfirmChange={setAutoConfirm}
             selectedDb={activeConnectionId}
             onDbChange={(id) => useWorkspaceStore.getState().setActiveConnectionId(id)}
+            hasMultimodalContent={hasMultimodal}
           />
         ) : (
           <WelcomePanel
