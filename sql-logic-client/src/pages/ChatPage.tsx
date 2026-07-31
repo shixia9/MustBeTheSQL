@@ -1,29 +1,26 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n';
 import { useLlmConfig } from '../contexts/LlmConfigContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspaceStore } from '../stores/workspaceStore';
-import { api } from '../api/client';
+import { useConversationStore, type TurnData } from '../stores/conversationStore';
+import { api, conversationApi } from '../api/client';
 import AgentExecutionView from '../components/agent/AgentExecutionView';
 import WelcomePanel from '../components/chat/WelcomePanel';
 import { Database, ChevronDown } from 'lucide-react';
 
-interface StepData {
-  nodeName: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
-  content?: string;
-  output?: any;
-  messageType?: string;
-}
-
-interface TurnData {
-  question: string;
-  steps: StepData[];
-}
+/** Display names for the 4 progressive context-compaction layers. */
+const CONTEXT_LAYER_NAMES: Record<string, string> = {
+  L1: '截断观察',
+  L2: '丢弃旧轮',
+  L3: 'LLM 摘要',
+  L4: '紧急压缩',
+};
 
 export default function ChatPage() {
   const { conversationId } = useParams();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const { selectedConfig } = useLlmConfig();
   const { user } = useAuth();
@@ -32,7 +29,14 @@ export default function ChatPage() {
   const activeSchema = useWorkspaceStore(s => s.activeSchema);
   const setActiveSchema = useWorkspaceStore(s => s.setActiveSchema);
 
-  const [turns, setTurns] = useState<TurnData[]>([]);
+  // Persisted conversation turns (localStorage via zustand persist). Enables
+  // refresh resilience and sidebar history switching. Local `turns` state is
+  // the render source; the store is the durable cache keyed by conversation id.
+  const getStoreTurns = useConversationStore(s => s.getTurns);
+  const setStoreTurns = useConversationStore(s => s.setTurns);
+  const appendStoreTurn = useConversationStore(s => s.appendTurn);
+
+  const [turns, setTurnsLocal] = useState<TurnData[]>([]);
   const [currentTurn, setCurrentTurn] = useState<TurnData | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -46,6 +50,9 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null);
   // Guard against duplicate turn finalization in dev StrictMode
   const turnFinalizedRef = useRef(false);
+  // Resolved conversation id captured from the SSE COMPLETED event (set when the
+  // backend creates a new conversation for the first message of a chat).
+  const completedConvIdRef = useRef<string | null>(null);
 
   // Load database connections on mount
   useEffect(() => {
@@ -98,9 +105,47 @@ export default function ChatPage() {
     };
   }, []);
 
+  // Multi-turn history回填: when the conversation id changes (sidebar switch,
+  // first-message URL sync, or refresh), rebuild the rendered turns. Prefer the
+  // persisted store (instant, covers refresh); fall back to the API for
+  // conversations not yet cached locally (e.g. created on another device).
+  useEffect(() => {
+    completedConvIdRef.current = conversationId || null;
+    if (!conversationId) {
+      setTurnsLocal([]);
+      return;
+    }
+    const cached = getStoreTurns(conversationId);
+    if (cached.length > 0) {
+      setTurnsLocal(cached);
+      return;
+    }
+    let cancelled = false;
+    conversationApi.getDetails(Number(conversationId))
+      .then(res => {
+        if (cancelled) return;
+        const rows = (res && res.data) ? res.data : [];
+        const mapped: TurnData[] = (rows as any[]).map(d => ({
+          question: d.userInput || '',
+          steps: [{
+            nodeName: 'DATA_SCIENTIST',
+            status: 'completed' as const,
+            content: d.sqlOutput || '',
+            output: { sql: d.sqlOutput || '', sqlExecutionResult: d.executeResult || '' },
+            messageType: 'TOOL_RESULT',
+          }],
+        }));
+        setStoreTurns(conversationId, mapped);
+        setTurnsLocal(mapped);
+      })
+      .catch(() => { if (!cancelled) setTurnsLocal([]); });
+    return () => { cancelled = true; };
+  }, [conversationId, getStoreTurns, setStoreTurns]);
+
   const handleStream = useCallback(async (userInput: string) => {
     setIsStreaming(true);
     turnFinalizedRef.current = false;
+    completedConvIdRef.current = conversationId || null;
     const turn: TurnData = { question: userInput, steps: [] };
     setCurrentTurn(turn);
     const controller = new AbortController();
@@ -120,6 +165,7 @@ export default function ChatPage() {
           llmConfigId,
           autoConfirm,
           schemaContext: schemaName,
+          conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
         }),
         signal: controller.signal,
         credentials: 'include',
@@ -199,7 +245,25 @@ export default function ChatPage() {
                   );
                 }
               } else if (parsed.type === 'COMPLETED') {
-                // final completion — handled on stream end
+                // Backend confirms the conversation id (newly created or existing).
+                // Capture it so the finally block can persist turns under the right
+                // key and so we can sync the URL for refresh-resilience.
+                if (parsed.conversationId != null) {
+                  completedConvIdRef.current = String(parsed.conversationId);
+                }
+              } else if (parsed.outputType === 'CONTEXT_COMPACT') {
+                // Context compaction event — track for the dynamic panel.
+                const ev = parsed.data || {};
+                const compactionEvents = updated.compactionEvents || [];
+                updated.compactionEvents = [...compactionEvents, {
+                  layer: ev.layer || '',
+                  layerName: ev.layerName || CONTEXT_LAYER_NAMES[ev.layer] || ev.layer || '',
+                  tokensBefore: ev.tokensBefore ?? 0,
+                  tokensAfter: ev.tokensAfter ?? 0,
+                  dropped: ev.dropped ?? 0,
+                  preview: ev.preview,
+                  ts: Date.now(),
+                }];
               }
 
               return { ...updated };
@@ -224,18 +288,30 @@ export default function ChatPage() {
       }
     } finally {
       setIsStreaming(false);
-      // Move currentTurn → turns atomically, guarded against double-fire
+      // Move currentTurn → turns atomically, guarded against double-fire (dev StrictMode)
       if (!turnFinalizedRef.current) {
         turnFinalizedRef.current = true;
         setCurrentTurn(prev => {
           if (prev) {
-            setTurns(prevTurns => [...prevTurns, prev]);
+            // Resolve the effective conversation id: prefer the one reported by
+            // the backend COMPLETED event (covers the first-message case where a
+            // new conversation is created), fall back to the URL param.
+            const resolvedConvId = completedConvIdRef.current || conversationId || undefined;
+            setTurnsLocal(prevTurns => [...prevTurns, prev]);
+            if (resolvedConvId) {
+              appendStoreTurn(resolvedConvId, prev);
+            }
+            // Sync the URL so a refresh restores the conversation. Use replace
+            // to avoid polluting history with the parameter-less entry.
+            if (completedConvIdRef.current && completedConvIdRef.current !== conversationId) {
+              navigate(`/chat/${completedConvIdRef.current}`, { replace: true });
+            }
           }
           return null;
         });
       }
     }
-  }, [activeConnectionId, activeSchema, selectedConfig, autoConfirm]);
+  }, [activeConnectionId, activeSchema, selectedConfig, autoConfirm, conversationId, navigate, appendStoreTurn]);
 
   const handleSubmit = () => {
     if (!inputValue.trim() || isStreaming) return;

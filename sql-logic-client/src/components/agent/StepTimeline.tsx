@@ -1,5 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { getIcon } from '../../assets/icons';
+import type { CompactionEvent } from '../../stores/conversationStore';
+import CompactionPanel from './CompactionPanel';
 
 interface StepData {
   nodeName: string;
@@ -12,6 +14,8 @@ interface StepData {
 interface TurnData {
   question: string;
   steps: StepData[];
+  /** Context-compaction events captured while this turn was streaming (L1–L4). */
+  compactionEvents?: CompactionEvent[];
 }
 
 const NODE_LABELS: Record<string, string> = {
@@ -228,6 +232,11 @@ export default function StepTimeline({ turns, isStreaming }: {
               </div>
             );
           })}
+
+          {/* Context-compaction events observed during this turn (L1–L4) */}
+          {turn.compactionEvents && turn.compactionEvents.length > 0 && (
+            <CompactionPanel events={turn.compactionEvents} />
+          )}
         </div>
       ))}
 

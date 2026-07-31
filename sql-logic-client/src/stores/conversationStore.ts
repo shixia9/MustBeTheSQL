@@ -1,0 +1,76 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+/**
+ * Shared conversation turn types.
+ *
+ * `TurnData` is the unit rendered in the chat timeline. It aggregates the
+ * per-agent SSE steps for one user question, plus any context-compaction
+ * events observed while that turn was streaming.
+ */
+
+export type StepStatus = 'pending' | 'running' | 'completed' | 'error';
+
+export interface StepData {
+  nodeName: string;
+  status: StepStatus;
+  content?: string;
+  output?: any;
+  messageType?: string;
+}
+
+/** A single context-compaction event emitted by the backend during a turn. */
+export interface CompactionEvent {
+  layer: string;        // L1 | L2 | L3 | L4
+  layerName: string;    // 截断观察 | 丢弃旧轮 | LLM摘要 | 紧急压缩
+  tokensBefore: number;
+  tokensAfter: number;
+  dropped: number;      // messages dropped/truncated
+  preview?: string;     // short preview of compacted content
+  ts: number;           // epoch ms
+}
+
+export interface TurnData {
+  question: string;
+  steps: StepData[];
+  compactionEvents?: CompactionEvent[];
+}
+
+interface ConversationState {
+  /** Turns keyed by conversation id (string), persisted to localStorage. */
+  turnsByConv: Record<string, TurnData[]>;
+  setTurns: (convId: string, turns: TurnData[]) => void;
+  getTurns: (convId: string) => TurnData[];
+  appendTurn: (convId: string, turn: TurnData) => void;
+  clearTurns: (convId: string) => void;
+}
+
+/**
+ * Persisted store of rendered turns per conversation. Enables:
+ *  - refresh resilience (turns restored instantly from localStorage)
+ *  - sidebar history switching (rebuilt from API, cached here)
+ */
+export const useConversationStore = create<ConversationState>()(
+  persist(
+    (set, get) => ({
+      turnsByConv: {},
+      setTurns: (convId, turns) =>
+        set((s) => ({ turnsByConv: { ...s.turnsByConv, [convId]: turns } })),
+      getTurns: (convId) => get().turnsByConv[convId] ?? [],
+      appendTurn: (convId, turn) =>
+        set((s) => ({
+          turnsByConv: {
+            ...s.turnsByConv,
+            [convId]: [...(s.turnsByConv[convId] ?? []), turn],
+          },
+        })),
+      clearTurns: (convId) =>
+        set((s) => {
+          const next = { ...s.turnsByConv };
+          delete next[convId];
+          return { turnsByConv: next };
+        }),
+    }),
+    { name: 'sql-logic-conversation-turns' }
+  )
+);
