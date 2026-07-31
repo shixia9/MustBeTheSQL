@@ -9,6 +9,9 @@ import { api, conversationApi } from '../api/client';
 import { hasMultimodalContent } from '../utils/visContentParser';
 import AgentExecutionView from '../components/agent/AgentExecutionView';
 import WelcomePanel from '../components/chat/WelcomePanel';
+import CommandPalette from '../components/agent/CommandPalette';
+import { useCommandPaletteStore } from '../stores/commandPaletteStore';
+import type { ToolItem } from '../types/agent';
 import { Database, ChevronDown } from 'lucide-react';
 
 /** Display names for the 4 progressive context-compaction layers. */
@@ -48,6 +51,15 @@ export default function ChatPage() {
   const [connPickerOpen, setConnPickerOpen] = useState(false);
   const [schemaPickerOpen, setSchemaPickerOpen] = useState(false);
   const [hasMultimodal, setHasMultimodal] = useState(false);
+
+  // T7 — "/" command palette state. `paletteOpen` gates rendering, `paletteQuery`
+  // is the text after the leading slash. `suppressPaletteRef` re-arms after a
+  // skill selection so typing the task doesn't re-trigger the palette.
+  const tools = useCommandPaletteStore(s => s.tools);
+  const fetchTools = useCommandPaletteStore(s => s.fetchTools);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const suppressPaletteRef = useRef(false);
 
   const abortRef = useRef<AbortController | null>(null);
   // Guard against duplicate turn finalization in dev StrictMode
@@ -144,7 +156,7 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [conversationId, getStoreTurns, setStoreTurns]);
 
-  const handleStream = useCallback(async (userInput: string) => {
+  const handleStream = useCallback(async (userInput: string, opts?: { toolInvocation?: { toolName: string; args?: Record<string, any> } }) => {
     setIsStreaming(true);
     setHasMultimodal(false);
     turnFinalizedRef.current = false;
@@ -159,18 +171,25 @@ export default function ChatPage() {
     const schemaName = activeSchema ?? '';
 
     try {
+      const bodyObj: Record<string, any> = {
+        userInput,
+        connectionId,
+        llmConfigId,
+        autoConfirm,
+        schemaContext: schemaName,
+        conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
+        htmlReport: true,
+      };
+      // T7: when the user picks a call_tool item from the "/" palette, dispatch
+      // a tool-invocation marker so ManagerAgent (T8) can route to the tool agent
+      // without going through the regular planner analysis.
+      if (opts?.toolInvocation) {
+        bodyObj.toolInvocation = opts.toolInvocation;
+      }
       const response = await fetch('/api/v1/agentic/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userInput,
-          connectionId,
-          llmConfigId,
-          autoConfirm,
-          schemaContext: schemaName,
-          conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
-          htmlReport: true,
-        }),
+        body: JSON.stringify(bodyObj),
         signal: controller.signal,
         credentials: 'include',
       });
@@ -328,6 +347,26 @@ export default function ChatPage() {
     handleStream(q);
   };
 
+  /** T7.4 — dispatch a "/" palette selection. */
+  const handlePaletteSelect = (item: ToolItem) => {
+    setPaletteOpen(false);
+    setPaletteQuery('');
+    if (item.invocationMode === 'inject_prompt') {
+      // Skill: splice a slash-command hint into the input and let the user
+      // continue typing their task. The backend resolves the skill by name on
+      // submit (T8). Suppress palette re-open while they fill in the task.
+      suppressPaletteRef.current = true;
+      setInputValue(`/${item.name} `);
+      return;
+    }
+    // call_tool (builtin/mcp): clear the input and dispatch a tool-invocation
+    // request through the agentic stream. The user hasn't supplied args yet, so
+    // we send a marker userInput + the toolInvocation field for ManagerAgent (T8).
+    setInputValue('');
+    if (isStreaming) return;
+    handleStream(`调用工具 ${item.name}`, { toolInvocation: { toolName: item.name } });
+  };
+
   const handleHITLConfirm = (approved: boolean, feedback?: string) => {
     if (!hitlPending) return;
     fetch('/api/v1/agentic/continue', {
@@ -369,13 +408,21 @@ export default function ChatPage() {
       {/* Unified input card */}
       <div className="flex-shrink-0 px-4 pb-3 pt-1">
         <div
-          className="max-w-2xl mx-auto rounded-xl"
+          className="relative max-w-2xl mx-auto rounded-xl"
           style={{
             background: 'var(--color-content-bg)',
             border: '1px solid var(--color-border-subtle)',
             boxShadow: '0 1px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.02)',
           }}
         >
+          {paletteOpen && (
+            <CommandPalette
+              items={tools}
+              query={paletteQuery}
+              onSelect={handlePaletteSelect}
+              onClose={() => { setPaletteOpen(false); setPaletteQuery(''); }}
+            />
+          )}
           {/* Selector pills row — top of card */}
           <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5 flex-wrap"
             style={{ borderBottom: hasContent ? '0.5px solid var(--color-border-subtle)' : 'none' }}>
@@ -499,8 +546,40 @@ export default function ChatPage() {
             <input
               type="text"
               value={inputValue}
-              onChange={e => setInputValue(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+              onChange={e => {
+                const v = e.target.value;
+                // Suppress re-open right after a skill selection so the user can
+                // fill in their task without the palette jumping back. Re-arm
+                // command mode only once the slash prefix is gone.
+                if (suppressPaletteRef.current) {
+                  if (!v.startsWith('/')) {
+                    suppressPaletteRef.current = false;
+                    setPaletteOpen(false);
+                    setPaletteQuery('');
+                  }
+                  setInputValue(v);
+                  return;
+                }
+                if (v.startsWith('/')) {
+                  setPaletteOpen(true);
+                  setPaletteQuery(v.slice(1));
+                  fetchTools();
+                } else {
+                  setPaletteOpen(false);
+                  setPaletteQuery('');
+                }
+                setInputValue(v);
+              }}
+              onKeyDown={e => {
+                // While the palette is open, let CommandPalette's window listener
+                // own the nav keys (Enter would otherwise submit a half-typed
+                // slash command).
+                if (paletteOpen && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter' || e.key === 'Escape')) {
+                  e.preventDefault();
+                  return;
+                }
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
+              }}
               placeholder={hasContent ? "Follow up..." : "Ask anything about your data..."}
               disabled={isStreaming}
               className="flex-1 bg-transparent border-none outline-none"

@@ -22,6 +22,8 @@
  *   });
  */
 
+import type { ToolItem } from '../types/agent';
+
 const BASE_URL = '/api/v1';
 
 interface WorkspaceMeta {
@@ -285,9 +287,23 @@ export const memoryApi = {
   counts: () => api.get<Record<string, number>>('/memory/counts'),
 };
 
-/** Tool discovery — list all registered tools from ToolRegistry. */
+/**
+ * Unified tool discovery (Phase 4 / T6) — aggregates builtin + MCP + skill
+ * items into a single {@link ToolItem} list scoped to the caller. Backs the
+ * frontend "/" command palette. `discover()` unwraps the `Result` envelope and
+ * returns the typed payload directly (mirrors the `mcpServerApi` / `promptApi`
+ * unwrapping convention).
+ */
+export const toolApi = {
+  discover: async (): Promise<ToolItem[]> => {
+    const r = await api.get<ToolItem[]>('/tools');
+    return unwrap<ToolItem[]>(r);
+  },
+};
+
+/** @deprecated use {@link toolApi}.discover — kept for back-compat. */
 export const toolsApi = {
-  list: () => api.get<any[]>('/tools'),
+  list: () => api.get<ToolItem[]>('/tools'),
 };
 
 /** MCP server management CRUD + connect/disconnect/status. */
