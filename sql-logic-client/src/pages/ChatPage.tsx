@@ -353,15 +353,26 @@ export default function ChatPage() {
     setPaletteQuery('');
     if (item.invocationMode === 'inject_prompt') {
       // Skill: splice a slash-command hint into the input and let the user
-      // continue typing their task. The backend resolves the skill by name on
-      // submit (T8). Suppress palette re-open while they fill in the task.
+      // continue typing their task. The backend (SkillInvocationResolver)
+      // resolves the skill by name on submit and renders its prompt template.
+      // Suppress palette re-open while they fill in the task.
       suppressPaletteRef.current = true;
       setInputValue(`/${item.name} `);
       return;
     }
-    // call_tool (builtin/mcp): clear the input and dispatch a tool-invocation
-    // request through the agentic stream. The user hasn't supplied args yet, so
-    // we send a marker userInput + the toolInvocation field for ManagerAgent (T8).
+    if (item.kind === 'builtin') {
+      // Builtin tools (sql/schema/python/sample) are always available to the
+      // agents during normal orchestration and cannot be "directly invoked"
+      // like MCP tools (they have no MCP server to route to). Insert a
+      // natural-language hint and let the user complete their task; on submit
+      // it flows through the regular planner, which picks the right tool.
+      setInputValue(`请使用${item.displayName || item.name}：`);
+      return;
+    }
+    // MCP tool: clear the input and dispatch a tool-invocation request through
+    // the agentic stream so ManagerAgent short-circuits to ToolAssistantAgent.
+    // The user hasn't supplied args yet, so we send a marker userInput + the
+    // toolInvocation field.
     setInputValue('');
     if (isStreaming) return;
     handleStream(`调用工具 ${item.name}`, { toolInvocation: { toolName: item.name } });
