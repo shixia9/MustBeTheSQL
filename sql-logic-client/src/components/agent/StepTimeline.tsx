@@ -85,6 +85,62 @@ export default function StepTimeline({
   );
 
   if (allSteps.length === 0) {
+    // While streaming with no steps yet (MANAGER STARTED is filtered), show
+    // the "thinking..." state instead of the empty placeholder so the user
+    // gets immediate feedback after sending a message.
+    if (isStreaming && turns.length > 0) {
+      return (
+        <div className="px-4 py-3" style={{ fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif' }}>
+          {turns.map((turn, ti) => (
+            <div key={ti} className="mb-4">
+              <div
+                className="flex items-start gap-2 mb-3 pb-2"
+                style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+              >
+                <span
+                  style={{
+                    fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--color-primary)',
+                    flexShrink: 0,
+                    marginTop: '1px',
+                  }}
+                >
+                  $
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-ink)', lineHeight: 1.4 }}>
+                  {turn.question}
+                </span>
+              </div>
+              {ti === turns.length - 1 && (
+                <div
+                  className="flex items-center gap-2 py-2 px-3 mb-1"
+                  style={{ color: 'var(--color-ink-tertiary)' }}
+                >
+                  <div
+                    className="animate-spin rounded-full"
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      border: '2px solid var(--color-border-subtle)',
+                      borderTopColor: 'var(--color-primary)',
+                    }}
+                  />
+                  <span
+                    className="animate-pulse"
+                    style={{ fontSize: '13px', fontWeight: 500, letterSpacing: '-0.01em' }}
+                  >
+                    thinking...
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3" style={{ color: 'var(--color-ink-tertiary)' }}>
         <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '13px', color: 'var(--color-primary)' }}>$</span>
@@ -131,6 +187,38 @@ export default function StepTimeline({
               </span>
             )}
           </div>
+
+          {/* "thinking..." indicator — shown while the last turn is streaming
+              but no worker node has reported yet (MANAGER STARTED is filtered,
+              so steps stay empty during complexity assessment and the chitchat
+              direct-answer LLM call). Replaced automatically by node cards as
+              soon as the first non-MANAGER STARTED event arrives. */}
+          {ti === turns.length - 1 && isStreaming && turn.steps.length === 0 && (
+            <div
+              className="flex items-center gap-2 py-2 px-3 mb-1"
+              style={{ color: 'var(--color-ink-tertiary)' }}
+            >
+              <div
+                className="animate-spin rounded-full"
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid var(--color-border-subtle)',
+                  borderTopColor: 'var(--color-primary)',
+                }}
+              />
+              <span
+                className="animate-pulse"
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                thinking...
+              </span>
+            </div>
+          )}
 
           {/* Steps */}
           {turn.steps.map((step, si) => {

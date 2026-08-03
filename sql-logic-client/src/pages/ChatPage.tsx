@@ -227,6 +227,14 @@ export default function ChatPage() {
               if (parsed.outputType === 'STARTED') {
                 // New agent node started
                 const nodeName = parsed.nodeName || 'UNKNOWN';
+                // Hide the MANAGER (Orchestrator) entry card — it exposes the
+                // underlying multi-agent architecture and has no user-facing
+                // value. The "thinking..." indicator (StepTimeline) covers the
+                // wait before the first worker node STARTED arrives.
+                // AWAITING_CLARIFICATION is handled separately below and stays visible.
+                if (nodeName === 'MANAGER') {
+                  return { ...updated };
+                }
                 const existing = updated.steps.find(s => s.nodeName === nodeName);
                 if (!existing) {
                   updated.steps = [...updated.steps, {
@@ -243,20 +251,48 @@ export default function ChatPage() {
                 // Agent node completed with data
                 const nodeName = parsed.nodeName || 'UNKNOWN';
                 const stepData = parsed.data || {};
-                updated.steps = updated.steps.map(s =>
-                  s.nodeName === nodeName
-                    ? { ...s, status: 'completed' as const, content: JSON.stringify(stepData), output: stepData }
-                    : s
-                );
+                const existingIdx = updated.steps.findIndex(s => s.nodeName === nodeName);
+                if (existingIdx >= 0) {
+                  // Update the existing step in place
+                  updated.steps = updated.steps.map(s =>
+                    s.nodeName === nodeName
+                      ? { ...s, status: 'completed' as const, content: JSON.stringify(stepData), output: stepData }
+                      : s
+                  );
+                } else {
+                  // No matching STARTED (e.g. MANAGER was filtered, or chitchat
+                  // path emits DASHBOARD FINISHED directly). Create a completed
+                  // step so the result is not lost and lastDashboardStep can
+                  // pick it up for rendering.
+                  updated.steps = [...updated.steps, {
+                    nodeName,
+                    status: 'completed' as const,
+                    content: JSON.stringify(stepData),
+                    output: stepData,
+                    messageType: parsed.messageType,
+                  }];
+                }
               } else if (parsed.outputType === 'AWAITING_CLARIFICATION') {
-                // ManagerAgent requests user clarification
+                // ManagerAgent requests user clarification. MANAGER STARTED is
+                // filtered above, so a step may not exist yet — create one if
+                // missing so the clarification prompt is visible to the user.
                 const nodeName = parsed.nodeName || 'MANAGER';
                 const reason = parsed.data?.reason || '';
-                updated.steps = updated.steps.map(s =>
-                  s.nodeName === nodeName
-                    ? { ...s, status: 'running' as const, content: `Clarification needed: ${reason}` }
-                    : s
-                );
+                const existingIdx = updated.steps.findIndex(s => s.nodeName === nodeName);
+                if (existingIdx >= 0) {
+                  updated.steps = updated.steps.map(s =>
+                    s.nodeName === nodeName
+                      ? { ...s, status: 'running' as const, content: `Clarification needed: ${reason}` }
+                      : s
+                  );
+                } else {
+                  updated.steps = [...updated.steps, {
+                    nodeName,
+                    status: 'running' as const,
+                    content: `Clarification needed: ${reason}`,
+                    messageType: parsed.messageType,
+                  }];
+                }
               } else if (parsed.type === 'ERROR') {
                 const nodeName = parsed.nodeName;
                 if (nodeName) {
