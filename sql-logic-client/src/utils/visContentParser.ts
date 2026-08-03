@@ -139,3 +139,51 @@ export function buildChartSummary(text: string): string {
     return `### Chart Analysis\n\nGenerated ${items.length} chart query plan(s):\n\n${lines.join('\n')}`;
   } catch { return ''; }
 }
+
+/**
+ * Split DASHBOARD agent output into three parts:
+ * - chartJson: leading JSON array of chart definitions (or null)
+ * - markdownBody: the Markdown text summary (no JSON, no HTML fence)
+ * - htmlContent: the inner HTML from a trailing ```html fence (or null)
+ */
+export function splitDashboardContent(text: string): {
+  chartJson: string | null;
+  markdownBody: string;
+  htmlContent: string | null;
+} {
+  if (!text) return { chartJson: null, markdownBody: '', htmlContent: null };
+
+  let remaining = text.trim();
+
+  // 1. Extract trailing ```html ... ``` fence
+  let htmlContent: string | null = null;
+  const htmlMatch = /```html\s*\n?([\s\S]*?)```$/i.exec(remaining);
+  if (htmlMatch) {
+    htmlContent = htmlMatch[1].trim();
+    remaining = remaining.substring(0, htmlMatch.index).trim();
+  }
+
+  // 2. Extract leading JSON array [...]
+  let chartJson: string | null = null;
+  if (remaining.startsWith('[')) {
+    // Find matching closing bracket
+    let depth = 0;
+    let end = -1;
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i] === '[') depth++;
+      else if (remaining[i] === ']') { depth--; if (depth === 0) { end = i + 1; break; } }
+    }
+    if (end > 0) {
+      const candidate = remaining.substring(0, end).trim();
+      try {
+        JSON.parse(candidate);
+        chartJson = candidate;
+        remaining = remaining.substring(end).trim();
+        // Strip leading separator (---, newlines)
+        remaining = remaining.replace(/^[-—\s]+/, '').trim();
+      } catch { /* not valid JSON, keep as part of markdown */ }
+    }
+  }
+
+  return { chartJson, markdownBody: remaining, htmlContent };
+}

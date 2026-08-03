@@ -177,7 +177,6 @@ export default function ChatPage() {
         autoConfirm,
         schemaContext: schemaName,
         conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
-        htmlReport: true,
       };
       // T7: when the user picks a call_tool item from the "/" palette, dispatch
       // a tool-invocation marker so ManagerAgent (T8) can route to the tool agent

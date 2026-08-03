@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ChevronDown } from 'lucide-react';
 import { getIcon } from '../../assets/icons';
 import type { CompactionEvent } from '../../stores/conversationStore';
 import CompactionPanel from './CompactionPanel';
-import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary } from '../../utils/visContentParser';
+import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary, splitDashboardContent } from '../../utils/visContentParser';
 
 interface StepData {
   nodeName: string;
@@ -56,6 +57,47 @@ function extractSummary(step: StepData): string | null {
   if (o.content) return String(o.content).slice(0, 300);
   if (o.agentSuccess === false) return 'Agent execution failed — check backend logs for details';
   return null;
+}
+
+/** Reusable ReactMarkdown components for the Process Summary section. */
+const summaryMdComponents = {
+  h1: ({ children }: any) => <h1 className="text-sm font-bold mt-3 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-xs font-bold mt-2 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-xs font-semibold mt-1 mb-0.5" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
+  p: ({ children }: any) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
+  ul: ({ children }: any) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
+  ol: ({ children }: any) => <ol className="text-xs list-decimal ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ol>,
+  li: ({ children }: any) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
+  strong: ({ children }: any) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
+  code: ({ children }: any) => <code className="text-[10px] px-1 py-0.5 rounded font-mono" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>{children}</code>,
+  table: ({ children }: any) => <table className="text-[10px] w-full border-collapse my-1 rounded" style={{ border: '1px solid var(--color-border-subtle)' }}>{children}</table>,
+  th: ({ children }: any) => <th className="px-2 py-1 text-left font-semibold border-b" style={{ color: 'var(--color-ink)', background: 'var(--color-app-bg)', borderColor: 'var(--color-border-subtle)' }}>{children}</th>,
+  td: ({ children }: any) => <td className="px-2 py-1 border-b" style={{ color: 'var(--color-ink-secondary)', borderColor: 'var(--color-border-subtle)' }}>{children}</td>,
+};
+
+/** A small collapsible section with a header row and animated expand/collapse. */
+function CollapsibleSection({ title, count, defaultOpen, children }: {
+  title: string;
+  count?: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 w-full text-left py-0.5 transition-colors"
+        style={{ color: 'var(--color-ink-tertiary)' }}
+      >
+        <ChevronDown size={10} style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
+        <span style={{ fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+          {title}{count != null ? ` (${count})` : ''}
+        </span>
+      </button>
+      {open && <div className="mt-0.5">{children}</div>}
+    </div>
+  );
 }
 
 export default function StepTimeline({
@@ -365,88 +407,85 @@ export default function StepTimeline({
 
       {/* ── Process Summary (after last turn) ── */}
       {/* Skip for chitchat */}
-      {lastDashboardStep && !isStreaming && lastDashboardStep.step.output?.route !== 'chitchat' && (
-        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
-          <div className="flex items-center justify-between mb-2">
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>
-              Process Summary
-            </span>
-            {(() => {
-              const raw = lastDashboardStep.step.output?.report
-                || lastDashboardStep.step.output?.content || '';
-              const hasVis = parseVisContent(raw).length > 0;
-              return hasVis && onViewVisualizations ? (
-                <button
-                  onClick={onViewVisualizations}
-                  className="px-2.5 py-1 rounded text-[11px] font-medium transition-colors"
-                  style={{
-                    background: 'var(--color-semantic-report-soft)',
-                    color: 'var(--color-semantic-report)',
-                    border: '0.5px solid rgba(77,201,246,0.25)',
-                  }}
-                >
-                  View Visualizations &rarr;
-                </button>
-              ) : null;
-            })()}
-          </div>
-          <div className="text-xs leading-relaxed" style={{ color: 'var(--color-ink-secondary)' }}>
-            {(() => {
-              const raw = lastDashboardStep.step.output?.report
-                || lastDashboardStep.step.output?.content || '';
+      {lastDashboardStep && !isStreaming && lastDashboardStep.step.output?.route !== 'chitchat' && (() => {
+        const raw = lastDashboardStep.step.output?.report
+          || lastDashboardStep.step.output?.content || '';
 
-              // If the content is raw chart JSON, generate a readable summary
-              if (looksLikeChartJson(raw)) {
-                const summary = buildChartSummary(raw);
-                if (summary) {
-                  return (
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
-                        p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
-                        li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
-                        strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
-                        ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
-                      }}
-                    >
-                      {summary}
-                    </ReactMarkdown>
-                  );
-                }
-              }
+        // If pure chart JSON (no markdown body), use the existing summary builder
+        if (looksLikeChartJson(raw) && !/```html/i.test(raw)) {
+          const summary = buildChartSummary(raw);
+          if (summary) {
+            return (
+              <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>Process Summary</span>
+                </div>
+                <div className="text-xs leading-relaxed" style={{ color: 'var(--color-ink-secondary)' }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={summaryMdComponents}>
+                    {summary}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            );
+          }
+        }
 
-              const cleanMarkdown = stripVisContent(raw);
-              if (!cleanMarkdown) {
-                return <span style={{ color: 'var(--color-ink-tertiary)' }}>Report content pending...</span>;
-              }
-              return (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({ children }) => <h1 className="text-sm font-bold mt-3 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h1>,
-                    h2: ({ children }) => <h2 className="text-xs font-bold mt-2 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h2>,
-                    h3: ({ children }) => <h3 className="text-xs font-semibold mt-1 mb-0.5" style={{ color: 'var(--color-ink)' }}>{children}</h3>,
-                    p: ({ children }) => <p className="text-xs leading-relaxed mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</p>,
-                    ul: ({ children }) => <ul className="text-xs list-disc ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ul>,
-                    ol: ({ children }) => <ol className="text-xs list-decimal ml-4 mb-1" style={{ color: 'var(--color-ink-secondary)' }}>{children}</ol>,
-                    li: ({ children }) => <li className="text-xs mb-0.5" style={{ color: 'var(--color-ink-secondary)' }}>{children}</li>,
-                    strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--color-ink)' }}>{children}</strong>,
-                    code: ({ children }: any) => (
-                      <code className="text-[10px] px-1 py-0.5 rounded font-mono" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>{children}</code>
-                    ),
-                    table: ({ children }) => <table className="text-[10px] w-full border-collapse my-1 rounded" style={{ border: '1px solid var(--color-border-subtle)' }}>{children}</table>,
-                    th: ({ children }) => <th className="px-2 py-1 text-left font-semibold border-b" style={{ color: 'var(--color-ink)', background: 'var(--color-app-bg)', borderColor: 'var(--color-border-subtle)' }}>{children}</th>,
-                    td: ({ children }) => <td className="px-2 py-1 border-b" style={{ color: 'var(--color-ink-secondary)', borderColor: 'var(--color-border-subtle)' }}>{children}</td>,
-                  }}
-                >
-                  {cleanMarkdown}
+        // Split DASHBOARD content: JSON chart items + Markdown + HTML
+        const { chartJson, markdownBody, htmlContent } = splitDashboardContent(raw);
+        const hasChartJson = chartJson && chartJson.length > 0;
+        const hasHtml = htmlContent && htmlContent.length > 0;
+        const hasMarkdown = markdownBody && markdownBody.length > 0;
+
+        if (!hasMarkdown && !hasChartJson && !hasHtml) {
+          return <span style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>Report content pending...</span>;
+        }
+
+        return (
+          <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>Process Summary</span>
+            </div>
+
+            {/* Collapsible JSON chart definitions */}
+            {hasChartJson && (
+              <CollapsibleSection title="Chart Definitions" count={(() => {
+                try { return JSON.parse(chartJson).length; } catch { return 0; }
+              })()} defaultOpen={false}>
+                <pre className="text-[10px] leading-relaxed overflow-auto max-h-32 p-2 rounded font-mono"
+                  style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-tertiary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {chartJson.length > 800 ? chartJson.substring(0, 800) + '\n...' : chartJson}
+                </pre>
+              </CollapsibleSection>
+            )}
+
+            {/* Markdown text summary */}
+            {hasMarkdown && (
+              <div className="text-xs leading-relaxed" style={{ color: 'var(--color-ink-secondary)' }}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={summaryMdComponents}>
+                  {markdownBody}
                 </ReactMarkdown>
-              );
-            })()}
+              </div>
+            )}
+
+            {/* Collapsible HTML report */}
+            {hasHtml && (
+              <CollapsibleSection title="HTML Report" defaultOpen={false}>
+                <pre className="text-[10px] leading-relaxed overflow-auto max-h-40 p-2 rounded font-mono"
+                  style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-tertiary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                  {htmlContent.length > 600 ? htmlContent.substring(0, 600) + '\n<!-- ...truncated... -->' : htmlContent}
+                </pre>
+              </CollapsibleSection>
+            )}
+
+            {/* No clean markdown but has other content */}
+            {!hasMarkdown && (hasChartJson || hasHtml) && (
+              <span style={{ color: 'var(--color-ink-tertiary)', fontSize: '11px' }}>
+                Report content is in the collapsible sections above.
+              </span>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div ref={bottomRef} />
     </div>
