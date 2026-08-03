@@ -52,14 +52,13 @@ export default function ChatPage() {
   const [schemaPickerOpen, setSchemaPickerOpen] = useState(false);
   const [hasMultimodal, setHasMultimodal] = useState(false);
 
-  // T7 — "/" command palette state. `paletteOpen` gates rendering, `paletteQuery`
-  // is the text after the leading slash. `suppressPaletteRef` re-arms after a
-  // skill selection so typing the task doesn't re-trigger the palette.
+  // "/" command palette state.
   const tools = useCommandPaletteStore(s => s.tools);
   const fetchTools = useCommandPaletteStore(s => s.fetchTools);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState('');
-  const suppressPaletteRef = useRef(false);
+  const [activeTool, setActiveTool] = useState<ToolItem | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   // Guard against duplicate turn finalization in dev StrictMode
@@ -341,41 +340,44 @@ export default function ChatPage() {
   }, [activeConnectionId, activeSchema, selectedConfig, autoConfirm, conversationId, navigate, appendStoreTurn]);
 
   const handleSubmit = () => {
-    if (!inputValue.trim() || isStreaming) return;
-    const q = inputValue.trim();
+    if (isStreaming) return;
+    const task = inputValue.trim();
+    if (!task && !activeTool) return;
+
+    let userInput = task;
+    let toolInvocation: { toolName: string } | undefined;
+
+    if (activeTool) {
+      if (activeTool.kind === 'mcp') {
+        // MCP tool: send toolInvocation so ManagerAgent short-circuits to
+        // ToolAssistantAgent → McpToolAction. The user's typed task rides
+        // along as userInput context for arg construction.
+        toolInvocation = { toolName: activeTool.name };
+        userInput = task || `调用工具 ${activeTool.name}`;
+      } else {
+        // Skill or builtin: prepend /name so the backend
+        // SkillInvocationResolver (skill) can render the prompt template,
+        // or the LLM receives a natural tool hint (builtin).
+        userInput = `/${activeTool.name}${task ? ' ' + task : ''}`;
+      }
+      setActiveTool(null);
+    }
+
     setInputValue('');
-    handleStream(q);
+    handleStream(userInput, toolInvocation ? { toolInvocation } : undefined);
   };
 
-  /** T7.4 — dispatch a "/" palette selection. */
+  /** dispatch a "/" palette selection. */
   const handlePaletteSelect = (item: ToolItem) => {
     setPaletteOpen(false);
     setPaletteQuery('');
-    if (item.invocationMode === 'inject_prompt') {
-      // Skill: splice a slash-command hint into the input and let the user
-      // continue typing their task. The backend (SkillInvocationResolver)
-      // resolves the skill by name on submit and renders its prompt template.
-      // Suppress palette re-open while they fill in the task.
-      suppressPaletteRef.current = true;
-      setInputValue(`/${item.name} `);
-      return;
-    }
-    if (item.kind === 'builtin') {
-      // Builtin tools (sql/schema/python/sample) are always available to the
-      // agents during normal orchestration and cannot be "directly invoked"
-      // like MCP tools (they have no MCP server to route to). Insert a
-      // natural-language hint and let the user complete their task; on submit
-      // it flows through the regular planner, which picks the right tool.
-      setInputValue(`请使用${item.displayName || item.name}：`);
-      return;
-    }
-    // MCP tool: clear the input and dispatch a tool-invocation request through
-    // the agentic stream so ManagerAgent short-circuits to ToolAssistantAgent.
-    // The user hasn't supplied args yet, so we send a marker userInput + the
-    // toolInvocation field.
+    // All tool types (builtin / mcp / skill) are unified: set the active
+    // tool chip and let the user type their task. handleSubmit constructs the
+    // appropriate userInput / toolInvocation per kind.
+    setActiveTool(item);
     setInputValue('');
-    if (isStreaming) return;
-    handleStream(`调用工具 ${item.name}`, { toolInvocation: { toolName: item.name } });
+    // Focus the input so the user can immediately type their task.
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const handleHITLConfirm = (approved: boolean, feedback?: string) => {
@@ -554,20 +556,37 @@ export default function ChatPage() {
           {/* Input row */}
           <div className="flex items-center gap-2 px-3 py-2">
             <span className="select-none flex-shrink-0" style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace', fontSize: '13px', fontWeight: 500, color: 'var(--color-ink-tertiary)', marginLeft: '2px' }}>$</span>
+            {activeTool && (
+              <span
+                className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md flex-shrink-0 select-none"
+                style={{
+                  background: 'var(--color-primary-soft)',
+                  color: 'var(--color-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                  letterSpacing: '-0.01em',
+                  lineHeight: '1.4',
+                }}
+              >
+                /{activeTool.name}
+                <button
+                  onClick={() => { setActiveTool(null); inputRef.current?.focus(); }}
+                  className="flex items-center justify-center w-3.5 h-3.5 rounded hover:opacity-60 transition-opacity"
+                  style={{ color: 'var(--color-primary)', opacity: 0.5, fontSize: '14px', lineHeight: '1' }}
+                  title="移除工具"
+                >×</button>
+              </span>
+            )}
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={e => {
                 const v = e.target.value;
-                // Suppress re-open right after a skill selection so the user can
-                // fill in their task without the palette jumping back. Re-arm
-                // command mode only once the slash prefix is gone.
-                if (suppressPaletteRef.current) {
-                  if (!v.startsWith('/')) {
-                    suppressPaletteRef.current = false;
-                    setPaletteOpen(false);
-                    setPaletteQuery('');
-                  }
+                // When a tool chip is active, the input holds only the task
+                // text — never re-trigger the "/" palette.
+                if (activeTool) {
                   setInputValue(v);
                   return;
                 }
@@ -589,21 +608,28 @@ export default function ChatPage() {
                   e.preventDefault();
                   return;
                 }
+                // Backspace on an empty input with an active chip removes the
+                // chip (standard chat-UX behavior).
+                if (e.key === 'Backspace' && !inputValue && activeTool) {
+                  e.preventDefault();
+                  setActiveTool(null);
+                  return;
+                }
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
               }}
-              placeholder={hasContent ? "Follow up..." : "Ask anything about your data..."}
+              placeholder={activeTool ? '输入任务描述...' : (hasContent ? 'Follow up...' : 'Ask anything about your data...')}
               disabled={isStreaming}
-              className="flex-1 bg-transparent border-none outline-none"
+              className="flex-1 bg-transparent border-none outline-none min-w-0"
               style={{ fontSize: '13px', fontWeight: 400, color: 'var(--color-ink)', fontFamily: '"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif', letterSpacing: '-0.01em' }}
             />
             <button
               onClick={handleSubmit}
-              disabled={isStreaming || !inputValue.trim()}
+              disabled={isStreaming || (!inputValue.trim() && !activeTool)}
               className="flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-150 flex-shrink-0"
               style={{
-                background: isStreaming || !inputValue.trim() ? 'var(--color-border-subtle)' : 'var(--color-ink)',
-                color: isStreaming || !inputValue.trim() ? 'var(--color-ink-tertiary)' : 'var(--color-content-bg)',
-                opacity: isStreaming || !inputValue.trim() ? 0.5 : 1,
+                background: isStreaming || (!inputValue.trim() && !activeTool) ? 'var(--color-border-subtle)' : 'var(--color-ink)',
+                color: isStreaming || (!inputValue.trim() && !activeTool) ? 'var(--color-ink-tertiary)' : 'var(--color-content-bg)',
+                opacity: isStreaming || (!inputValue.trim() && !activeTool) ? 0.5 : 1,
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
