@@ -221,30 +221,59 @@ export const connectorApi = {
   deleteActive: (id: number) => api.delete<void>(`/connectors/active/${id}`),
 };
 
-/** Scheduled task CRUD + toggle. */
+/** Scheduled task CRUD + toggle + manual run + run history (RESTful, /scheduled-tasks). */
 export interface ScheduledTask {
   id: number;
   name: string;
   cronExpr: string;
   taskType?: string;
   payload?: string;
-  status?: number; // 0 = paused, 1 = running
+  status?: number;            // 0 = paused, 1 = running
+  description?: string;
+  timeZone?: string;
+  timeoutSeconds?: number;
+  maxRetries?: number;
+  lastRunStatus?: string;     // success / failed / timeout
+  lastRunId?: number;
+  payloadVersion?: number;
   lastRunTime?: string;
   nextRunTime?: string;
   createTime?: string;
   updateTime?: string;
 }
+
+export interface ScheduledRun {
+  id: number;
+  taskId: number;
+  status: string;             // running / success / failed / timeout
+  startedAt?: string;
+  finishedAt?: string;
+  resultSummary?: string;
+  errorMessage?: string;
+  outputConversationId?: string;
+  attempt?: number;
+  createTime?: string;
+}
+
 export const scheduledTaskApi = {
-  list: async (): Promise<ScheduledTask[]> => {
-    const r = await api.get<ScheduledTask[]>('/scheduled-tasks/list');
+  list: async (enabledOnly = false): Promise<ScheduledTask[]> => {
+    const r = await api.get<ScheduledTask[]>(`/scheduled-tasks?enabledOnly=${enabledOnly}`);
     return unwrap<ScheduledTask[]>(r);
   },
-  create: (body: { name: string; cronExpr: string; taskType?: string; payload?: string }) =>
-    api.post<ScheduledTask>('/scheduled-tasks/create', body),
-  update: (body: Partial<ScheduledTask> & { id: number }) =>
-    api.put<ScheduledTask>('/scheduled-tasks/update', body),
-  delete: (id: number) => api.delete<void>(`/scheduled-tasks/${id}`),
-  toggle: (id: number) => api.put<ScheduledTask>(`/scheduled-tasks/${id}/toggle`),
+  get: (taskId: number) => api.get<ScheduledTask>(`/scheduled-tasks/${taskId}`),
+  create: (body: Partial<ScheduledTask> & { name: string; cronExpr: string }) =>
+    api.post<ScheduledTask>('/scheduled-tasks', body),
+  update: (taskId: number, body: Partial<ScheduledTask>) =>
+    api.put<ScheduledTask>(`/scheduled-tasks/${taskId}`, body),
+  toggle: (taskId: number, enabled: boolean) =>
+    api.post<ScheduledTask>(`/scheduled-tasks/${taskId}/toggle`, { enabled }),
+  delete: (taskId: number) => api.delete<void>(`/scheduled-tasks/${taskId}`),
+  run: (taskId: number) => api.post<ScheduledRun>(`/scheduled-tasks/${taskId}/run`),
+  runs: async (taskId: number, limit = 50, offset = 0): Promise<{ runs: ScheduledRun[]; total: number }> => {
+    const r = await api.get<{ runs: ScheduledRun[]; total: number }>(`/scheduled-tasks/${taskId}/runs?limit=${limit}&offset=${offset}`);
+    return unwrap<{ runs: ScheduledRun[]; total: number }>(r);
+  },
+  getRun: (taskId: number, runId: number) => api.get<ScheduledRun>(`/scheduled-tasks/${taskId}/runs/${runId}`),
 };
 
 /** LLM HA strategy + metrics. */

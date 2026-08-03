@@ -18,6 +18,14 @@
   --color-success: #3b8c5e;
   --color-success-soft: rgba(59, 140, 94, 0.08);
 
+  /* Signal colors — status badges */
+  --color-sig-green: #2d8b5a;
+  --color-sig-green-soft: rgba(45, 139, 90, 0.10);
+  --color-sig-red: #ce4a3f;
+  --color-sig-red-soft: rgba(206, 74, 63, 0.10);
+  --color-sig-amber: #d4932b;
+  --color-sig-amber-soft: rgba(212, 147, 43, 0.12);
+
   /* Semantic - Agent Timeline */
   --color-semantic-planning: #5b8def;
   --color-semantic-planning-soft: rgba(91, 141, 239, 0.08);
