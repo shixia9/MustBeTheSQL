@@ -229,6 +229,31 @@ export default function StepTimeline({
             const summary = extractSummary(step);
             const label = NODE_LABELS[step.nodeName] || step.nodeName;
 
+            // Chitchat DASHBOARD steps carry a direct LLM answer (route=chitchat)
+            // rather than a data-analysis report. Render as a clean text bubble
+            // without the agent-node chrome (label, status badge, dot).
+            const isChitchat = step.nodeName === 'DASHBOARD'
+              && step.output?.route === 'chitchat';
+
+            if (isChitchat) {
+              const answerText = step.output?.content || summary || '';
+              return (
+                <div key={`${ti}-${si}`} className="py-2 px-3 mb-1">
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 400,
+                      color: 'var(--color-ink)',
+                      lineHeight: 1.65,
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {answerText}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={`${ti}-${si}`}
@@ -339,7 +364,8 @@ export default function StepTimeline({
       ))}
 
       {/* ── Process Summary (after last turn) ── */}
-      {lastDashboardStep && !isStreaming && (
+      {/* Skip for chitchat */}
+      {lastDashboardStep && !isStreaming && lastDashboardStep.step.output?.route !== 'chitchat' && (
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
           <div className="flex items-center justify-between mb-2">
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-ink)' }}>

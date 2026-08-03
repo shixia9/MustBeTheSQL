@@ -250,6 +250,9 @@ export default function ChatPage() {
               } else if (parsed.outputType === 'FINISHED') {
                 // Agent node completed with data
                 const nodeName = parsed.nodeName || 'UNKNOWN';
+                if (nodeName === 'MANAGER') {
+                  return { ...updated };
+                }
                 const stepData = parsed.data || {};
                 const existingIdx = updated.steps.findIndex(s => s.nodeName === nodeName);
                 if (existingIdx >= 0) {
