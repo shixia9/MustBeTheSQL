@@ -43,7 +43,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [recentTasks, setRecentTasks] = useState<any[]>([]);
-  const [constructOpen, setConstructOpen] = useState(false);
+  const [constructOpen, setConstructOpen] = useState(true);
 
   useEffect(() => {
     conversationApi.list(1, 1, 7).then(d => {
@@ -94,7 +94,8 @@ export default function Sidebar() {
           style={{ height: 1, margin: '0 12px', background: 'linear-gradient(90deg, transparent 0%, var(--shell-top-glow) 30%, var(--shell-top-glow) 70%, transparent 100%)' }} />
       )}
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 flex flex-col overflow-hidden py-2">
+        <div className="flex-shrink-0">
         {/* Primary navigation */}
         {!sidebarCollapsed && (
           <div className="px-4 py-2 select-none" style={{ color: 'var(--shell-text-dim)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
@@ -135,6 +136,7 @@ export default function Sidebar() {
             ))}
           </div>
         )}
+        </div>
 
         {/* Recent Tasks */}
         {!sidebarCollapsed && (
@@ -143,7 +145,7 @@ export default function Sidebar() {
             <div className="px-4 py-2 select-none" style={{ color: 'var(--shell-text-dim)', fontSize: '10px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               {t('nav.recent')}
             </div>
-            <div className="px-2 overflow-y-auto max-h-[200px]">
+            <div className="px-2 overflow-y-auto flex-1 min-h-0">
               {recentTasks.length > 0 ? recentTasks.slice(0, 7).map((conv: any) => (
                 <button key={conv.id} onClick={() => navigate(`/chat/${conv.id}`)}
                   className="w-full text-left px-3 py-1.5 rounded-md transition-colors truncate"
