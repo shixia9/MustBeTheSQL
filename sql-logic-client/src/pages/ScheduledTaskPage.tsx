@@ -57,6 +57,53 @@ const EMPTY_FORM: FormState = {
   timeoutSeconds: '',
 };
 
+interface PayloadFields {
+  userInput: string;
+  connectionId: string;
+  schemaName: string;
+  tableNames: string;
+  workspaceId: string;
+  llmConfigId: string;
+}
+
+const EMPTY_PAYLOAD_FIELDS: PayloadFields = {
+  userInput: '',
+  connectionId: '',
+  schemaName: '',
+  tableNames: '',
+  workspaceId: '',
+  llmConfigId: '',
+};
+
+function payloadFieldsToJson(fields: PayloadFields): string {
+  const obj: Record<string, any> = {};
+  const v = (s: string) => s.trim();
+  if (v(fields.userInput)) obj.userInput = v(fields.userInput);
+  if (v(fields.connectionId)) obj.connectionId = Number(v(fields.connectionId));
+  if (v(fields.schemaName)) obj.schemaName = v(fields.schemaName);
+  if (v(fields.tableNames)) obj.tableNames = v(fields.tableNames).split(',').map(s => s.trim()).filter(Boolean);
+  if (v(fields.workspaceId)) obj.workspaceId = Number(v(fields.workspaceId));
+  if (v(fields.llmConfigId)) obj.llmConfigId = Number(v(fields.llmConfigId));
+  return Object.keys(obj).length > 0 ? JSON.stringify(obj) : '';
+}
+
+function jsonToPayloadFields(json: string): PayloadFields {
+  if (!json || !json.trim()) return { ...EMPTY_PAYLOAD_FIELDS };
+  try {
+    const obj = JSON.parse(json);
+    return {
+      userInput: obj.userInput ?? obj.user_input ?? '',
+      connectionId: obj.connectionId != null ? String(obj.connectionId) : '',
+      schemaName: obj.schemaName ?? obj.schema_name ?? '',
+      tableNames: Array.isArray(obj.tableNames) ? obj.tableNames.join(', ') : (obj.tableNames ?? ''),
+      workspaceId: obj.workspaceId != null ? String(obj.workspaceId) : '',
+      llmConfigId: obj.llmConfigId != null ? String(obj.llmConfigId) : '',
+    };
+  } catch {
+    return { ...EMPTY_PAYLOAD_FIELDS };
+  }
+}
+
 export default function ScheduledTaskPage() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +114,15 @@ export default function ScheduledTaskPage() {
   const [running, setRunning] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [historyTaskId, setHistoryTaskId] = useState<number | null>(null);
+  const [payloadMode, setPayloadMode] = useState<'json' | 'form'>('json');
+  const [payloadFields, setPayloadFields] = useState({
+    userInput: '',
+    connectionId: '',
+    schemaName: '',
+    tableNames: '',
+    workspaceId: '',
+    llmConfigId: '',
+  });
   const { msg, flash } = useFlash();
 
   const fetchTasks = useCallback(async () => {
@@ -82,7 +138,9 @@ export default function ScheduledTaskPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, taskType: 'chat_replay' });
+    setPayloadMode('form');
+    setPayloadFields({ ...EMPTY_PAYLOAD_FIELDS });
     setShowForm(true);
   };
 
@@ -97,6 +155,10 @@ export default function ScheduledTaskPage() {
       timeZone: t.timeZone || '',
       timeoutSeconds: t.timeoutSeconds != null ? String(t.timeoutSeconds) : '',
     });
+    const fields = jsonToPayloadFields(t.payload || '');
+    setPayloadFields(fields);
+    // Default to form mode if the payload has recognizable structured fields
+    setPayloadMode(fields.userInput || fields.connectionId ? 'form' : 'json');
     setShowForm(true);
   };
 
@@ -113,18 +175,21 @@ export default function ScheduledTaskPage() {
         setSaving(false);
         return;
       }
-      const payload = {
+      const payload = payloadMode === 'form'
+        ? payloadFieldsToJson(payloadFields)
+        : (form.payload.trim() || undefined);
+      const payload2 = {
         name: form.name.trim(),
         cronExpr: form.cronExpr.trim(),
         taskType: form.taskType.trim() || undefined,
-        payload: form.payload.trim() || undefined,
+        payload: payload || undefined,
         description: form.description.trim() || undefined,
         timeZone: form.timeZone.trim() || undefined,
         timeoutSeconds: timeoutNum,
       };
       const r = editing
-        ? await scheduledTaskApi.update(editing.id, payload)
-        : await scheduledTaskApi.create(payload);
+        ? await scheduledTaskApi.update(editing.id, payload2)
+        : await scheduledTaskApi.create(payload2);
       if (r.code === 200) { flash('success', editing ? 'Updated' : 'Created'); setShowForm(false); await fetchTasks(); }
       else flash('error', r.message || 'Failed');
     } catch (e: any) { flash('error', e.message || 'Failed'); }
@@ -166,9 +231,19 @@ export default function ScheduledTaskPage() {
     setHistoryTaskId(task.id);
   };
 
+  const switchPayloadMode = (mode: 'json' | 'form') => {
+    if (mode === payloadMode) return;
+    if (mode === 'form') {
+      setPayloadFields(jsonToPayloadFields(form.payload));
+    } else {
+      setForm({ ...form, payload: payloadFieldsToJson(payloadFields) });
+    }
+    setPayloadMode(mode);
+  };
+
   return (
     <ManagementPage
-      title="scheduled-tasks"
+      title="Scheduled Tasks"
       icon={Clock}
       actions={
         <button onClick={openCreate} className="btn-primary flex items-center gap-1.5">
@@ -207,9 +282,11 @@ export default function ScheduledTaskPage() {
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Task Type</label>
-              <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
-                value={form.taskType} onChange={e => setForm({ ...form, taskType: e.target.value })}
-                placeholder="SQL_EXPORT, REPORT, SYNC..." />
+              <select className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500 bg-white"
+                value={form.taskType} onChange={e => setForm({ ...form, taskType: e.target.value })}>
+                <option value="">chat_replay (default)</option>
+                <option value="chat_replay">chat_replay</option>
+              </select>
             </div>
             <div>
               <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Time Zone</label>
@@ -230,10 +307,67 @@ export default function ScheduledTaskPage() {
                 placeholder="600" inputMode="numeric" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Payload (JSON)</label>
-              <textarea rows={3} className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-md outline-none focus:border-blue-500"
-                value={form.payload} onChange={e => setForm({ ...form, payload: e.target.value })}
-                placeholder='{"query": "SELECT ...", "format": "csv"}' />
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Payload</label>
+                <div className="flex items-center gap-1 bg-slate-100 rounded-md p-0.5">
+                  <button type="button" onClick={() => switchPayloadMode('json')}
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
+                      payloadMode === 'json' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                    }`}>
+                    JSON
+                  </button>
+                  <button type="button" onClick={() => switchPayloadMode('form')}
+                    className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
+                      payloadMode === 'form' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                    }`}>
+                    Form
+                  </button>
+                </div>
+              </div>
+              {payloadMode === 'json' ? (
+                <textarea rows={3} className="w-full px-3 py-2 text-sm font-mono border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                  value={form.payload} onChange={e => setForm({ ...form, payload: e.target.value })}
+                  placeholder='{"userInput": "query text", "connectionId": 1, "schemaName": "db"}' />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 border border-slate-200 rounded-md bg-slate-50/50">
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">User Input</label>
+                    <textarea rows={2} className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.userInput} onChange={e => setPayloadFields({ ...payloadFields, userInput: e.target.value })}
+                      placeholder="e.g. Summarize yesterday's order data" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Connection ID</label>
+                    <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.connectionId} onChange={e => setPayloadFields({ ...payloadFields, connectionId: e.target.value })}
+                      placeholder="1" inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Schema Name</label>
+                    <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.schemaName} onChange={e => setPayloadFields({ ...payloadFields, schemaName: e.target.value })}
+                      placeholder="e.g. sales_db" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Table Names</label>
+                    <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.tableNames} onChange={e => setPayloadFields({ ...payloadFields, tableNames: e.target.value })}
+                      placeholder="orders, users (comma-separated)" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Workspace ID</label>
+                    <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.workspaceId} onChange={e => setPayloadFields({ ...payloadFields, workspaceId: e.target.value })}
+                      placeholder="1" inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">LLM Config ID</label>
+                    <input className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md outline-none focus:border-blue-500"
+                      value={payloadFields.llmConfigId} onChange={e => setPayloadFields({ ...payloadFields, llmConfigId: e.target.value })}
+                      placeholder="1" inputMode="numeric" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">

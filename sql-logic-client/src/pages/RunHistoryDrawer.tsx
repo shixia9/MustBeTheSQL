@@ -277,10 +277,20 @@ export default function RunHistoryDrawer({ taskId, open, onClose }: RunHistoryDr
                   </pre>
                 )}
 
-                {/* Output conversation link hint */}
+                {/* Output conversation thread ID */}
                 {run.outputConversationId && (
                   <div style={{ marginTop: 6, fontSize: 10, color: colorInkTertiary }}>
-                    output conversation: <code style={{ fontFamily: 'var(--font-mono)' }}>{run.outputConversationId}</code>
+                    thread:{" "}
+                    <code
+                      onClick={() => navigator.clipboard.writeText(run.outputConversationId!)}
+                      title="Click to copy thread ID"
+                      style={{
+                        fontFamily: 'var(--font-mono)', cursor: 'pointer',
+                        padding: '1px 4px', borderRadius: 3,
+                        background: colorAppBg, border: `1px solid ${colorBorderSubtle}`,
+                      }}>
+                      {run.outputConversationId.slice(0, 12)}...
+                    </code>
                   </div>
                 )}
               </div>
