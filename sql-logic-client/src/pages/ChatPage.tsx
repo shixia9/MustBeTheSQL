@@ -295,6 +295,73 @@ export default function ChatPage() {
                     messageType: parsed.messageType,
                   }];
                 }
+              } else if (parsed.nodeName === 'SANDBOX') {
+                // ── Sandbox execution streaming protocol ──
+                // A single SANDBOX step accumulates multiple serial executions in
+                // output.executions[]. STARTED pushes a new entry, stream chunks
+                // append to the last running entry (index 0 = new line), FINISHED
+                // finalizes it with authoritative stdout/stderr/exitCode/timing.
+                const data = parsed.data || {};
+                const sbxIdx = updated.steps.findIndex(s => s.nodeName === 'SANDBOX');
+                let executions: any[] = sbxIdx >= 0
+                  ? [...(updated.steps[sbxIdx].output?.executions || [])]
+                  : [];
+
+                if (parsed.outputType === 'STARTED') {
+                  executions = [...executions, {
+                    language: data.language || 'python',
+                    code: data.code || '',
+                    stdout: '',
+                    stderr: '',
+                    isRunning: true,
+                  }];
+                } else if (parsed.outputType === 'stream') {
+                  if (executions.length > 0) {
+                    const last = { ...executions[executions.length - 1] };
+                    const chunk = data.chunk ?? '';
+                    const key = data.isError ? 'stderr' : 'stdout';
+                    let acc = last[key] || '';
+                    // index 0 starts a new line — prepend newline if mid-line.
+                    if (data.index === 0 && acc.length > 0 && !acc.endsWith('\n')) {
+                      acc += '\n';
+                    }
+                    acc += chunk;
+                    last[key] = acc;
+                    executions[executions.length - 1] = last;
+                  }
+                } else if (parsed.outputType === 'FINISHED') {
+                  if (executions.length > 0) {
+                    const last = { ...executions[executions.length - 1] };
+                    // FINISHED carries the authoritative full output.
+                    if (typeof data.output === 'string') last.stdout = data.output;
+                    if (typeof data.error === 'string') last.stderr = data.error;
+                    last.exitCode = data.exitCode;
+                    last.durationMs = data.executionTimeMs;
+                    last.status = data.status;
+                    last.isRunning = false;
+                    // Phase 2/3 enrichments — backward-compatible (undefined when absent).
+                    if (data.guiUrl) last.guiUrl = data.guiUrl;
+                    if (Array.isArray(data.files)) last.files = data.files;
+                    if (Array.isArray(data.logs)) last.logs = data.logs;
+                    executions[executions.length - 1] = last;
+                  }
+                }
+
+                const sandboxStatus: 'completed' | 'running' =
+                  parsed.outputType === 'FINISHED' ? 'completed' : 'running';
+                const sandboxStep = {
+                  nodeName: 'SANDBOX',
+                  status: sandboxStatus,
+                  output: { executions },
+                  messageType: parsed.messageType,
+                };
+                if (sbxIdx >= 0) {
+                  updated.steps = updated.steps.map(s =>
+                    s.nodeName === 'SANDBOX' ? sandboxStep : s
+                  );
+                } else {
+                  updated.steps = [...updated.steps, sandboxStep];
+                }
               } else if (parsed.type === 'ERROR') {
                 const nodeName = parsed.nodeName;
                 if (nodeName) {

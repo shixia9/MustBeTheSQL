@@ -11,6 +11,8 @@ import DashboardGrid from '../dashboard/DashboardGrid';
 import HtmlReportView from './HtmlReportView';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import SqlResultTable from './cards/SqlResultTable';
+import SandboxPanel from './SandboxPanel';
+import type { TerminalExecution } from './TerminalRenderer';
 
 interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
 interface TurnData { question: string; steps: StepData[] }
@@ -18,6 +20,7 @@ interface TurnData { question: string; steps: StepData[] }
 const outputTabs = [
   { key: 'report', label: 'Report', icon: 'report' },
   { key: 'code', label: 'SQL / Code', icon: 'code' },
+  { key: 'terminal', label: 'Terminal', icon: 'code' },
   { key: 'table', label: 'Data', icon: 'table' },
   { key: 'chart', label: 'Chart', icon: 'chart' },
 ];
@@ -103,6 +106,11 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
   const [executingSql, setExecutingSql] = useState<string | null>(null);
   const [executeResult, setExecuteResult] = useState<{ columns: string[]; rows: Record<string, any>[]; sql: string } | null>(null);
   const [executeError, setExecuteError] = useState<string | null>(null);
+  // Manual sandbox execution — one pending run at a time.
+  const [manualCode, setManualCode] = useState<string>('');
+  const [manualLanguage, setManualLanguage] = useState<string>('python');
+  const [manualExecuting, setManualExecuting] = useState(false);
+  const [manualResult, setManualResult] = useState<TerminalExecution | null>(null);
   const activeConnectionId = useWorkspaceStore(state => state.activeConnectionId);
 
   const reportSteps = steps.filter(s =>
@@ -118,6 +126,11 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
     || s.nodeName === 'CODE_ASSISTANT'
   );
   const planSteps = steps.filter(s => s.nodeName === 'PLANNER' || s.nodeName === 'MANAGER');
+  // Agent-driven sandbox executions (streamed via SANDBOX SSE events).
+  const sandboxSteps = steps.filter(s => s.nodeName === 'SANDBOX');
+  const sandboxExecutions: TerminalExecution[] = sandboxSteps.length > 0
+    ? (sandboxSteps[sandboxSteps.length - 1].output?.executions || [])
+    : [];
 
   const allCode = [...sqlSteps, ...codeSteps];
 
@@ -156,6 +169,48 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
       setExecutingSql(null);
     }
   }, [activeConnectionId]);
+
+  /** Manually run Python/shell code in the sandbox via the one-shot /run endpoint. 
+   * Switches to the Terminal tab and renders the result inline. */
+  const handleRunCode = useCallback(async (code: string, language: string = 'python') => {
+    if (!code || code.trim().length === 0) return;
+    setManualCode(code);
+    setManualLanguage(language);
+    setManualExecuting(true);
+    setManualResult({
+      language, code, stdout: '', stderr: '', isRunning: true,
+    });
+    setActiveTab('terminal');
+    try {
+      const res = await api.post<any>('/api/v1/sandbox/run', { language, code });
+      if (res.code === 200 && res.data) {
+        const d = res.data;
+        const disp = d.displayResult || {};
+        setManualResult({
+          language,
+          code,
+          stdout: d.stdout ?? disp.output ?? '',
+          stderr: d.stderr ?? disp.error ?? '',
+          exitCode: d.exitCode,
+          durationMs: d.durationMs,
+          status: d.status?.value || d.status || (disp.status),
+          isRunning: false,
+        });
+      } else {
+        setManualResult({
+          language, code, stdout: '', stderr: res.message || 'Execution failed',
+          exitCode: -1, status: 'error', isRunning: false,
+        });
+      }
+    } catch (e: any) {
+      setManualResult({
+        language, code, stdout: '', stderr: e?.message || 'Network error',
+        exitCode: -1, status: 'error', isRunning: false,
+      });
+    } finally {
+      setManualExecuting(false);
+    }
+  }, []);
 
   return (
     <div className="flex flex-col h-full" style={{
@@ -395,7 +450,12 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
                     />
                   )}
                   {s.output?.pythonCode && (
-                    <SqlCodeBlock code={s.output.pythonCode} language="python" />
+                    <SqlCodeBlock
+                      code={s.output.pythonCode}
+                      language="python"
+                      onExecute={() => handleRunCode(s.output.pythonCode, 'python')}
+                      executing={manualExecuting && manualCode === s.output.pythonCode}
+                    />
                   )}
                 </div>
               ))
@@ -405,6 +465,18 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
               </div>
             )}
           </div>
+        )}
+
+        {/* ── Terminal tab ── */}
+        {activeTab === 'terminal' && (
+          <SandboxPanel
+            executions={sandboxExecutions}
+            manualCode={manualCode}
+            manualLanguage={manualLanguage}
+            manualExecuting={manualExecuting}
+            onManualRun={manualCode ? () => handleRunCode(manualCode, manualLanguage) : undefined}
+            manualResult={manualResult}
+          />
         )}
 
         {/* ── Data / Table tab ── */}
