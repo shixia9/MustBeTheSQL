@@ -9,6 +9,7 @@ export default function AgentExecutionView({
   turns, isStreaming, hitlPending, onHitlConfirm,
   autoConfirm, onAutoConfirmChange,
   hasMultimodalContent,
+  conversationId, onRerun,
 }: {
   turns: TurnData[];
   isStreaming: boolean;
@@ -19,6 +20,8 @@ export default function AgentExecutionView({
   selectedDb: number | null;
   onDbChange: (v: number) => void;
   hasMultimodalContent: boolean;
+  conversationId?: string | number;
+  onRerun?: () => void;
 }) {
   const {
     rightPanelWidth, setRightPanelWidth,
@@ -112,7 +115,8 @@ export default function AgentExecutionView({
             className="overflow-hidden flex-shrink-0 h-full"
             style={{ width: rightPanelWidth, transition: 'width 200ms var(--ease-out-fast)' }}
           >
-            <OutputPanel output={latestOutput} steps={allSteps} turns={turns} />
+            <OutputPanel output={latestOutput} steps={allSteps} turns={turns}
+              conversationId={conversationId} onRerun={onRerun} isStreaming={isStreaming} />
           </div>
 
           {/* Toggle to collapse */}

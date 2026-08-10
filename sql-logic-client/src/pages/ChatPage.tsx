@@ -502,6 +502,15 @@ export default function ChatPage() {
     setHitlPending(null);
   };
 
+  /** Re-run the last completed turn's question (TurnActionBar "重新执行"). */
+  const handleRerun = useCallback(() => {
+    if (isStreaming) return;
+    const lastTurn = turns[turns.length - 1];
+    if (lastTurn?.question) {
+      handleStream(lastTurn.question);
+    }
+  }, [isStreaming, turns, handleStream]);
+
   const hasContent = turns.length > 0 || currentTurn !== null;
 
   return (
@@ -519,6 +528,8 @@ export default function ChatPage() {
             selectedDb={activeConnectionId}
             onDbChange={(id) => useWorkspaceStore.getState().setActiveConnectionId(id)}
             hasMultimodalContent={hasMultimodal}
+            conversationId={conversationId}
+            onRerun={handleRerun}
           />
         ) : (
           <WelcomePanel

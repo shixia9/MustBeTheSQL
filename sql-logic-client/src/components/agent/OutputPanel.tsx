@@ -12,6 +12,7 @@ import HtmlReportView from './HtmlReportView';
 import SqlCodeBlock from './cards/SqlCodeBlock';
 import SqlResultTable from './cards/SqlResultTable';
 import SandboxPanel from './SandboxPanel';
+import TurnActionBar from './TurnActionBar';
 import type { TerminalExecution } from './TerminalRenderer';
 
 interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
@@ -97,10 +98,13 @@ function getColumnNames(chart: any): string[] {
   return [];
 }
 
-export default function OutputPanel({ output: _output, steps, turns: _turns }: {
+export default function OutputPanel({ output: _output, steps, turns: _turns, conversationId, onRerun, isStreaming }: {
   output: any;
   steps: StepData[];
   turns: TurnData[];
+  conversationId?: string | number;
+  onRerun?: () => void;
+  isStreaming?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState('report');
   const [executingSql, setExecutingSql] = useState<string | null>(null);
@@ -117,6 +121,11 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
     s.nodeName === 'REPORT' || s.nodeName === 'DASHBOARD'
     || s.nodeName === 'DASHBOARD_ASSISTANT'
   );
+  // Latest report text — feeds the "复制" (copy) action in TurnActionBar.
+  const latestReportStep = reportSteps.length > 0 ? reportSteps[reportSteps.length - 1] : null;
+  const latestReportText = latestReportStep
+    ? (latestReportStep.output?.report || latestReportStep.output?.content || latestReportStep.content || '')
+    : '';
   const sqlSteps = steps.filter(s =>
     s.nodeName === 'SQL_GENERATION' || s.nodeName === 'SQL_EXECUTION'
     || s.nodeName === 'SQL_FIXER' || s.nodeName === 'DATA_SCIENTIST'
@@ -423,6 +432,16 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
               <div className="flex items-center justify-center h-32" style={{ color: 'var(--color-ink-tertiary)', fontSize: '12px' }}>
                 Awaiting agent execution...
               </div>
+            )}
+
+            {/* Post-response action bar: divider + 执行完成 + context ring + like/copy/re-execute.
+                Shown only once the agent has finished streaming a report. */}
+            {!isStreaming && reportSteps.length > 0 && (
+              <TurnActionBar
+                conversationId={conversationId}
+                reportText={latestReportText}
+                onRerun={onRerun}
+              />
             )}
           </div>
         )}
