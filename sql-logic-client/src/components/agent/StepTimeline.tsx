@@ -3,8 +3,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
 import { getIcon } from '../../assets/icons';
-import type { CompactionEvent } from '../../stores/conversationStore';
+import type { CompactionEvent, PlanSnapshot } from '../../stores/conversationStore';
 import CompactionPanel from './CompactionPanel';
+import PlanTodoList from './PlanTodoList';
 import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary, splitDashboardContent } from '../../utils/visContentParser';
 
 interface StepData {
@@ -20,6 +21,8 @@ interface TurnData {
   steps: StepData[];
   /** Context-compaction events captured while this turn was streaming (L1–L4). */
   compactionEvents?: CompactionEvent[];
+  /** Plan snapshot pushed by the backend PLAN_UPDATED event (ManagerAgent). */
+  plan?: PlanSnapshot;
 }
 
 const NODE_LABELS: Record<string, string> = {
@@ -229,6 +232,15 @@ export default function StepTimeline({
               </span>
             )}
           </div>
+
+          {/* Plan TODO list — rendered when the backend has pushed a PLAN_UPDATED snapshot */}
+          {turn.plan && turn.plan.steps && turn.plan.steps.length > 0 && (
+            <PlanTodoList
+              plan={turn.plan}
+              isStreaming={isStreaming}
+              isCurrentTurn={ti === turns.length - 1}
+            />
+          )}
 
           {/* "thinking..." indicator — shown while the last turn is streaming
               but no worker node has reported yet (MANAGER STARTED is filtered,

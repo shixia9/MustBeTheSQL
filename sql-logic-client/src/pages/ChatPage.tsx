@@ -274,6 +274,12 @@ export default function ChatPage() {
                     messageType: parsed.messageType,
                   }];
                 }
+              } else if (parsed.outputType === 'PLAN_UPDATED') {
+                // Plan snapshot from ManagerAgent — render the TODO list.
+                // Full snapshot replaces any prior plan (idempotent overwrite).
+                if (parsed.data) {
+                  updated.plan = parsed.data as any;
+                }
               } else if (parsed.outputType === 'AWAITING_CLARIFICATION') {
                 // ManagerAgent requests user clarification. MANAGER STARTED is
                 // filtered above, so a step may not exist yet — create one if

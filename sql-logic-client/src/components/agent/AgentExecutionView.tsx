@@ -1,11 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLayout } from '../../contexts/LayoutContext';
+import type { TurnData, StepData } from '../../stores/conversationStore';
 import StepTimeline from './StepTimeline';
 import OutputPanel from './OutputPanel';
 import RightPanelToggle from './RightPanelToggle';
-
-interface TurnData { question: string; steps: StepData[] }
-interface StepData { nodeName: string; status: string; content?: string; output?: any; messageType?: string }
 
 export default function AgentExecutionView({
   turns, isStreaming, hitlPending, onHitlConfirm,

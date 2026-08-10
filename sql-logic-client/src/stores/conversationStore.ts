@@ -30,10 +30,33 @@ export interface CompactionEvent {
   ts: number;           // epoch ms
 }
 
+/** Status of a single plan step, mirrored from backend PlanStatus enum. */
+export type PlanStepStatus = 'TODO' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+/** A single step in the plan snapshot pushed by the backend PLAN_UPDATED SSE event. */
+export interface PlanStepDto {
+  serialNumber: number;
+  agent: string;
+  content: string;
+  rely: string;
+  status: PlanStepStatus;
+  result?: string | null;
+  retryTimes: number;
+}
+
+/** Full plan snapshot carried by a PLAN_UPDATED SSE event. */
+export interface PlanSnapshot {
+  steps: PlanStepDto[];
+  totalSteps: number;
+  completedSteps: number;
+  failedSteps: number;
+}
+
 export interface TurnData {
   question: string;
   steps: StepData[];
   compactionEvents?: CompactionEvent[];
+  plan?: PlanSnapshot;
 }
 
 interface ConversationState {
