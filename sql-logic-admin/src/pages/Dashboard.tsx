@@ -3,7 +3,7 @@ import { Users, Cpu, Activity, Search, ChevronLeft, ChevronRight, X, LayoutDashb
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../api/client';
 
-type AdminTab = 'overview' | 'users' | 'workflows' | 'llm';
+type AdminTab = 'overview' | 'users' | 'workflows' | 'llm' | 'agents';
 
 export default function Dashboard({ adminRole }: { adminRole: string }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -27,11 +27,22 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
   const [workflowKeyword, setWorkflowKeyword] = useState('');
   // Per-agent metrics (multi-agent telemetry, not paginated)
   const [agentMetrics, setAgentMetrics] = useState<any[]>([]);
+  // Agent configuration (bus-orc switch + 6-agent topology)
+  const [agentConfig, setAgentConfig] = useState<any>(null);
+  const [agentTopology, setAgentTopology] = useState<any[]>([]);
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [agentMsg, setAgentMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => { if (activeTab === 'overview') { fetchDashboard(); } }, [activeTab]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, userPage, userKeyword]);
   useEffect(() => { if (activeTab === 'workflows') fetchWorkflows(); }, [activeTab, workflowPage, workflowKeyword]);
   useEffect(() => { if (activeTab === 'llm') fetchLlmMetrics(); }, [activeTab, llmPage, llmKeyword, llmSubTab]);
+  useEffect(() => {
+    if (activeTab === 'agents') {
+      api.get<any>('/admin/config/agent').then(r => { if (r.data) setAgentConfig(r.data); });
+      api.get<any>('/admin/config/agent/topology').then(r => { if (r.data) setAgentTopology(r.data); });
+    }
+  }, [activeTab]);
 
   const fetchDashboard = async () => {
     const res = await api.get<any>('/admin/dashboard');
@@ -66,6 +77,21 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
     const res = await api.get<any>(`${path}?${params}`);
     if (res.data) { setLlmMetrics(res.data.records || []); setLlmTotal(res.data.total || 0); }
   };
+  const saveAgentConfig = async (mode: string, timeoutSec: number) => {
+    setAgentSaving(true); setAgentMsg(null);
+    try {
+      const res = await api.put<any>('/admin/config/agent', { mode, dispatcherTimeoutSeconds: timeoutSec });
+      if (res.code === 200 && res.data) {
+        setAgentConfig(res.data);
+        setAgentMsg({ kind: 'ok', text: '已保存。重启 sql-logic-service 后 mode 变更生效。' });
+      } else {
+        setAgentMsg({ kind: 'err', text: res.message || '保存失败' });
+      }
+    } catch {
+      setAgentMsg({ kind: 'err', text: '保存失败，请检查网络或权限' });
+    }
+    setAgentSaving(false);
+  };
   const handleToggleStatus = async (userId: number, currentStatus: number) => {
     await api.put(`/admin/users/${userId}/status`, { status: currentStatus === 1 ? 0 : 1 });
     fetchUsers();
@@ -82,6 +108,7 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
     { key: 'users', label: 'Users', icon: Users },
     { key: 'workflows', label: 'Workflows', icon: Workflow },
     { key: 'llm', label: 'LLM', icon: Zap },
+    { key: 'agents', label: 'Agents', icon: Bot },
   ];
 
   return (
@@ -142,6 +169,10 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
             llmKeyword={llmKeyword} setLlmKeyword={setLlmKeyword} setLlmPage={setLlmPage}
             llmSubTab={llmSubTab} setLlmSubTab={setLlmSubTab}
             agentMetrics={agentMetrics} />
+        )}
+        {activeTab === 'agents' && (
+          <AgentConfigView config={agentConfig} topology={agentTopology}
+            saving={agentSaving} msg={agentMsg} onSave={saveAgentConfig} />
         )}
       </main>
 
@@ -654,5 +685,148 @@ function AgentsTable({ data }: { data: any[] }) {
         })}
       </tbody>
     </table>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Agent Configuration Tab — bus-orc switch + topology
+   ═══════════════════════════════════════════ */
+const BUS_MODES: { key: string; label: string; desc: string }[] = [
+  { key: 'off', label: 'OFF', desc: '纯 generateReply 直调（默认）' },
+  { key: 'bypass', label: 'BYPASS', desc: '直调 + 总线镜像' },
+  { key: 'switch', label: 'SWITCH', desc: '业务消息走总线' },
+];
+
+function AgentConfigView({ config, topology, saving, msg, onSave }: {
+  config: any; topology: any[]; saving: boolean;
+  msg: { kind: 'ok' | 'err'; text: string } | null;
+  onSave: (mode: string, timeout: number) => void;
+}) {
+  const [mode, setMode] = useState('off');
+  const [timeoutVal, setTimeoutVal] = useState(300);
+
+  useEffect(() => {
+    if (config) {
+      setMode(String(config.mode || 'off'));
+      setTimeoutVal(Number(config.dispatcherTimeoutSeconds || 300));
+    }
+  }, [config]);
+
+  if (!config) {
+    return <div className="p-8 font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>Loading…</div>;
+  }
+
+  const canEdit = config.canEdit !== false;
+  const isSwitch = mode.toLowerCase() === 'switch';
+
+  return (
+    <div className="p-8 max-w-[1080px] space-y-6">
+      <div>
+        <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
+          Agent Configuration
+        </h1>
+        <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
+          Multi-agent orchestration settings (bus-orc)
+        </p>
+      </div>
+
+      {/* Restart hint */}
+      <div className="card p-4 flex items-start gap-3" style={{ background: 'var(--color-sig-amber-soft)' }}>
+        <span className="badge-warn mt-0.5">NOTE</span>
+        <p className="font-mono text-[12px] leading-relaxed" style={{ color: 'var(--color-typeset)' }}>
+          {config.needsRestartHint || '切换 bus-orc.mode 需重启 sql-logic-service 生效'}
+        </p>
+      </div>
+
+      {/* bus-orc config card */}
+      <div className="card p-6 space-y-5">
+        <div>
+          <h3 className="font-mono text-sm font-semibold" style={{ color: 'var(--color-typeset)' }}>
+            Message Bus Mode
+          </h3>
+          <p className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--color-marginalia)' }}>
+            控制派发策略：off / bypass（旁路观测）/ switch（走总线）
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {BUS_MODES.map(m => {
+            const active = mode.toLowerCase() === m.key;
+            return (
+              <button key={m.key} onClick={() => setMode(m.key)} disabled={!canEdit}
+                className="text-left p-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  border: `1.5px solid ${active ? 'var(--color-register)' : 'rgba(111,115,133,0.2)'}`,
+                  background: active ? 'var(--color-register-soft)' : 'var(--color-vellum)',
+                  cursor: canEdit ? 'pointer' : 'not-allowed',
+                }}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-mono text-xs font-semibold" style={{ color: 'var(--color-typeset)' }}>{m.label}</span>
+                  {active && <span className="badge-ok">ACTIVE</span>}
+                </div>
+                <p className="font-mono text-[10.5px] leading-relaxed" style={{ color: 'var(--color-marginalia)' }}>{m.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-4 pt-1">
+          <label className="font-mono text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--color-marginalia)' }}>
+            Dispatcher Timeout (s)
+          </label>
+          <input type="number" className="input w-32" min={10} max={3600}
+            value={timeoutVal} onChange={e => setTimeoutVal(parseInt(e.target.value) || 300)}
+            disabled={!canEdit || !isSwitch} />
+          <span className="font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>
+            仅 switch 模式生效，worker 无响应的超时兜底
+          </span>
+        </div>
+
+        {!canEdit && (
+          <p className="font-mono text-[11px]" style={{ color: 'var(--color-sig-red)' }}>
+            仅 SUPER_ADMIN 可修改配置
+          </p>
+        )}
+        {msg && (
+          <p className="font-mono text-[11px]"
+            style={{ color: msg.kind === 'ok' ? 'var(--color-sig-green)' : 'var(--color-sig-red)' }}>
+            {msg.text}
+          </p>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button onClick={() => onSave(mode, timeoutVal)} disabled={!canEdit || saving}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* Topology */}
+      <div className="card p-6">
+        <h3 className="font-mono text-sm font-semibold mb-0.5" style={{ color: 'var(--color-typeset)' }}>
+          Agent Topology
+        </h3>
+        <p className="font-mono text-[11px] mb-4" style={{ color: 'var(--color-marginalia)' }}>
+          6-Agent 编排拓扑（只读）
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {topology.map((a: any, i: number) => (
+            <div key={i} className="p-4 rounded-md"
+              style={{ border: '1px solid rgba(111,115,133,0.15)', background: 'var(--color-vellum)' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-register-soft)' }}>
+                  <Bot size={13} style={{ color: 'var(--color-register)' }} strokeWidth={1.8} />
+                </div>
+                <span className="font-mono text-xs font-semibold" style={{ color: 'var(--color-typeset)' }}>{a.name}</span>
+                <span className="font-mono text-[10px]" style={{ color: 'var(--color-marginalia)' }}>{a.role}</span>
+              </div>
+              <p className="font-mono text-[10.5px] leading-relaxed" style={{ color: 'var(--color-marginalia)' }}>{a.goal}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
