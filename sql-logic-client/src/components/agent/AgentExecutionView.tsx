@@ -21,7 +21,8 @@ export default function AgentExecutionView({
   onDbChange: (v: number) => void;
   hasMultimodalContent: boolean;
   conversationId?: string | number;
-  onRerun?: () => void;
+  /** Re-run a specific turn's question; falls back to the last turn when omitted. */
+  onRerun?: (question?: string) => void;  
 }) {
   const {
     rightPanelWidth, setRightPanelWidth,
@@ -86,6 +87,8 @@ export default function AgentExecutionView({
           turns={turns}
           isStreaming={isStreaming}
           onViewVisualizations={() => setRightPanelExpanded(true)}
+          conversationId={conversationId}
+          onRerun={onRerun}
         />
       </div>
 
@@ -115,8 +118,7 @@ export default function AgentExecutionView({
             className="overflow-hidden flex-shrink-0 h-full"
             style={{ width: rightPanelWidth, transition: 'width 200ms var(--ease-out-fast)' }}
           >
-            <OutputPanel output={latestOutput} steps={allSteps} turns={turns}
-              conversationId={conversationId} onRerun={onRerun} isStreaming={isStreaming} />
+            <OutputPanel output={latestOutput} steps={allSteps} turns={turns} />
           </div>
 
           {/* Toggle to collapse */}

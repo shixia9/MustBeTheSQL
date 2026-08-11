@@ -6,6 +6,7 @@ import { getIcon } from '../../assets/icons';
 import type { CompactionEvent, PlanSnapshot } from '../../stores/conversationStore';
 import CompactionPanel from './CompactionPanel';
 import PlanTodoList from './PlanTodoList';
+import TurnActionBar from './TurnActionBar';
 import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary, splitDashboardContent } from '../../utils/visContentParser';
 
 interface StepData {
@@ -62,6 +63,23 @@ function extractSummary(step: StepData): string | null {
   return null;
 }
 
+function turnReplyText(turn: TurnData): string {
+  const steps = turn.steps;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const o = steps[i].output;
+    if (o) {
+      if (o.report) return String(o.report);
+      if (o.content) return String(o.content);
+      if (o.sql) return String(o.sql);
+      if (o.toolResult != null) return String(o.toolResult);
+    }
+  }
+  for (let i = steps.length - 1; i >= 0; i--) {
+    if (steps[i].content) return String(steps[i].content);
+  }
+  return turn.question || '';
+}
+
 /** Reusable ReactMarkdown components for the Process Summary section. */
 const summaryMdComponents = {
   h1: ({ children }: any) => <h1 className="text-sm font-bold mt-3 mb-1" style={{ color: 'var(--color-ink)' }}>{children}</h1>,
@@ -105,10 +123,14 @@ function CollapsibleSection({ title, count, defaultOpen, children }: {
 
 export default function StepTimeline({
   turns, isStreaming, onViewVisualizations,
+  conversationId, onRerun,
 }: {
   turns: TurnData[];
   isStreaming: boolean;
   onViewVisualizations?: () => void;
+  conversationId?: string | number;
+  /** Re-run a specific turn's question. When omitted, falls back to the last turn. */
+  onRerun?: (question?: string) => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -414,6 +436,18 @@ export default function StepTimeline({
           {turn.compactionEvents && turn.compactionEvents.length > 0 && (
             <CompactionPanel events={turn.compactionEvents} />
           )}
+
+          {/* Per-turn action bar for HISTORICAL turns (not the latest).
+              The latest turn's bar renders after the Process Summary below,
+              so we skip it here to avoid duplicates. Historical turns are
+              always complete, so the bar shows unconditionally. */}
+          {ti < turns.length - 1 && (
+            <TurnActionBar
+              conversationId={conversationId}
+              reportText={turnReplyText(turn)}
+              onRerun={() => onRerun?.(turn.question)}
+            />
+          )}
         </div>
       ))}
 
@@ -496,6 +530,23 @@ export default function StepTimeline({
               </span>
             )}
           </div>
+        );
+      })()}
+
+      {/* ── Latest turn's action bar ──
+          Rendered once streaming ends, regardless of reply type (dashboard
+          report, chitchat, clarification, error, tool/MCP, SQL, code). When a
+          Process Summary exists it appears directly below it; otherwise
+          directly below the last turn's step cards. Historical turns get
+          their own bar inside the map above. */}
+      {!isStreaming && turns.length > 0 && (() => {
+        const lastTurn = turns[turns.length - 1];
+        return (
+          <TurnActionBar
+            conversationId={conversationId}
+            reportText={turnReplyText(lastTurn)}
+            onRerun={() => onRerun?.(lastTurn.question)}
+          />
         );
       })()}
 

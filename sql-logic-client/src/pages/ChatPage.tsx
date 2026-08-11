@@ -502,12 +502,12 @@ export default function ChatPage() {
     setHitlPending(null);
   };
 
-  /** Re-run the last completed turn's question (TurnActionBar "重新执行"). */
-  const handleRerun = useCallback(() => {
+  /** Re-run the last completed turn's question. */
+  const handleRerun = useCallback((question?: string) => {
     if (isStreaming) return;
-    const lastTurn = turns[turns.length - 1];
-    if (lastTurn?.question) {
-      handleStream(lastTurn.question);
+    const q = question || turns[turns.length - 1]?.question;
+    if (q) {
+      handleStream(q);
     }
   }, [isStreaming, turns, handleStream]);
 
