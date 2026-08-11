@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, ThumbsUp, Copy, Check, RefreshCw } from 'lucide-react';
 import { api } from '../../api/client';
+import { useI18n } from '../../i18n/I18nContext';
 import ContextProgressRing from '../ui/ContextProgressRing';
 import CompactContextModal from './CompactContextModal';
 
@@ -24,6 +25,7 @@ export default function TurnActionBar({
   reportText?: string;
   onRerun?: () => void;
 }) {
+  const { t } = useI18n();
   const [usagePercent, setUsagePercent] = useState(0);
   const [loadingBudget, setLoadingBudget] = useState(true);
   const [liked, setLiked] = useState(false);
@@ -38,7 +40,7 @@ export default function TurnActionBar({
     }
     setLoadingBudget(true);
     try {
-      const res = await api.get<any>(`/api/v1/agentic/context/budget?conversationId=${conversationId}`);
+      const res = await api.get<any>(`/agentic/context/budget?conversationId=${conversationId}`);
       if (res.code === 200 && res.data) {
         setUsagePercent(Number(res.data.usagePercent ?? 0));
       }
@@ -106,7 +108,7 @@ export default function TurnActionBar({
                 letterSpacing: '-0.01em',
               }}
             >
-              执行完成
+              {t('turnAction.executed')}
             </span>
           </span>
           <span className="flex items-center gap-1 flex-shrink-0">
@@ -116,7 +118,7 @@ export default function TurnActionBar({
               strokeWidth={3.5}
               loading={loadingBudget}
               onClick={() => setCompactOpen(true)}
-              title={`上下文使用 ${Math.round(usagePercent)}% — 点击手动压缩`}
+              title={t('turnAction.contextUsageTitle', { percent: Math.round(usagePercent) })}
             />
             <span
               className="hidden sm:inline"
@@ -126,7 +128,7 @@ export default function TurnActionBar({
                 fontFamily: '"JetBrains Mono", ui-monospace, monospace',
               }}
             >
-              上下文
+              {t('turnAction.context')}
             </span>
           </span>
         </div>
@@ -136,8 +138,8 @@ export default function TurnActionBar({
           <button
             type="button"
             onClick={() => setLiked((v) => !v)}
-            title="点赞"
-            aria-label="点赞"
+            title={t('turnAction.like')}
+            aria-label={t('turnAction.like')}
             style={{
               ...btnBase,
               color: liked ? 'var(--color-primary)' : 'var(--color-ink-tertiary)',
@@ -146,28 +148,28 @@ export default function TurnActionBar({
             onMouseLeave={(e) => { if (!liked) e.currentTarget.style.color = 'var(--color-ink-tertiary)'; }}
           >
             <ThumbsUp size={12} fill={liked ? 'currentColor' : 'none'} />
-            <span className="hidden sm:inline">点赞</span>
+            <span className="hidden sm:inline">{t('turnAction.like')}</span>
           </button>
 
           <button
             type="button"
             onClick={handleCopy}
-            title="复制"
-            aria-label="复制"
+            title={t('turnAction.copy')}
+            aria-label={t('turnAction.copy')}
             style={btnBase}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-ink-secondary)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-ink-tertiary)'; }}
           >
             {copied ? <Check size={12} style={{ color: 'var(--color-success)' }} /> : <Copy size={12} />}
-            <span className="hidden sm:inline">{copied ? '已复制' : '复制'}</span>
+            <span className="hidden sm:inline">{copied ? t('turnAction.copied') : t('turnAction.copy')}</span>
           </button>
 
           <button
             type="button"
             onClick={onRerun}
             disabled={!onRerun}
-            title="重新执行"
-            aria-label="重新执行"
+            title={t('turnAction.rerun')}
+            aria-label={t('turnAction.rerun')}
             style={{
               ...btnBase,
               opacity: onRerun ? 1 : 0.4,
@@ -177,7 +179,7 @@ export default function TurnActionBar({
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-ink-tertiary)'; }}
           >
             <RefreshCw size={12} />
-            <span className="hidden sm:inline">重新执行</span>
+            <span className="hidden sm:inline">{t('turnAction.rerun')}</span>
           </button>
         </div>
       </div>

@@ -264,6 +264,16 @@
     "refresh": "refresh"
   },
 
+  "turnAction": {
+    "executed": "Done",
+    "context": "Context",
+    "contextUsageTitle": "Context usage {percent}% — click to compact",
+    "like": "Like",
+    "copy": "Copy",
+    "copied": "Copied",
+    "rerun": "Re-run"
+  },
+
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",

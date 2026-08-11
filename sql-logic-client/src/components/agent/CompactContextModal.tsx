@@ -51,7 +51,7 @@ export default function CompactContextModal({
     setState('running');
     setErrorMsg('');
     try {
-      const res = await api.post<any>('/api/v1/agentic/context/compact', {
+      const res = await api.post<any>('/agentic/context/compact', {
         conversationId: Number(conversationId),
         threadId: threadId || undefined,
       });

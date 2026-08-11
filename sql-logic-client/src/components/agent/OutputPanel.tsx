@@ -182,7 +182,7 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
     });
     setActiveTab('terminal');
     try {
-      const res = await api.post<any>('/api/v1/sandbox/run', { language, code });
+      const res = await api.post<any>('/sandbox/run', { language, code });
       if (res.code === 200 && res.data) {
         const d = res.data;
         const disp = d.displayResult || {};
