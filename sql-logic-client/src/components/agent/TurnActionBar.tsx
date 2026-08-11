@@ -8,13 +8,6 @@ import CompactContextModal from './CompactContextModal';
 /**
  * Post-response action bar rendered below the agent's report content.
  *
- * Layout (per spec):
- * <pre>
- *   ─────────────────────────────────────────────  ← horizontal divider
- *   ✓ 执行完成  ⊙70%                 👍  ⧉  ↻
- *   └─ left: done badge + context ring   └─ right: like / copy / re-execute
- * </pre>
- *
  * All glyphs are Lucide UI icons (no emoji) to keep a native, professional
  * feel. The context ring shows the live context-window usage fetched from
  * GET /api/v1/agentic/context/budget; clicking it opens
