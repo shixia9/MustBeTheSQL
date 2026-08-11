@@ -1,12 +1,13 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
 import { getIcon } from '../../assets/icons';
-import type { CompactionEvent, PlanSnapshot } from '../../stores/conversationStore';
+import type { CompactionEvent, PlanSnapshot, ThinkingStatus } from '../../stores/conversationStore';
 import CompactionPanel from './CompactionPanel';
 import PlanTodoList from './PlanTodoList';
 import TurnActionBar from './TurnActionBar';
+import ThinkingPanel from './ThinkingPanel';
 import { stripVisContent, parseVisContent, looksLikeChartJson, buildChartSummary, splitDashboardContent } from '../../utils/visContentParser';
 
 interface StepData {
@@ -15,6 +16,10 @@ interface StepData {
   content?: string;
   output?: any;
   messageType?: string;
+  /** Raw LLM reasoning text from the THINKING SSE event. */
+  thinking?: string;
+  /** Display state of the thinking panel for this step. */
+  thinkingStatus?: ThinkingStatus;
 }
 
 interface TurnData {
@@ -118,6 +123,47 @@ function CollapsibleSection({ title, count, defaultOpen, children }: {
       </button>
       {open && <div className="mt-0.5">{children}</div>}
     </div>
+  );
+}
+
+/**
+ * Wraps {@link ThinkingPanel} for a single step, managing the thinking panel's
+ * expand/collapse state locally so it doesn't need to round-trip through the
+ * parent store. The initial status is seeded from {@link StepData.thinkingStatus}
+ * (set by ChatPage when the THINKING / FINISHED SSE events arrive), and the
+ * wrapper syncs when the backend transitions the status from `streaming` →
+ * `done`. User toggles thereafter are purely local.
+ *
+ * Extracted as a component because hooks cannot be called inside the
+ * `turn.steps.map()` callback in the parent.
+ */
+function StepThinkingWrapper({ step }: { step: StepData }) {
+  const [localStatus, setLocalStatus] = useState<ThinkingStatus>(
+    step.thinkingStatus || 'streaming'
+  );
+
+  // Sync from prop: when the backend FINISHED event sets thinkingStatus to
+  // 'done' while we're still 'streaming', transition locally so the
+  // auto-collapse timer in ThinkingPanel can fire.
+  useEffect(() => {
+    if (step.thinkingStatus === 'done' && localStatus === 'streaming') {
+      setLocalStatus('done');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.thinkingStatus]);
+
+  const handleStatusChange = useCallback((s: ThinkingStatus) => {
+    setLocalStatus(s);
+  }, []);
+
+  if (!step.thinking) return null;
+
+  return (
+    <ThinkingPanel
+      content={step.thinking}
+      status={localStatus}
+      onStatusChange={handleStatusChange}
+    />
   );
 }
 
@@ -396,6 +442,14 @@ export default function StepTimeline({
                       </span>
                     )}
                   </div>
+
+                  {/* ── Thinking process (collapsible, above the output) ──
+                      Renders only when the step has a `thinking` payload from
+                      a THINKING SSE event. Worker agents (DataScientist,
+                      CodeAssistant, etc.) emit this; ManagerAgent does not. */}
+                  <StepThinkingWrapper step={step} />
+
+                  {/* ── Final output (below the thinking panel) ── */}
                   {summary && (
                     <div
                       className="mt-1"

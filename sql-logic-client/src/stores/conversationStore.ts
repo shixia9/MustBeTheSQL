@@ -11,12 +11,24 @@ import { persist } from 'zustand/middleware';
 
 export type StepStatus = 'pending' | 'running' | 'completed' | 'error';
 
+/**
+ * Lifecycle of the thinking-process panel attached to a step.
+ * - `streaming`  — THINKING event received, typewriter animation in progress
+ * - `done`       — thinking complete, panel auto-collapses
+ * - `collapsed`  — user manually collapsed (or auto-collapsed + unread badge shown)
+ */
+export type ThinkingStatus = 'streaming' | 'done' | 'collapsed';
+
 export interface StepData {
   nodeName: string;
   status: StepStatus;
   content?: string;
   output?: any;
   messageType?: string;
+  /** Raw LLM reasoning text emitted by the backend THINKING SSE event. */
+  thinking?: string;
+  /** Current display state of the thinking panel for this step. */
+  thinkingStatus?: ThinkingStatus;
 }
 
 /** A single context-compaction event emitted by the backend during a turn. */

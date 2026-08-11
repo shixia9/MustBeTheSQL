@@ -258,7 +258,13 @@ export default function ChatPage() {
                   // Update the existing step in place
                   updated.steps = updated.steps.map(s =>
                     s.nodeName === nodeName
-                      ? { ...s, status: 'completed' as const, content: JSON.stringify(stepData), output: stepData }
+                      ? {
+                          ...s,
+                          status: 'completed' as const,
+                          content: JSON.stringify(stepData),
+                          output: stepData,
+                          thinkingStatus: s.thinkingStatus === 'streaming' ? 'done' as const : s.thinkingStatus,
+                        }
                       : s
                   );
                 } else {
@@ -397,6 +403,28 @@ export default function ChatPage() {
                   preview: ev.preview,
                   ts: Date.now(),
                 }];
+              } else if (parsed.outputType === 'THINKING') {
+                // Agent thinking-process event.
+                const nodeName = parsed.nodeName || 'UNKNOWN';
+                const thinkingContent = parsed.data?.content || '';
+                const existingIdx = updated.steps.findIndex(s => s.nodeName === nodeName);
+                if (existingIdx >= 0) {
+                  updated.steps = updated.steps.map(s =>
+                    s.nodeName === nodeName
+                      ? { ...s, thinking: thinkingContent, thinkingStatus: 'streaming' as const }
+                      : s
+                  );
+                } else {
+                  // THINKING arrived before STARTED (edge case) — create a
+                  // running step so the reasoning is not lost.
+                  updated.steps = [...updated.steps, {
+                    nodeName,
+                    status: 'running' as const,
+                    thinking: thinkingContent,
+                    thinkingStatus: 'streaming' as const,
+                    messageType: 'THINKING',
+                  }];
+                }
               }
 
               return { ...updated };
@@ -426,13 +454,32 @@ export default function ChatPage() {
         turnFinalizedRef.current = true;
         setCurrentTurn(prev => {
           if (prev) {
+            // Execution-completeness guard: any step still in 'running' status
+            // when the stream ends never received its FINISHED event — the
+            // pipeline was interrupted (network drop, backend crash, abort).
+            // Mark them as 'error' so the UI shows a clear failure state and
+            // the user can re-run via TurnActionBar.
+            const hasInterrupted = prev.steps.some(s => s.status === 'running');
+            const finalizedSteps = hasInterrupted
+              ? prev.steps.map(s =>
+                  s.status === 'running'
+                    ? {
+                        ...s,
+                        status: 'error' as const,
+                        content: s.content || 'Execution interrupted — the agent did not complete this step. Click 重新执行 to retry.',
+                      }
+                    : s
+                )
+              : prev.steps;
+            const finalized = hasInterrupted ? { ...prev, steps: finalizedSteps } : prev;
+
             // Resolve the effective conversation id: prefer the one reported by
             // the backend COMPLETED event (covers the first-message case where a
             // new conversation is created), fall back to the URL param.
             const resolvedConvId = completedConvIdRef.current || conversationId || undefined;
-            setTurnsLocal(prevTurns => [...prevTurns, prev]);
+            setTurnsLocal(prevTurns => [...prevTurns, finalized]);
             if (resolvedConvId) {
-              appendStoreTurn(resolvedConvId, prev);
+              appendStoreTurn(resolvedConvId, finalized);
             }
             // Sync the URL so a refresh restores the conversation. Use replace
             // to avoid polluting history with the parameter-less entry.
@@ -440,7 +487,7 @@ export default function ChatPage() {
               navigate(`/chat/${completedConvIdRef.current}`, { replace: true });
             }
             // Detect multimodal content in the latest completed turn
-            if (hasMultimodalContent(prev.steps)) {
+            if (hasMultimodalContent(finalized.steps)) {
               setHasMultimodal(true);
             }
           }
