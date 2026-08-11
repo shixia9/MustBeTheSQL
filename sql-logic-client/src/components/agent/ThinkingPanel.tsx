@@ -115,11 +115,11 @@ export default function ThinkingPanel({ content, status, onStatusChange }: Think
         onClick={handleToggle}
         className="flex items-center gap-1.5 w-full text-left py-1 px-2 rounded transition-colors hover:opacity-80"
         style={{
-          background: 'rgba(129, 140, 248, 0.08)',
+          background: 'rgba(156, 163, 175, 0.08)',
           color: 'var(--color-ink-secondary)',
         }}
       >
-        <Brain size={11} style={{ color: '#818cf8', flexShrink: 0 }} />
+        <Brain size={11} style={{ color: '#9ca3af', flexShrink: 0 }} />
         <span
           style={{
             fontSize: '10.5px',
@@ -128,12 +128,12 @@ export default function ThinkingPanel({ content, status, onStatusChange }: Think
             textTransform: 'uppercase',
           }}
         >
-          思考过程
+          Thinking
         </span>
 
         {/* Status indicator */}
         {isStreaming ? (
-          <Loader2 size={10} className="animate-spin" style={{ color: '#818cf8' }} />
+          <Loader2 size={10} className="animate-spin" style={{ color: '#9ca3af' }} />
         ) : (
           !isCollapsed && (
             <Check size={10} style={{ color: 'var(--color-success, #22c55e)' }} />
@@ -147,10 +147,10 @@ export default function ThinkingPanel({ content, status, onStatusChange }: Think
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              background: '#818cf8',
+              background: '#9ca3af',
               display: 'inline-block',
               flexShrink: 0,
-              boxShadow: '0 0 4px rgba(129, 140, 248, 0.5)',
+              boxShadow: '0 0 4px rgba(156, 163, 175, 0.5)',
             }}
           />
         )}
@@ -173,9 +173,9 @@ export default function ThinkingPanel({ content, status, onStatusChange }: Think
           className="mt-1 px-3 py-2 rounded overflow-auto"
           style={{
             maxHeight: '200px',
-            background: 'var(--color-app-bg)',
+            background: 'var(--color-surface-container-low)',
             border: '1px solid var(--color-border-subtle)',
-            borderLeft: '2px solid #818cf8',
+            borderLeft: '2px solid #9ca3af',
             fontFamily: '"JetBrains Mono", ui-monospace, monospace',
             fontSize: '11px',
             lineHeight: 1.6,
@@ -189,7 +189,7 @@ export default function ThinkingPanel({ content, status, onStatusChange }: Think
           {!typewriterDone && (
             <span
               className="animate-pulse"
-              style={{ color: '#818cf8', fontWeight: 600 }}
+              style={{ color: '#9ca3af', fontWeight: 600 }}
             >
               ▊
             </span>
