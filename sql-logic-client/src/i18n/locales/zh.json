@@ -7,15 +7,30 @@
 
   "nav": {
     "chat": "对话",
+    "knowledge": "知识库",
+    "skills": "技能",
+    "datasources": "数据源",
+    "prompts": "提示词",
+    "connectors": "连接器",
+    "scheduledTasks": "定时任务",
+    "models": "模型",
     "agentStudio": "智能体",
+    "flowEditor": "流程编辑器",
+    "appBuilder": "应用构建器",
+    "evaluation": "模型评估",
+    "mcpServers": "MCP 服务器",
+    "construct": "构建中心",
+    "memory": "记忆",
+    "history": "历史",
+    "settings": "设置",
     "console": "控制台",
     "workspaces": "工作空间",
     "database": "数据库",
-    "history": "历史",
-    "settings": "设置",
     "profile": "个人信息",
     "newQuery": "新建查询",
-    "memory": "记忆管理"
+    "navigation": "导航",
+    "recent": "最近",
+    "noRecentTasks": "暂无最近任务"
   },
 
   "topnav": {
@@ -181,7 +196,7 @@
     "loading": "正在加载历史...",
     "noHistory": "暂无历史记录，赶快运行一个查询吧！",
     "showing": "显示第 {start} - {end} 条，共 {total} 条",
-    "reRun": "在仪表板重新运行",
+    "reRunDashboard": "在仪表板重新运行",
     "copySql": "复制 SQL",
     "viewDetails": "查看详情",
     "deleteRecord": "删除记录",
@@ -247,6 +262,16 @@
     "noSearchResults": "没有匹配的记忆。",
     "showingCount": "共 {count} 条",
     "refresh": "刷新"
+  },
+
+  "turnAction": {
+    "executed": "执行完成",
+    "context": "上下文",
+    "contextUsageTitle": "上下文使用 {percent}% — 点击手动压缩",
+    "like": "点赞",
+    "copy": "复制",
+    "copied": "已复制",
+    "rerun": "重新执行"
   },
 
   "common": {

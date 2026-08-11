@@ -7,15 +7,30 @@
 
   "nav": {
     "chat": "Chat",
+    "knowledge": "Knowledge",
+    "skills": "Skills",
+    "datasources": "Datasources",
+    "prompts": "Prompts",
+    "connectors": "Connectors",
+    "scheduledTasks": "Scheduled",
+    "models": "Models",
     "agentStudio": "Agent",
+    "flowEditor": "Flow Editor",
+    "appBuilder": "App Builder",
+    "evaluation": "Evaluation",
+    "mcpServers": "MCP Servers",
+    "construct": "Construct",
+    "memory": "Memory",
+    "history": "History",
+    "settings": "Settings",
     "console": "Console",
     "workspaces": "Workspaces",
     "database": "Database",
-    "history": "History",
-    "settings": "Settings",
     "profile": "Profile",
     "newQuery": "New Query",
-    "memory": "Memory"
+    "navigation": "Navigation",
+    "recent": "Recent",
+    "noRecentTasks": "No recent tasks"
   },
 
   "topnav": {
@@ -181,7 +196,7 @@
     "loading": "Loading history...",
     "noHistory": "No history found. Try running a query!",
     "showing": "Showing {start} - {end} of {total} queries",
-    "reRun": "Re-run in Dashboard",
+    "reRunDashboard": "Re-run in Dashboard",
     "copySql": "Copy SQL",
     "viewDetails": "View Details",
     "deleteRecord": "Delete Record",
@@ -247,6 +262,16 @@
     "noSearchResults": "No memories match your search.",
     "showingCount": "{count} items",
     "refresh": "refresh"
+  },
+
+  "turnAction": {
+    "executed": "Done",
+    "context": "Context",
+    "contextUsageTitle": "Context usage {percent}% — click to compact",
+    "like": "Like",
+    "copy": "Copy",
+    "copied": "Copied",
+    "rerun": "Re-run"
   },
 
   "common": {

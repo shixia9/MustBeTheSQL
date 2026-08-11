@@ -22,6 +22,8 @@
  *   });
  */
 
+import type { ToolItem } from '../types/agent';
+
 const BASE_URL = '/api/v1';
 
 interface WorkspaceMeta {
@@ -110,8 +112,168 @@ export const workspaceApi = {
 
 /** LLM provider test connection helper. */
 export const llmConfigApi = {
+  list: async () => {
+    const r = await api.get<any[]>('/llm-config/list');
+    return unwrap<any[]>(r);
+  },
+  create: async (body: any) => {
+    const r = await api.post<any>('/llm-config/create', body);
+    return unwrap<any>(r);
+  },
+  update: async (configId: number, body: any) => {
+    const r = await api.put<any>(`/llm-config/update`, { configId, ...body });
+    return unwrap<any>(r);
+  },
+  delete: (configId: number) => api.delete<void>(`/llm-config/${configId}`),
   test: (configId: number) =>
     api.post<{ success: boolean; latencyMs: number; message?: string }>(`/llm-config/${configId}/test`, {}),
+  setDefault: (configId: number) => api.post<void>(`/llm-config/${configId}/setDefault`, {}),
+  getMetrics: async (configId: number) => {
+    const r = await api.get<any>(`/llm-config/${configId}/metrics`);
+    return unwrap<any>(r);
+  },
+};
+
+/** Business knowledge (glossary + few-shot QA) CRUD scoped to a database connection. */
+export interface BusinessKnowledgeItem {
+  id: number;
+  connectionId: number;
+  vectorType: string; // GLOSSARY_KNOWLEDGE | QUESTION_KNOWLEDGE
+  term?: string;
+  description?: string;
+  synonyms?: string;
+  question?: string;
+  answer?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const businessKnowledgeApi = {
+  list: async (connectionId: number): Promise<BusinessKnowledgeItem[]> => {
+    const r = await api.get<BusinessKnowledgeItem[]>(`/business-knowledge/list?connectionId=${connectionId}`);
+    return unwrap<BusinessKnowledgeItem[]>(r);
+  },
+  create: (body: Partial<BusinessKnowledgeItem>) =>
+    api.post<BusinessKnowledgeItem>('/business-knowledge/create', body),
+  update: (body: Partial<BusinessKnowledgeItem> & { id: number }) =>
+    api.put<BusinessKnowledgeItem>('/business-knowledge/update', body),
+  delete: (knowledgeId: number) => api.delete<void>(`/business-knowledge/${knowledgeId}`),
+};
+
+/** Prompt template CRUD. */
+export interface PromptTemplate {
+  id: number;
+  name: string;
+  content: string;
+  description?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const promptApi = {
+  list: async (): Promise<PromptTemplate[]> => {
+    const r = await api.get<PromptTemplate[]>('/prompts/list');
+    return unwrap<PromptTemplate[]>(r);
+  },
+  create: (body: { name: string; content: string; description?: string }) =>
+    api.post<PromptTemplate>('/prompts/create', body),
+  update: (body: Partial<PromptTemplate> & { id: number }) =>
+    api.put<PromptTemplate>('/prompts/update', body),
+  delete: (id: number) => api.delete<void>(`/prompts/${id}`),
+};
+
+/** Connector templates + active connectors CRUD. */
+export interface ConnectorTemplate {
+  id: number;
+  name: string;
+  connectorType: string;
+  config?: string;
+  description?: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export interface ActiveConnector {
+  id: number;
+  templateId?: number;
+  connectionId?: number;
+  name: string;
+  status?: number;
+  createTime?: string;
+  updateTime?: string;
+}
+export const connectorApi = {
+  listTemplates: async (): Promise<ConnectorTemplate[]> => {
+    const r = await api.get<ConnectorTemplate[]>('/connectors/templates');
+    return unwrap<ConnectorTemplate[]>(r);
+  },
+  createTemplate: (body: { name: string; connectorType: string; config?: string; description?: string }) =>
+    api.post<ConnectorTemplate>('/connectors/templates', body),
+  updateTemplate: (body: Partial<ConnectorTemplate> & { id: number }) =>
+    api.put<ConnectorTemplate>('/connectors/templates', body),
+  deleteTemplate: (id: number) => api.delete<void>(`/connectors/templates/${id}`),
+  listActive: async (): Promise<ActiveConnector[]> => {
+    const r = await api.get<ActiveConnector[]>('/connectors/active');
+    return unwrap<ActiveConnector[]>(r);
+  },
+  createActive: (body: { name: string; templateId?: number; connectionId?: number }) =>
+    api.post<ActiveConnector>('/connectors/active', body),
+  deleteActive: (id: number) => api.delete<void>(`/connectors/active/${id}`),
+};
+
+/** Scheduled task CRUD + toggle + manual run + run history (RESTful, /scheduled-tasks). */
+export interface ScheduledTask {
+  id: number;
+  name: string;
+  cronExpr: string;
+  taskType?: string;
+  payload?: string;
+  status?: number;            // 0 = paused, 1 = running
+  description?: string;
+  timeZone?: string;
+  timeoutSeconds?: number;
+  maxRetries?: number;
+  lastRunStatus?: string;     // success / failed / timeout
+  lastRunId?: number;
+  payloadVersion?: number;
+  lastRunTime?: string;
+  nextRunTime?: string;
+  createTime?: string;
+  updateTime?: string;
+}
+
+export interface ScheduledRun {
+  id: number;
+  taskId: number;
+  status: string;             // running / success / failed / timeout
+  startedAt?: string;
+  finishedAt?: string;
+  resultSummary?: string;
+  errorMessage?: string;
+  outputConversationId?: string;
+  attempt?: number;
+  createTime?: string;
+}
+
+export const scheduledTaskApi = {
+  list: async (enabledOnly = false): Promise<ScheduledTask[]> => {
+    const r = await api.get<ScheduledTask[]>(`/scheduled-tasks?enabledOnly=${enabledOnly}`);
+    return unwrap<ScheduledTask[]>(r);
+  },
+  get: (taskId: number) => api.get<ScheduledTask>(`/scheduled-tasks/${taskId}`),
+  create: (body: Partial<ScheduledTask> & { name: string; cronExpr: string }) =>
+    api.post<ScheduledTask>('/scheduled-tasks', body),
+  update: (taskId: number, body: Partial<ScheduledTask>) =>
+    api.put<ScheduledTask>(`/scheduled-tasks/${taskId}`, body),
+  toggle: (taskId: number, enabled: boolean) =>
+    api.post<ScheduledTask>(`/scheduled-tasks/${taskId}/toggle`, { enabled }),
+  delete: (taskId: number) => api.delete<void>(`/scheduled-tasks/${taskId}`),
+  run: (taskId: number) => api.post<ScheduledRun>(`/scheduled-tasks/${taskId}/run`),
+  runs: async (taskId: number, limit = 50, offset = 0): Promise<{ runs: ScheduledRun[]; total: number }> => {
+    const r = await api.get<{ runs: ScheduledRun[]; total: number }>(`/scheduled-tasks/${taskId}/runs?limit=${limit}&offset=${offset}`);
+    return unwrap<{ runs: ScheduledRun[]; total: number }>(r);
+  },
+  getRun: (taskId: number, runId: number) => api.get<ScheduledRun>(`/scheduled-tasks/${taskId}/runs/${runId}`),
 };
 
 /** LLM HA strategy + metrics. */
@@ -154,9 +316,23 @@ export const memoryApi = {
   counts: () => api.get<Record<string, number>>('/memory/counts'),
 };
 
-/** Tool discovery — list all registered tools from ToolRegistry. */
+/**
+ * Unified tool discovery (Phase 4 / T6) — aggregates builtin + MCP + skill
+ * items into a single {@link ToolItem} list scoped to the caller. Backs the
+ * frontend "/" command palette. `discover()` unwraps the `Result` envelope and
+ * returns the typed payload directly (mirrors the `mcpServerApi` / `promptApi`
+ * unwrapping convention).
+ */
+export const toolApi = {
+  discover: async (): Promise<ToolItem[]> => {
+    const r = await api.get<ToolItem[]>('/tools');
+    return unwrap<ToolItem[]>(r);
+  },
+};
+
+/** @deprecated use {@link toolApi}.discover — kept for back-compat. */
 export const toolsApi = {
-  list: () => api.get<any[]>('/tools'),
+  list: () => api.get<ToolItem[]>('/tools'),
 };
 
 /** MCP server management CRUD + connect/disconnect/status. */
@@ -192,4 +368,100 @@ export const conversationApi = {
   },
   getDetails: (conversationId: number) => api.get<any[]>(`/conversations/${conversationId}/details`),
   delete: (id: number) => api.delete<void>(`/conversations/${id}`),
+};
+
+/** Workflow CRUD + execution. */
+export const workflowApi = {
+  listNodes: async () => {
+    const r = await api.get<any>('/workflows/nodes');
+    return unwrap<any[]>(r);
+  },
+  list: async () => {
+    const r = await api.get<any>('/workflows');
+    return unwrap<any[]>(r);
+  },
+  get: async (id: string) => {
+    const r = await api.get<any>(`/workflows/${id}`);
+    return unwrap<any>(r);
+  },
+  create: async (body: any) => {
+    const r = await api.post<{id:string;name:string}>('/workflows', body);
+    return unwrap<{id:string;name:string}>(r);
+  },
+  update: async (id: string, body: any) => {
+    const r = await api.put<{id:string;name:string}>(`/workflows/${id}`, body);
+    return unwrap<{id:string;name:string}>(r);
+  },
+  delete: (id: string) => api.delete<void>(`/workflows/${id}`),
+  /** Execute a workflow and stream SSE events via ReadableStream. */
+  executeStream: (id: string, body?: any): Promise<ReadableStream<Uint8Array> | null> =>
+    fetch(`${BASE_URL}/workflows/${id}/execute`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    }).then(res => {
+      if (!res.ok) throw new Error(`Workflow execute failed: ${res.status}`);
+      return res.body;
+    }),
+};
+
+/** Saved database connection (subset of DbConnectionConf relevant to the UI). */
+interface DbConnectionMeta {
+  id: number;
+  name: string;
+  dbType?: string;
+  host?: string;
+  port?: number;
+  dbName?: string;
+}
+interface SchemaMeta { name: string; }
+interface TableMeta { name: string; type?: string; comment?: string; }
+
+/** Database connection management + table listing. */
+export const databaseApi = {
+  listConnections: async (): Promise<DbConnectionMeta[]> => {
+    const r = await api.get<DbConnectionMeta[]>('/database/list');
+    return unwrap(r);
+  },
+  listTables: async (connectionId: number): Promise<string[]> => {
+    const r = await api.get<string[]>(`/database/${connectionId}/tables`);
+    return unwrap(r);
+  },
+};
+
+/** Schema browser — schemas / tables under a given connection. */
+export const schemaApi = {
+  listSchemas: async (connectionId: number): Promise<SchemaMeta[]> => {
+    const r = await api.get<SchemaMeta[]>(`/schema/schemas?connectionId=${connectionId}`);
+    return unwrap(r);
+  },
+  listTables: async (connectionId: number, schemaName?: string): Promise<TableMeta[]> => {
+    const params = new URLSearchParams({ connectionId: String(connectionId) });
+    if (schemaName) params.set('schemaName', schemaName);
+    const r = await api.get<TableMeta[]>(`/schema/tables?${params.toString()}`);
+    return unwrap(r);
+  },
+};
+
+/** Unwrap API response: handle both { code, message, data } wrapper and raw data. */
+function unwrap<T>(r: any): T {
+  if (r && typeof r === 'object' && 'data' in r) return r.data as T;
+  return r as T;
+}
+
+/** Skill CRUD + Hub. */
+export const skillApi = {
+  list: () => api.get<any[]>('/skills'),
+  get: (name: string) => api.get<any>(`/skills/${name}`),
+  create: (body: any) => api.post<any>('/skills', body),
+  update: (name: string, body: any) => api.put<any>(`/skills/${name}`, body),
+  delete: (name: string) => api.delete<void>(`/skills/${name}`),
+  hubBrowse: (category?: string, tag?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (tag) params.set('tag', tag);
+    return api.get<any[]>(`/hub/skills?${params.toString()}`);
+  },
+  hubInstall: (name: string) => api.post<any>(`/hub/skills/${name}/install`),
 };

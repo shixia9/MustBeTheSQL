@@ -44,7 +44,7 @@ export default function WorkspacePage({ user }: WorkspacePageProps) {
   }
 
   return (
-    <div className="ml-[200px] pt-12 flex h-screen overflow-hidden bg-surface">
+    <div className="min-h-full flex overflow-hidden">
       {/* Schema tree sidebar */}
       <div className="w-56 border-r border-outline-variant flex flex-col bg-surface-container-lowest flex-shrink-0">
         <div className="p-3 border-b border-outline-variant">

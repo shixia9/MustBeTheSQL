@@ -1,0 +1,8 @@
+{
+  "label": "架构与概念",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "理解 Must Be The SQL 的整体架构与核心概念：节点、工作流、Agent 与连接如何协作。"
+  }
+}

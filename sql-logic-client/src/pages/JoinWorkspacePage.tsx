@@ -67,14 +67,14 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
 
   if (!user) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
-          <div className="border border-outline-variant bg-surface-container-lowest p-8 text-center">
-            <div className="p-3 rounded-xl bg-primary/10 inline-flex mb-4">
-              <Building2 size={32} className="text-primary" />
+          <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
+            <div className="p-3 rounded-xl bg-blue-50 inline-flex mb-4">
+              <Building2 size={32} className="text-blue-600" />
             </div>
-            <h2 className="text-sm font-mono font-semibold text-on-surface mb-2">Workspace Invitation</h2>
-            <p className="text-xs text-on-surface-variant/70 font-mono mb-6 max-w-sm mx-auto">
+            <h2 className="text-sm font-semibold text-slate-900 mb-2">Workspace Invitation</h2>
+            <p className="text-xs text-slate-500 mb-6 max-w-sm mx-auto">
               You need to sign in or create an account to accept this workspace invitation.
             </p>
             <div className="flex items-center justify-center gap-3">
@@ -83,7 +83,7 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
                   localStorage.setItem('invite_redirect', token);
                   onPageChange('login');
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs font-semibold"
               >
                 <LogIn size={14} /> Sign In
               </button>
@@ -92,63 +92,63 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
                   localStorage.setItem('invite_redirect', token);
                   onPageChange('login');
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                className="btn-ghost flex items-center gap-1.5 px-4 py-2 text-xs font-semibold"
               >
                 <UserPlus size={14} /> Register
               </button>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
-          <div className="border border-outline-variant bg-surface-container-lowest p-12 text-center">
-            <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-3" />
-            <p className="text-xs font-mono text-on-surface-variant">Loading invitation details...</p>
+          <div className="bg-white border border-slate-200 rounded-lg p-12 text-center">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-3" />
+            <p className="text-xs text-slate-500">Loading invitation details...</p>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
-          <div className="border border-error/30 bg-error/5 p-6 text-center">
-            <AlertTriangle size={28} className="text-error mx-auto mb-3" />
-            <h2 className="text-sm font-mono font-semibold text-on-surface mb-1">Invitation Error</h2>
-            <p className="text-xs font-mono text-on-surface-variant/70">{error}</p>
+          <div className="border border-red-200 bg-red-50 rounded-lg p-6 text-center">
+            <AlertTriangle size={28} className="text-red-600 mx-auto mb-3" />
+            <h2 className="text-sm font-semibold text-slate-900 mb-1">Invitation Error</h2>
+            <p className="text-xs text-slate-500">{error}</p>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (accepted) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
-          <div className="border border-success/30 bg-success/5 p-8 text-center">
-            <CheckCircle2 size={36} className="text-success mx-auto mb-3" />
-            <h2 className="text-sm font-mono font-semibold text-on-surface mb-1">Successfully Joined!</h2>
-            <p className="text-xs font-mono text-on-surface-variant/70 mb-6">
-              You are now a member of <span className="font-semibold text-on-surface">{invitation?.workspaceName}</span>
+          <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-8 text-center">
+            <CheckCircle2 size={36} className="text-emerald-600 mx-auto mb-3" />
+            <h2 className="text-sm font-semibold text-slate-900 mb-1">Successfully Joined!</h2>
+            <p className="text-xs text-slate-500 mb-6">
+              You are now a member of <span className="font-semibold text-slate-900">{invitation?.workspaceName}</span>
             </p>
             <button
               onClick={() => onPageChange('workspace-manage')}
-              className="px-4 py-2 text-xs font-mono font-semibold border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+              className="btn-primary px-4 py-2 text-xs font-semibold"
             >
               Go to Workspace
             </button>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -158,85 +158,85 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
 
   if (isExpired || !invitation.isActive) {
     return (
-      <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+      <div className="min-h-full">
         <div className="max-w-lg mx-auto p-6 mt-12">
-          <div className="border border-amber-500/30 bg-amber-500/5 p-8 text-center">
+          <div className="border border-amber-200 bg-amber-50 rounded-lg p-8 text-center">
             <Clock size={28} className="text-amber-500 mx-auto mb-3" />
-            <h2 className="text-sm font-mono font-semibold text-on-surface mb-1">
+            <h2 className="text-sm font-semibold text-slate-900 mb-1">
               {isExpired ? 'Invitation Expired' : 'Invitation Revoked'}
             </h2>
-            <p className="text-xs font-mono text-on-surface-variant/70 mb-4">
+            <p className="text-xs text-slate-500 mb-4">
               {isExpired
                 ? 'This invitation link has expired. Please ask the workspace admin for a new one.'
                 : 'This invitation has been revoked by the workspace admin.'}
             </p>
             <button
               onClick={() => onPageChange('dashboard')}
-              className="px-4 py-2 text-xs font-mono font-semibold border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors"
+              className="btn-ghost px-4 py-2 text-xs font-semibold"
             >
               Go to Dashboard
             </button>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="ml-[200px] pt-12 min-h-screen bg-surface">
+    <div className="min-h-full">
       <div className="max-w-lg mx-auto p-6 mt-12">
-        <div className="border border-outline-variant bg-surface-container-lowest overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="p-6 border-b border-outline-variant">
+          <div className="p-6 border-b border-slate-200">
             <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 rounded-lg bg-primary/10">
-                <Building2 size={20} className="text-primary" />
+              <div className="p-2.5 rounded-lg bg-blue-50">
+                <Building2 size={20} className="text-blue-600" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/60 font-mono">Workspace Invitation</p>
-                <p className="text-sm font-semibold text-on-surface font-mono">{invitation.workspaceName}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Workspace Invitation</p>
+                <p className="text-sm font-semibold text-slate-900">{invitation.workspaceName}</p>
               </div>
             </div>
-            <p className="text-xs text-on-surface-variant/70 font-mono leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               You have been invited to join this workspace. Accept to start collaborating on projects, tasks, and documents.
             </p>
           </div>
 
           {/* Details */}
-          <div className="p-6 space-y-4 bg-surface-container-high/20">
+          <div className="p-6 space-y-4 bg-slate-50">
             <div className="grid grid-cols-2 gap-4">
-              <div className="border border-outline-variant/30 p-3">
+              <div className="bg-white border border-slate-200 rounded-lg p-3">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Shield size={12} className="text-on-surface-variant/50" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/60 font-mono">Role</span>
+                  <Shield size={12} className="text-slate-400" />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Role</span>
                 </div>
-                <span className="text-sm font-semibold font-mono text-on-surface">{invitation.role}</span>
+                <span className="text-sm font-semibold text-slate-900">{invitation.role}</span>
               </div>
-              <div className="border border-outline-variant/30 p-3">
+              <div className="bg-white border border-slate-200 rounded-lg p-3">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Clock size={12} className="text-on-surface-variant/50" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/60 font-mono">Expires</span>
+                  <Clock size={12} className="text-slate-400" />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Expires</span>
                 </div>
-                <span className="text-sm font-semibold font-mono text-on-surface">{formatExpiry(invitation.expiresAt)}</span>
+                <span className="text-sm font-semibold text-slate-900">{formatExpiry(invitation.expiresAt)}</span>
               </div>
             </div>
             {invitation.creatorName && (
-              <div className="border border-outline-variant/30 p-3">
+              <div className="bg-white border border-slate-200 rounded-lg p-3">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <UserCheck size={12} className="text-on-surface-variant/50" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-on-surface-variant/60 font-mono">Invited by</span>
+                  <UserCheck size={12} className="text-slate-400" />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Invited by</span>
                 </div>
-                <span className="text-sm font-semibold font-mono text-on-surface">{invitation.creatorName}</span>
+                <span className="text-sm font-semibold text-slate-900">{invitation.creatorName}</span>
               </div>
             )}
           </div>
 
           {/* Actions */}
-          <div className="p-6 border-t border-outline-variant">
+          <div className="p-6 border-t border-slate-200">
             <button
               onClick={handleAccept}
               disabled={accepting}
-              className="w-full py-2.5 text-xs font-mono font-semibold border border-primary text-primary bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="btn-primary w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {accepting ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -248,6 +248,6 @@ export default function JoinWorkspacePage({ token, user, onPageChange }: Props) 
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

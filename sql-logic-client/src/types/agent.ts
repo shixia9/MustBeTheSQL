@@ -180,3 +180,36 @@ export interface ResultColumn {
   name: string;
   type?: string;
 }
+
+/**
+ * Phase 4 (T6) — Unified tool discovery types.
+ *
+ * The backend `GET /api/v1/tools` endpoint aggregates builtin native tools,
+ * MCP-connected tools, and DB-backed skills into a single flat list. The
+ * frontend "/" command palette renders these uniformly and uses
+ * `invocationMode` to decide how to dispatch a selection.
+ */
+
+/** Provenance kind of a {@link ToolItem}. */
+export type ToolKind = 'builtin' | 'mcp' | 'skill';
+
+/** How the frontend should dispatch a palette selection. */
+export type InvocationMode = 'call_tool' | 'inject_prompt';
+
+/** A single invocable entity surfaced by the discovery API. */
+export interface ToolItem {
+  /** One of "builtin" / "mcp" / "skill". */
+  kind: ToolKind;
+  /** Unique key (tool name for builtin/mcp, skill name for skill). */
+  name: string;
+  /** Human-readable label for the UI. */
+  displayName?: string;
+  /** One-line explanation of what the item does. */
+  description?: string;
+  /** JSON Schema string for builtin/mcp tools; null/absent for skills. */
+  parametersSchema?: string | null;
+  /** One of "call_tool" / "inject_prompt" — drives frontend dispatch. */
+  invocationMode: InvocationMode;
+  /** Provenance label: "BUILTIN" / "MCP" / "SKILL". */
+  source: string;
+}

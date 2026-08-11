@@ -90,26 +90,26 @@ export default function MemoryPanel() {
   };
 
   return (
-    <section className="mt-6 border border-outline-variant bg-surface-container-lowest p-4 rounded">
+    <section className="mt-6 border border-slate-200 bg-white rounded-lg p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Brain size={16} className="text-primary" />
-          <h2 className="text-xs font-mono font-semibold text-on-surface uppercase tracking-wider">记忆管理</h2>
+          <Brain size={16} className="text-blue-600" />
+          <h2 className="text-sm font-semibold text-slate-900">记忆管理</h2>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => fetchMemories(filter || undefined)} className="p-1.5 text-on-surface-variant hover:text-primary transition-colors" title="刷新">
+          <button onClick={() => fetchMemories(filter || undefined)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors" title="刷新">
             <RefreshCw size={13} />
           </button>
           <button
             onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] uppercase tracking-wider border border-primary text-primary hover:bg-primary/10 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-medium rounded-md border border-blue-300 text-blue-600 hover:bg-blue-50 transition-colors"
           >
             <Plus size={12} /> 手动添加
           </button>
         </div>
       </div>
 
-      <p className="text-[10px] text-on-surface-variant mb-3">
+      <p className="text-[11px] text-slate-500 mb-3">
         这些记忆会在每次 Agent 对话开始时被检索并注入到提示词中。Agent 也会在每次对话完成后自动提取新记忆。
       </p>
 
@@ -117,30 +117,30 @@ export default function MemoryPanel() {
       <div className="flex flex-wrap gap-1.5 mb-3">
         <button
           onClick={() => handleFilter('')}
-          className={`px-2 py-1 text-[11px] border rounded ${filter === '' ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 hover:bg-surface-container'}`}
+          className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${filter === '' ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
         >全部</button>
         {TYPES.map(t => (
           <button
             key={t.value}
             onClick={() => handleFilter(t.value)}
             title={t.desc}
-            className={`px-2 py-1 text-[11px] border rounded ${filter === t.value ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant/40 hover:bg-surface-container'}`}
+            className={`px-2 py-1 text-[11px] rounded-md border transition-colors ${filter === t.value ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
           >{t.label}</button>
         ))}
       </div>
 
       {msg && (
-        <div className={`mb-3 px-2 py-1.5 text-[11px] border ${msg.type === 'success' ? 'border-primary/40 text-primary bg-primary/10' : 'border-red-500/40 text-red-400 bg-red-500/10'}`}>{msg.text}</div>
+        <div className={`mb-3 px-3 py-2 text-[11px] rounded-md border ${msg.type === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-600'}`}>{msg.text}</div>
       )}
 
       {/* Add form */}
       {showForm && (
-        <div className="mb-3 p-3 border border-outline-variant/50 bg-surface-container rounded space-y-2">
+        <div className="mb-3 p-3 border border-slate-200 bg-slate-50 rounded-lg space-y-2">
           <div className="grid grid-cols-[120px_1fr] gap-2">
             <select
               value={form.type}
               onChange={e => setForm({ ...form, type: e.target.value })}
-              className="px-2 py-1.5 text-xs bg-surface border border-outline-variant/50 rounded outline-none"
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             >
               {TYPES.map(t => <option key={t.value} value={t.value}>{t.label} - {t.desc}</option>)}
             </select>
@@ -148,7 +148,7 @@ export default function MemoryPanel() {
               value={form.content}
               onChange={e => setForm({ ...form, content: e.target.value })}
               placeholder="记忆内容，例如：以后所有分析结果都用中文解释"
-              className="px-2 py-1.5 text-xs bg-surface border border-outline-variant/50 rounded outline-none"
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <div className="grid grid-cols-[1fr_120px_auto] gap-2">
@@ -156,19 +156,19 @@ export default function MemoryPanel() {
               value={form.tags}
               onChange={e => setForm({ ...form, tags: e.target.value })}
               placeholder="标签 (逗号分隔，可选)"
-              className="px-2 py-1.5 text-xs bg-surface border border-outline-variant/50 rounded outline-none"
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
             <input
               type="number" min={0} max={1} step={0.1}
               value={form.importance}
               onChange={e => setForm({ ...form, importance: Number(e.target.value) })}
               placeholder="重要性"
-              className="px-2 py-1.5 text-xs bg-surface border border-outline-variant/50 rounded outline-none"
+              className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-md outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
             <button
               onClick={handleCreate}
               disabled={saving}
-              className="px-3 py-1.5 text-[11px] uppercase bg-primary text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="btn-primary text-[11px]"
             >
               {saving ? <Loader2 size={12} className="inline animate-spin" /> : '保存'}
             </button>
@@ -178,24 +178,24 @@ export default function MemoryPanel() {
 
       {/* List */}
       {loading ? (
-        <div className="py-6 text-center text-xs text-on-surface-variant"><Loader2 size={14} className="inline animate-spin" /> 加载中…</div>
+        <div className="py-6 text-center text-sm text-slate-400"><Loader2 size={14} className="inline animate-spin mr-1.5" />加载中…</div>
       ) : items.length === 0 ? (
-        <div className="py-6 text-center text-xs text-on-surface-variant">暂无记忆。Agent 会在对话后自动积累，也可手动添加。</div>
+        <div className="py-6 text-center text-sm text-slate-400">暂无记忆。Agent 会在对话后自动积累，也可手动添加。</div>
       ) : (
         <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
           {items.map(m => (
-            <div key={m.id} className="flex items-start gap-2 px-2.5 py-2 border border-outline-variant/40 bg-surface-container rounded">
-              <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary flex-shrink-0">{typeLabel(m.type)}</span>
+            <div key={m.id} className="flex items-start gap-2 px-3 py-2 border border-slate-100 bg-slate-50/50 rounded-lg">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 flex-shrink-0 font-medium">{typeLabel(m.type)}</span>
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-on-surface break-words">{m.content}</div>
-                <div className="text-[10px] text-on-surface-variant/70 mt-0.5">
+                <div className="text-[13px] text-slate-800 break-words">{m.content}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">
                   重要性 {fmtImportance(m.importance)}
                   {m.createTime && ` · ${m.createTime}`}
                 </div>
               </div>
               <button
                 onClick={() => handleDelete(m.id)}
-                className="p-1 text-on-surface-variant hover:text-error transition-colors flex-shrink-0"
+                className="p-1 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
                 title="删除"
               >
                 <Trash2 size={12} />

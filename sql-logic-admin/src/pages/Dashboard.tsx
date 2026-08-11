@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Users, Cpu, Activity, Search, ChevronLeft, ChevronRight, X, LayoutDashboard, Shield, Zap } from 'lucide-react';
+import { Users, Cpu, Activity, Search, ChevronLeft, ChevronRight, X, LayoutDashboard, Shield, Zap, Workflow, Bot } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../api/client';
 
-type AdminTab = 'overview' | 'users' | 'llm';
+type AdminTab = 'overview' | 'users' | 'workflows' | 'llm' | 'agents';
 
 export default function Dashboard({ adminRole }: { adminRole: string }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -17,13 +17,32 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
   const [llmPage, setLlmPage] = useState(1);
   const [llmTotal, setLlmTotal] = useState(0);
   const [llmKeyword, setLlmKeyword] = useState('');
-  const [llmSubTab, setLlmSubTab] = useState<'general' | 'system' | 'users'>('general');
+  const [llmSubTab, setLlmSubTab] = useState<'general' | 'system' | 'users' | 'agents'>('general');
   const [quotaEdit, setQuotaEdit] = useState<{ userId: number; current: number } | null>(null);
   const [quotaValue, setQuotaValue] = useState('');
+  // Workflows tab state
+  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [workflowPage, setWorkflowPage] = useState(1);
+  const [workflowTotal, setWorkflowTotal] = useState(0);
+  const [workflowKeyword, setWorkflowKeyword] = useState('');
+  // Per-agent metrics (multi-agent telemetry, not paginated)
+  const [agentMetrics, setAgentMetrics] = useState<any[]>([]);
+  // Agent configuration (bus-orc switch + 6-agent topology)
+  const [agentConfig, setAgentConfig] = useState<any>(null);
+  const [agentTopology, setAgentTopology] = useState<any[]>([]);
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [agentMsg, setAgentMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   useEffect(() => { if (activeTab === 'overview') { fetchDashboard(); } }, [activeTab]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, userPage, userKeyword]);
+  useEffect(() => { if (activeTab === 'workflows') fetchWorkflows(); }, [activeTab, workflowPage, workflowKeyword]);
   useEffect(() => { if (activeTab === 'llm') fetchLlmMetrics(); }, [activeTab, llmPage, llmKeyword, llmSubTab]);
+  useEffect(() => {
+    if (activeTab === 'agents') {
+      api.get<any>('/admin/config/agent').then(r => { if (r.data) setAgentConfig(r.data); });
+      api.get<any>('/admin/config/agent/topology').then(r => { if (r.data) setAgentTopology(r.data); });
+    }
+  }, [activeTab]);
 
   const fetchDashboard = async () => {
     const res = await api.get<any>('/admin/dashboard');
@@ -37,14 +56,41 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
     if (res.data) { setUsers(res.data.records || []); setUserTotal(res.data.total || 0); }
     setUserLoading(false);
   };
+  const fetchWorkflows = async () => {
+    const params = new URLSearchParams({ page: String(workflowPage), size: '20' });
+    if (workflowKeyword) params.set('keyword', workflowKeyword);
+    const res = await api.get<any>(`/admin/workflows?${params}`);
+    if (res.data) { setWorkflows(res.data.records || []); setWorkflowTotal(res.data.total || 0); }
+  };
   const fetchLlmMetrics = async () => {
-    const endpoint = llmSubTab === 'system' ? '/admin/llm/metrics/system'
+    // Multi-agent telemetry is a flat list (not paginated) and uses a dedicated endpoint.
+    if (llmSubTab === 'agents') {
+      const res = await api.get<any>('/admin/llm/metrics/agents');
+      setAgentMetrics(Array.isArray(res.data) ? res.data : []);
+      return;
+    }
+    const path = llmSubTab === 'system' ? '/admin/llm/metrics/system'
       : llmSubTab === 'users' ? '/admin/llm/metrics/users'
       : '/admin/llm/metrics';
     const params = new URLSearchParams({ page: String(llmPage), size: '20' });
     if (llmKeyword) params.set('keyword', llmKeyword);
-    const res = await api.get<any>(`/admin/llm/metrics${llmSubTab === 'system' ? '/system' : llmSubTab === 'users' ? '/users' : ''}?${params}`);
+    const res = await api.get<any>(`${path}?${params}`);
     if (res.data) { setLlmMetrics(res.data.records || []); setLlmTotal(res.data.total || 0); }
+  };
+  const saveAgentConfig = async (mode: string, timeoutSec: number) => {
+    setAgentSaving(true); setAgentMsg(null);
+    try {
+      const res = await api.put<any>('/admin/config/agent', { mode, dispatcherTimeoutSeconds: timeoutSec });
+      if (res.code === 200 && res.data) {
+        setAgentConfig(res.data);
+        setAgentMsg({ kind: 'ok', text: '已保存。重启 sql-logic-service 后 mode 变更生效。' });
+      } else {
+        setAgentMsg({ kind: 'err', text: res.message || '保存失败' });
+      }
+    } catch {
+      setAgentMsg({ kind: 'err', text: '保存失败，请检查网络或权限' });
+    }
+    setAgentSaving(false);
   };
   const handleToggleStatus = async (userId: number, currentStatus: number) => {
     await api.put(`/admin/users/${userId}/status`, { status: currentStatus === 1 ? 0 : 1 });
@@ -60,7 +106,9 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
   const tabs: { key: AdminTab; label: string; icon: any }[] = [
     { key: 'overview', label: 'Overview', icon: Activity },
     { key: 'users', label: 'Users', icon: Users },
+    { key: 'workflows', label: 'Workflows', icon: Workflow },
     { key: 'llm', label: 'LLM', icon: Zap },
+    { key: 'agents', label: 'Agents', icon: Bot },
   ];
 
   return (
@@ -112,10 +160,19 @@ export default function Dashboard({ adminRole }: { adminRole: string }) {
             userKeyword={userKeyword} setUserKeyword={setUserKeyword} setUserPage={setUserPage}
             handleToggleStatus={handleToggleStatus} setQuotaEdit={setQuotaEdit} setQuotaValue={setQuotaValue} />
         )}
+        {activeTab === 'workflows' && (
+          <WorkflowsTab workflows={workflows} workflowTotal={workflowTotal} workflowPage={workflowPage}
+            workflowKeyword={workflowKeyword} setWorkflowKeyword={setWorkflowKeyword} setWorkflowPage={setWorkflowPage} />
+        )}
         {activeTab === 'llm' && (
           <LlmView llmMetrics={llmMetrics} llmTotal={llmTotal} llmPage={llmPage}
             llmKeyword={llmKeyword} setLlmKeyword={setLlmKeyword} setLlmPage={setLlmPage}
-            llmSubTab={llmSubTab} setLlmSubTab={setLlmSubTab} />
+            llmSubTab={llmSubTab} setLlmSubTab={setLlmSubTab}
+            agentMetrics={agentMetrics} />
+        )}
+        {activeTab === 'agents' && (
+          <AgentConfigView config={agentConfig} topology={agentTopology}
+            saving={agentSaving} msg={agentMsg} onSave={saveAgentConfig} />
         )}
       </main>
 
@@ -323,18 +380,21 @@ function UsersTab({ users, userTotal, userPage, userLoading, userKeyword, setUse
 /* ═══════════════════════════════════════════
    LLM Tab
    ═══════════════════════════════════════════ */
-type LlmSubTab = 'general' | 'system' | 'users';
+type LlmSubTab = 'general' | 'system' | 'users' | 'agents';
 
-function LlmView({ llmMetrics, llmTotal, llmPage, llmKeyword, setLlmKeyword, setLlmPage, llmSubTab, setLlmSubTab }: {
+function LlmView({ llmMetrics, llmTotal, llmPage, llmKeyword, setLlmKeyword, setLlmPage, llmSubTab, setLlmSubTab, agentMetrics }: {
   llmMetrics: any[]; llmTotal: number; llmPage: number;
   llmKeyword: string; setLlmKeyword: (v: string) => void; setLlmPage: (v: number) => void;
   llmSubTab: LlmSubTab; setLlmSubTab: (v: LlmSubTab) => void;
+  agentMetrics: any[];
 }) {
   const subtabs: { key: LlmSubTab; label: string }[] = [
     { key: 'general', label: 'General' },
     { key: 'system', label: 'System LLM' },
     { key: 'users', label: 'User LLM' },
+    { key: 'agents', label: 'Agents' },
   ];
+  const isAgents = llmSubTab === 'agents';
 
   return (
     <div className="flex" style={{ minHeight: 'calc(100vh - 0px)' }}>
@@ -358,37 +418,51 @@ function LlmView({ llmMetrics, llmTotal, llmPage, llmKeyword, setLlmKeyword, set
       {/* ═══ Content ═══ */}
       <div className="flex-1 p-8" style={{ maxWidth: 'calc(1080px - 192px)' }}>
         <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
-              {llmSubTab === 'system' ? 'System LLM Monitoring' : llmSubTab === 'users' ? 'User LLM Monitoring' : 'LLM Monitoring'}
-            </h1>
-            <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
-              {llmSubTab === 'system' ? 'Platform default LLM usage by user, IP, and token consumption'
-                : llmSubTab === 'users' ? 'User-owned LLM configurations with masked credentials'
-                : 'Call metrics per configuration'}
-            </p>
+          <div className="flex items-center gap-2.5">
+            {isAgents && (
+              <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+                style={{ background: 'var(--color-register-soft)' }}>
+                <Bot size={15} style={{ color: 'var(--color-register)' }} strokeWidth={1.8} />
+              </div>
+            )}
+            <div>
+              <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
+                {isAgents ? 'Multi-Agent Telemetry' : llmSubTab === 'system' ? 'System LLM Monitoring' : llmSubTab === 'users' ? 'User LLM Monitoring' : 'LLM Monitoring'}
+              </h1>
+              <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
+                {isAgents ? 'Per-agent step metrics aggregated from workflow executions'
+                  : llmSubTab === 'system' ? 'Platform default LLM usage by user, IP, and token consumption'
+                  : llmSubTab === 'users' ? 'User-owned LLM configurations with masked credentials'
+                  : 'Call metrics per configuration'}
+              </p>
+            </div>
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--color-marginalia)' }} />
-            <input className="input pl-9 pr-4 w-56" placeholder="Search config..."
-              value={llmKeyword} onChange={e => { setLlmKeyword(e.target.value); setLlmPage(1); }} />
-          </div>
+          {!isAgents && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--color-marginalia)' }} />
+              <input className="input pl-9 pr-4 w-56" placeholder="Search config..."
+                value={llmKeyword} onChange={e => { setLlmKeyword(e.target.value); setLlmPage(1); }} />
+            </div>
+          )}
         </div>
 
         <div className="card overflow-hidden">
-          {llmSubTab === 'system' ? <SystemLlmTable data={llmMetrics} /> : llmSubTab === 'users' ? <UserLlmTable data={llmMetrics} /> : <GeneralLlmTable data={llmMetrics} />}
-          {llmTotal > 20 && (
+          {isAgents ? <AgentsTable data={agentMetrics} />
+            : llmSubTab === 'system' ? <SystemLlmTable data={llmMetrics} />
+            : llmSubTab === 'users' ? <UserLlmTable data={llmMetrics} />
+            : <GeneralLlmTable data={llmMetrics} />}
+          {!isAgents && llmTotal > 20 && (
             <div className="px-4 py-3 flex items-center justify-between"
               style={{ borderTop: '1px solid rgba(111,115,133,0.1)', background: 'rgba(111,115,133,0.02)' }}>
               <span className="font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>
                 {(llmPage - 1) * 20 + 1}&ndash;{Math.min(llmPage * 20, llmTotal)} of {llmTotal}
               </span>
               <div className="flex items-center gap-1">
-                <button onClick={() => setLlmPage(p => Math.max(1, p - 1))} disabled={llmPage === 1}
+                <button onClick={() => setLlmPage(Math.max(1, llmPage - 1))} disabled={llmPage === 1}
                   className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
                   style={{ color: 'var(--color-marginalia)' }}><ChevronLeft size={14} /></button>
                 <span className="font-mono text-xs font-semibold px-1" style={{ color: 'var(--color-typeset)' }}>{llmPage}</span>
-                <button onClick={() => setLlmPage(p => p + 1)} disabled={llmPage * 20 >= llmTotal}
+                <button onClick={() => setLlmPage(llmPage + 1)} disabled={llmPage * 20 >= llmTotal}
                   className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
                   style={{ color: 'var(--color-marginalia)' }}><ChevronRight size={14} /></button>
               </div>
@@ -411,7 +485,7 @@ function GeneralLlmTable({ data }: { data: any[] }) {
       <tbody>
         {data.map((m: any, i: number) => {
           const rate = Math.round((m.successRate || 0) * 100);
-          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
+          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? 'var(--color-sig-amber)' : 'var(--color-sig-red)';
           return (
             <tr key={i} className="transition-colors hover:bg-black/[0.015]">
               <td className="td font-mono text-xs font-medium" style={{ color: 'var(--color-typeset)' }}>{m.configName || `#${m.configId}`}</td>
@@ -439,7 +513,7 @@ function SystemLlmTable({ data }: { data: any[] }) {
       <tbody>
         {data.map((m: any, i: number) => {
           const rate = Math.round((m.successRate || 0) * 100);
-          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? '#d4932b' : 'var(--color-sig-red)';
+          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? 'var(--color-sig-amber)' : 'var(--color-sig-red)';
           return (
             <tr key={i} className="transition-colors hover:bg-black/[0.015]">
               <td className="td font-mono text-xs" style={{ color: 'var(--color-typeset)' }}>{m.configName || `#${m.configId}`}</td>
@@ -482,5 +556,277 @@ function UserLlmTable({ data }: { data: any[] }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Workflows Tab — multi-agent execution overview
+   ═══════════════════════════════════════════ */
+function WorkflowsTab({ workflows, workflowTotal, workflowPage, workflowKeyword, setWorkflowKeyword, setWorkflowPage }: any) {
+  const fmtTime = (s: string | null | undefined) => {
+    if (!s) return '—';
+    // Backend sends LocalDateTime#toString() (e.g. "2026-07-28T14:30:00"); trim the T.
+    return s.replace('T', ' ').substring(0, 19);
+  };
+
+  return (
+    <div className="p-8 max-w-[1080px] space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
+            Workflow Executions
+          </h1>
+          <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
+            {workflowTotal} multi-agent runs
+          </p>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2" size={14} style={{ color: 'var(--color-marginalia)' }} />
+          <input className="input pl-9 pr-4 w-64" placeholder="Search thread / status..."
+            value={workflowKeyword} onChange={e => { setWorkflowKeyword(e.target.value); setWorkflowPage(1); }} />
+        </div>
+      </div>
+
+      <div className="card overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="th w-16">ID</th>
+              <th className="th w-20">User</th>
+              <th className="th">Thread</th>
+              <th className="th w-28">Status</th>
+              <th className="th w-20">Model</th>
+              <th className="th w-20">Tool</th>
+              <th className="th w-24">Tokens</th>
+              <th className="th w-40">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workflows.length === 0 ? (
+              <tr><td colSpan={8} className="px-4 py-14 text-center font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>No workflow executions found</td></tr>
+            ) : workflows.map((w: any) => (
+              <tr key={w.id} className="transition-colors hover:bg-black/[0.015]">
+                <td className="td font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>{w.id}</td>
+                <td className="td font-mono text-xs">#{w.userId}</td>
+                <td className="td font-mono text-[11px]" style={{ color: 'var(--color-typeset)' }}>{w.threadId || '—'}</td>
+                <td className="td"><WorkflowStatusBadge status={w.status} /></td>
+                <td className="td font-mono text-xs">{w.modelCalls ?? '0'}</td>
+                <td className="td font-mono text-xs">{w.toolCalls ?? '0'}</td>
+                <td className="td font-mono text-xs">{(w.totalTokens ?? '0').toLocaleString()}</td>
+                <td className="td font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>{fmtTime(w.createTime)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {workflowTotal > 20 && (
+          <div className="px-4 py-3 flex items-center justify-between"
+            style={{ borderTop: '1px solid rgba(111,115,133,0.1)', background: 'rgba(111,115,133,0.02)' }}>
+            <span className="font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>
+              {(workflowPage - 1) * 20 + 1}&ndash;{Math.min(workflowPage * 20, workflowTotal)} of {workflowTotal}
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setWorkflowPage((p: number) => Math.max(1, p - 1))} disabled={workflowPage === 1}
+                className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
+                style={{ color: 'var(--color-marginalia)' }}>
+                <ChevronLeft size={14} />
+              </button>
+              <span className="font-mono text-xs font-semibold px-1" style={{ color: 'var(--color-typeset)' }}>
+                {workflowPage}
+              </span>
+              <button onClick={() => setWorkflowPage((p: number) => p + 1)} disabled={workflowPage * 20 >= workflowTotal}
+                className="p-1.5 rounded-md transition-colors disabled:opacity-20 disabled:pointer-events-none"
+                style={{ color: 'var(--color-marginalia)' }}>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowStatusBadge({ status }: { status?: string | null }) {
+  const s = (status || '').toUpperCase();
+  const cls = s === 'SUCCESS' || s === 'COMPLETED' ? 'badge-ok'
+    : s === 'FAILED' || s === 'ERROR' ? 'badge-err'
+    : 'badge-warn';
+  const label = s || 'UNKNOWN';
+  return <span className={cls}>{label}</span>;
+}
+
+/* ═══════════════════════════════════════════
+   Agents Table — per-agent (node) step metrics
+   ═══════════════════════════════════════════ */
+function AgentsTable({ data }: { data: any[] }) {
+  if (data.length === 0) return <div className="px-4 py-14 text-center font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>No agent metrics available</div>;
+  return (
+    <table className="w-full">
+      <thead><tr>
+        <th className="th">Agent</th><th className="th w-28">Type</th><th className="th w-16">Steps</th>
+        <th className="th w-40">Success Rate</th><th className="th w-24">Avg Duration</th>
+        <th className="th w-44">Tokens In / Out</th>
+      </tr></thead>
+      <tbody>
+        {data.map((m: any, i: number) => {
+          const rate = Math.round((m.successRate || 0) * 100);
+          const barColor = rate > 90 ? 'var(--color-sig-green)' : rate > 70 ? 'var(--color-sig-amber)' : 'var(--color-sig-red)';
+          return (
+            <tr key={i} className="transition-colors hover:bg-black/[0.015]">
+              <td className="td font-mono text-xs font-medium" style={{ color: 'var(--color-typeset)' }}>{m.agentName || 'unknown'}</td>
+              <td className="td font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>{m.nodeType || '—'}</td>
+              <td className="td font-mono text-xs">{m.totalSteps}</td>
+              <td className="td"><div className="flex items-center gap-2.5"><div className="flex-1 h-1.5 rounded-full overflow-hidden max-w-[120px]" style={{ background: 'rgba(111,115,133,0.12)' }}><div className="h-full rounded-full transition-all duration-600" style={{ width: `${rate}%`, background: barColor }} /></div><span className="font-mono text-[11px] font-semibold w-9 text-right" style={{ color: 'var(--color-marginalia)' }}>{rate}%</span></div></td>
+              <td className="td font-mono text-xs">{Math.round(m.avgDurationMs || 0)} ms</td>
+              <td className="td font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>{(m.totalInputTokens || 0).toLocaleString()} / {(m.totalOutputTokens || 0).toLocaleString()}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Agent Configuration Tab — bus-orc switch + topology
+   ═══════════════════════════════════════════ */
+const BUS_MODES: { key: string; label: string; desc: string }[] = [
+  { key: 'off', label: 'OFF', desc: '纯 generateReply 直调（默认）' },
+  { key: 'bypass', label: 'BYPASS', desc: '直调 + 总线镜像' },
+  { key: 'switch', label: 'SWITCH', desc: '业务消息走总线' },
+];
+
+function AgentConfigView({ config, topology, saving, msg, onSave }: {
+  config: any; topology: any[]; saving: boolean;
+  msg: { kind: 'ok' | 'err'; text: string } | null;
+  onSave: (mode: string, timeout: number) => void;
+}) {
+  const [mode, setMode] = useState('off');
+  const [timeoutVal, setTimeoutVal] = useState(300);
+
+  useEffect(() => {
+    if (config) {
+      setMode(String(config.mode || 'off'));
+      setTimeoutVal(Number(config.dispatcherTimeoutSeconds || 300));
+    }
+  }, [config]);
+
+  if (!config) {
+    return <div className="p-8 font-mono text-xs" style={{ color: 'var(--color-marginalia)' }}>Loading…</div>;
+  }
+
+  const canEdit = config.canEdit !== false;
+  const isSwitch = mode.toLowerCase() === 'switch';
+
+  return (
+    <div className="p-8 max-w-[1080px] space-y-6">
+      <div>
+        <h1 className="font-mono text-lg font-semibold tracking-tight" style={{ color: 'var(--color-typeset)' }}>
+          Agent Configuration
+        </h1>
+        <p className="font-mono text-[12px] mt-1" style={{ color: 'var(--color-marginalia)' }}>
+          Multi-agent orchestration settings (bus-orc)
+        </p>
+      </div>
+
+      {/* Restart hint */}
+      <div className="card p-4 flex items-start gap-3" style={{ background: 'var(--color-sig-amber-soft)' }}>
+        <span className="badge-warn mt-0.5">NOTE</span>
+        <p className="font-mono text-[12px] leading-relaxed" style={{ color: 'var(--color-typeset)' }}>
+          {config.needsRestartHint || '切换 bus-orc.mode 需重启 sql-logic-service 生效'}
+        </p>
+      </div>
+
+      {/* bus-orc config card */}
+      <div className="card p-6 space-y-5">
+        <div>
+          <h3 className="font-mono text-sm font-semibold" style={{ color: 'var(--color-typeset)' }}>
+            Message Bus Mode
+          </h3>
+          <p className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--color-marginalia)' }}>
+            控制派发策略：off / bypass（旁路观测）/ switch（走总线）
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {BUS_MODES.map(m => {
+            const active = mode.toLowerCase() === m.key;
+            return (
+              <button key={m.key} onClick={() => setMode(m.key)} disabled={!canEdit}
+                className="text-left p-4 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  border: `1.5px solid ${active ? 'var(--color-register)' : 'rgba(111,115,133,0.2)'}`,
+                  background: active ? 'var(--color-register-soft)' : 'var(--color-vellum)',
+                  cursor: canEdit ? 'pointer' : 'not-allowed',
+                }}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-mono text-xs font-semibold" style={{ color: 'var(--color-typeset)' }}>{m.label}</span>
+                  {active && <span className="badge-ok">ACTIVE</span>}
+                </div>
+                <p className="font-mono text-[10.5px] leading-relaxed" style={{ color: 'var(--color-marginalia)' }}>{m.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-4 pt-1">
+          <label className="font-mono text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: 'var(--color-marginalia)' }}>
+            Dispatcher Timeout (s)
+          </label>
+          <input type="number" className="input w-32" min={10} max={3600}
+            value={timeoutVal} onChange={e => setTimeoutVal(parseInt(e.target.value) || 300)}
+            disabled={!canEdit || !isSwitch} />
+          <span className="font-mono text-[11px]" style={{ color: 'var(--color-marginalia)' }}>
+            仅 switch 模式生效，worker 无响应的超时兜底
+          </span>
+        </div>
+
+        {!canEdit && (
+          <p className="font-mono text-[11px]" style={{ color: 'var(--color-sig-red)' }}>
+            仅 SUPER_ADMIN 可修改配置
+          </p>
+        )}
+        {msg && (
+          <p className="font-mono text-[11px]"
+            style={{ color: msg.kind === 'ok' ? 'var(--color-sig-green)' : 'var(--color-sig-red)' }}>
+            {msg.text}
+          </p>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button onClick={() => onSave(mode, timeoutVal)} disabled={!canEdit || saving}
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+
+      {/* Topology */}
+      <div className="card p-6">
+        <h3 className="font-mono text-sm font-semibold mb-0.5" style={{ color: 'var(--color-typeset)' }}>
+          Agent Topology
+        </h3>
+        <p className="font-mono text-[11px] mb-4" style={{ color: 'var(--color-marginalia)' }}>
+          6-Agent 编排拓扑（只读）
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {topology.map((a: any, i: number) => (
+            <div key={i} className="p-4 rounded-md"
+              style={{ border: '1px solid rgba(111,115,133,0.15)', background: 'var(--color-vellum)' }}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-register-soft)' }}>
+                  <Bot size={13} style={{ color: 'var(--color-register)' }} strokeWidth={1.8} />
+                </div>
+                <span className="font-mono text-xs font-semibold" style={{ color: 'var(--color-typeset)' }}>{a.name}</span>
+                <span className="font-mono text-[10px]" style={{ color: 'var(--color-marginalia)' }}>{a.role}</span>
+              </div>
+              <p className="font-mono text-[10.5px] leading-relaxed" style={{ color: 'var(--color-marginalia)' }}>{a.goal}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

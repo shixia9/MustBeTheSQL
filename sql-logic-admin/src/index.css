@@ -14,11 +14,13 @@
   --color-register: #3c5eb8;
   --color-sig-green: #2d8b5a;
   --color-sig-red: #ce4a3f;
+  --color-sig-amber: #d4932b;
 
   /* ── Opacity variants ── */
   --color-register-soft: rgba(60, 94, 184, 0.08);
   --color-sig-green-soft: rgba(45, 139, 90, 0.08);
   --color-sig-red-soft: rgba(206, 74, 63, 0.07);
+  --color-sig-amber-soft: rgba(212, 147, 43, 0.10);
 
   /* ── Radius ── */
   --radius-sm: 3px;
@@ -72,7 +74,7 @@
     box-shadow: 0 1px 3px rgba(17, 22, 34, 0.04);
   }
 
-  /* ── Stat card with left-edge accent ── */
+  /* ── Stat card with top-edge accent ── */
   .stat-card {
     @apply bg-card border border-marginalia/15 rounded-lg relative overflow-hidden p-5;
     box-shadow: 0 1px 3px rgba(17, 22, 34, 0.04);
@@ -82,14 +84,16 @@
     position: absolute;
     left: 0;
     top: 0;
-    bottom: 0;
-    width: 2px;
+    right: 0;
+    height: 2px;
     background: var(--color-register);
-    border-radius: 0 1px 1px 0;
-    transition: width 0.2s ease;
+    border-radius: 1px 1px 0 0;
+    transition: height 0.2s ease;
+    opacity: 0.7;
   }
   .stat-card:hover::before {
-    width: 3px;
+    height: 3px;
+    opacity: 1;
   }
 
   .stat-number {
@@ -169,6 +173,12 @@
            font-mono text-[10px] font-semibold uppercase tracking-wider;
     background: var(--color-sig-red-soft);
     color: var(--color-sig-red);
+  }
+  .badge-warn {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full
+           font-mono text-[10px] font-semibold uppercase tracking-wider;
+    background: var(--color-sig-amber-soft);
+    color: var(--color-sig-amber);
   }
 
   /* ── Sidebar nav item ── */

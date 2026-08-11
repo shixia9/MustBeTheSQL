@@ -1,0 +1,8 @@
+{
+  "label": "使用指南",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "Must Be The SQL 核心功能的使用方法：工作流设计、Agent 执行、Admin 控制台与监控。"
+  }
+}
