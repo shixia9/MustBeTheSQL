@@ -22,7 +22,7 @@
 ---
 
 <!-- 主页截图 -->
-![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/Vd3Z/1910X925/Chat.png)
+![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/Vd3Z/1910X925/Chat.png?v=2)
 
 ---
 
@@ -387,7 +387,7 @@ The frontend communicates with the backend via:
 ![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/Jr3m/1910X925/Chat_Planner.png)
 *Planner — execution plan & TODO list*
 
-![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/4NdM/1910X925/Chat_Chart.png)
+![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/4NdM/1910X925/Chat_Chart.png?v=2)
 *Chart visualization*
 
 ![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/OydG/1910X925/Chat_Data.png)
@@ -402,7 +402,7 @@ The frontend communicates with the backend via:
 
 ### 4. Scheduled Tasks
 
-![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/zMve/1910X925/Schedule-Tasks.png)
+![image](https://img.tofaka.com/autoupload/f/8jc10/20260812/zMve/1910X925/Schedule-Tasks.png?v=2)
 
 ### 5. Workflow Editor
 
