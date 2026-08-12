@@ -269,8 +269,10 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
               reportSteps.map((s, i) => {
                 const raw = s.output?.report || s.output?.content || s.content || '';
 
-                // If content contains HTML report, render it in sandboxed iframe
-                const htmlContent = extractHtmlContent(raw);
+                // HTML report: the backend extracts HTML into a dedicated
+                // `htmlContent` field (stripped from `report`). Check it first,
+                // then fall back to scanning the raw text for ```html fences.
+                const htmlContent = s.output?.htmlContent || extractHtmlContent(raw);
                 if (htmlContent) {
                   const cleanMarkdown = stripVisContent(raw.replace(/```html[\s\S]*?```/gi, ''));
                   return (

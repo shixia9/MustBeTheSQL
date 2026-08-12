@@ -88,6 +88,9 @@ export function stripVisContent(text: string): string {
  */
 export function hasMultimodalContent(steps: { output?: any; content?: string }[]): boolean {
   for (const step of steps) {
+    // Backend may extract HTML into a dedicated `htmlContent` field (stripped
+    // from `report`). Check it directly before falling back to text scanning.
+    if (step.output?.htmlContent) return true;
     const raw = step.output?.report || step.output?.content || step.content || '';
     if (parseVisContent(raw).length > 0) return true;
     if (/```html[\s\S]*?```/.test(raw)) return true;
