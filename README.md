@@ -1,4 +1,4 @@
-# 📊 Must Be The SQL (Updating...)
+# Must Be The SQL
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-19-blue" />
@@ -10,307 +10,249 @@
 </p>
 
 <p align="center">
-  <b>NL2SQL Agent backend — StateGraph reasoning engine + LLM high availability + MCP tool ecosystem + Multi-tenant workspaces</b>
+  <b>Multi-Agent NL2SQL platform — Autonomous data analysis with LLM thinking, context compression & sandboxed execution</b>
 </p>
 
 <p align="center">
-  <a href="./README.zh-CN.md">🇨🇳 中文文档</a> |
-  <a href="#quick-start">⚡ Quick Start</a> |
-  <a href="https://github.com/shixia9/MustBeTheSQL-Server">Server</a>
+  <a href="https://github.com/shixia9/MustBeTheSQL-Server">Backend</a> |
+  <a href="#quick-start">Quick Start</a> |
+  <a href="#architecture">Architecture</a>
 </p>
 
 ---
 
-## 📖 Overview
-
-**SQL Logic Engine Frontend** is a modern application built with React 19, TypeScript, and Vite. It provides an intuitive interface for database exploration and management, and a **real-time AI Agent terminal** that visualizes the SQL Agent's multi-step reasoning process — from memory retrieval and knowledge recall through schema analysis, execution planning, and SQL generation to the final report.
-
-### Core Experiences
-
-| Module | Description |
-|--------|-------------|
-| **Agent Terminal** | Natural language input, SSE real-time streaming of 18-node execution timeline |
-| **Multi-Turn Conversations** | Context accumulates automatically; supports follow-up questions and "Continue" from history |
-| **Agent Studio** | Visual Agent configuration (prompts/tool toggles/RAG/memory/context strategy/versioning) |
-| **Workspace Management** | Create/join workspaces, member invitations & role management, workspace-level resource isolation |
-| **SQL Console** | Multi-tab Monaco editor + Schema tree browser + DDL generation |
-| **LLM Configuration** | Multi-provider management + HA strategy panel (strategy selector/fallback chain/health metrics) |
-| **Memory Management** | Visual memory list (type filter/manual add/delete) |
-| **MCP Tool Ecosystem** | 4 BUILTIN tools + MCP protocol (SSE/Stdio) for external tool integration, unified toggle via Agent Studio |
-| **Admin Dashboard** | Standalone Admin SPA (user management/LLM monitoring/usage statistics) |
+<!-- 主页截图 -->
+<p align="center">
+  <em><!-- 系统主页截图占位 --></em>
+</p>
 
 ---
 
-## 🧠 AI Agent Timeline
+## What is Must Be The SQL?
 
-The centerpiece of the application is the **Agent Flow Panel** — a terminal/CLI-style real-time timeline that displays each node of the backend StateGraph as it executes.
+Must Be The SQL is an AI data assistant that connects to your databases, understands natural-language questions, and autonomously performs data analysis end-to-end.
+
+Users describe their data needs in plain language. A team of specialised AI agents — each with its own LLM thinking process — collaborates to explore the database schema, plan multi-step execution, generate and fix SQL, run Python analysis in a sandbox, and deliver a consolidated report.
+
+### Key Capabilities
+
+- **Multi-Agent collaboration** — A Manager agent orchestrates specialist agents (Data Scientist, Code Assistant, Tool Assistant, Dashboard Assistant), each with autonomous decision-making
+- **Progressive context compression** — Four-layer strategy (L1–L4) keeps conversations within token budgets without losing critical context
+- **Sandboxed code execution** — Python/Shell scripts run in Docker-isolated sandboxes with security validation
+- **Multi-turn conversations** — Context accumulates across turns with automatic summarisation and memory injection
+- **MCP tool ecosystem** — Built-in tools plus Model Context Protocol support for external tool integration
+- **Human-in-the-Loop** — Optional plan approval gate before execution, with auto-confirm mode
+- **Multi-tenant workspaces** — User → Workspace isolation with 4-tier roles
+- **LLM high availability** — Load balancing, circuit breaker, fallback chain, session affinity
+
+---
+
+## Architecture
+
+### Multi-Agent System
+
+The platform uses a multi-agent architecture where a **Manager** agent receives user requests and dispatches tasks to specialised worker agents. Each agent has its own LLM strategy, memory, and action set.
 
 ```mermaid
-sequenceDiagram
-    actor User
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as Database
+flowchart TB
+    User[User Question] --> Manager[Manager Agent<br/>Orchestrator]
 
-    User->>FE: Type a natural language question, select workspace/Agent
-    FE->>BE: POST /api/v1/agent/sql/stream (SSE, with workspaceId/conversationId)
+    Manager --> Router{Complexity Router}
 
-    Note over BE: StateGraph execution starts
+    Router -->|chitchat| Chitchat[Manager answers directly<br/>via LLM, no SQL pipeline]
+    Router -->|clarify| Clarify[Request user<br/>clarification HITL]
+    Router -->|simple| DS[Data Scientist]
+    Router -->|complex| Planner[Planner Agent<br/>Task decomposition]
+    Router -->|tool| TA[Tool Assistant]
 
-    BE-->>FE: SSE: MEMORY_RECALL (retrieved user memories)
-    BE-->>FE: SSE: EVIDENCE_RECALL (rewritten query, RAG results)
-    BE-->>FE: SSE: SCHEMA_LINKING (filtered tables, FK relations)
-    BE-->>FE: SSE: FEASIBILITY_ASSESSMENT (task type, feasibility conclusion)
-    BE-->>FE: SSE: PLANNER (multi-step execution plan)
+    Planner --> DS
+    Planner --> CA[Code Assistant]
+    Planner --> TA
 
-    alt Needs Human Review
-        FE-->>User: Show approval card with full plan context
-        User->>FE: Approve / Reject + feedback
-        FE->>BE: POST /api/v1/agent/sql/continue
-    end
+    DS -->|SQL generation + execution| DB[(Database)]
+    CA -->|Python/Shell code| Sandbox[Docker Sandbox]
+    TA -->|MCP tool calls| ExtTools[External Tools]
 
-    Note over BE: Execution tool chain (SQL / Python)
-
-    BE-->>FE: SSE: SQL_GENERATION (generated SQL, token stats)
-    BE-->>FE: SSE: SQL_EXECUTION (result set / error)
-    alt SQL Error
-        BE-->>FE: SSE: SQL_FIXER (repaired SQL)
-        BE-->>FE: SSE: SQL_EXECUTION (retry result)
-    end
-
-    BE-->>FE: SSE: PYTHON_GENERATION (generated code)
-    BE-->>FE: SSE: PYTHON_EXECUTION (output)
-    BE-->>FE: SSE: PYTHON_ANALYSIS (conclusions)
-
-    BE-->>FE: SSE: REPORT (final markdown report)
-    BE-->>FE: SSE: COMPLETED (with conversationId)
-
-    FE-->>User: Display complete Agent timeline + switchable Trace view
+    DS & CA & TA --> Dashboard[Dashboard Assistant]
+    Dashboard -->|htmlReport: true| Report[HTML Report + Charts]
+    Report --> User
 ```
 
-### Agent Timeline Features
+### Agent Roles
 
-| Feature | Description |
-|---------|-------------|
-| **Real-time Streaming** | Each node's completion event appears as a timeline card the moment it arrives |
-| **Message Type Classification** | 5 message types (THINKING/TOOL_CALL/TOOL_RESULT/REPORT/STATUS) with distinct colors and animations |
-| **Step-by-Step Visualization** | 18 node types with distinct icons, category colors (planning blue/execution green/gate amber/report accent), and labels |
-| **Human-in-the-Loop UI** | Approval card displays full execution plan with collapsible sections; users can approve, reject, or provide feedback |
-| **Auto-confirm Toggle** | Slide a switch to skip the review gate (plans execute automatically) |
-| **Trace View** | Toggle between "Timeline" and "Trace" — token statistics + waterfall bar chart + per-step latency |
-| **Feasibility Card** | Color-coded conclusion with semantic icons (✓ achievable / ⚠ needs clarification / 💬 casual chat) |
-| **Running Animation** | Pulsing text + spinning loader icon for in-progress nodes |
-| **SQL Result Table** | Rendered results with pagination and chart toggle (bar chart for numeric data) |
-| **Python Code Display** | Collapsible code blocks with syntax highlighting (shiki) |
-| **Execution Timing** | Each step shows formatted duration (e.g. `1.2s`) |
-| **Error Highlighting** | Failed steps clearly marked in red with detailed error messages |
-| **Knowledge Recall Card** | Collapsible card showing RAG-retrieved glossary terms and few-shot Q/A pairs with relevance scores |
-| **Multi-Turn Conversations** | "New" button resets session; COMPLETED event provides conversationId for continuous dialogue |
+| Agent | Role | Capabilities |
+|-------|------|-------------|
+| **Manager** | Orchestrator | Receives user request, routes by complexity, coordinates worker agents, aggregates results |
+| **Planner** | Task Planner | Decomposes complex requests into structured execution plans with step-by-step assignment |
+| **Data Scientist** | SQL Expert | Multi-candidate SQL generation, execution, auto-repair, chart visualisation |
+| **Code Assistant** | Code Engineer | Python/Shell code generation, sandbox execution, data analysis |
+| **Tool Assistant** | Tool Specialist | MCP external tool discovery and invocation |
+| **Dashboard Assistant** | Report Generator | Synthesises execution results into HTML reports, dashboards, and summaries |
+
+### Routing Paths
+
+The Manager Agent classifies each request and routes it through one of five paths:
+
+| Path | Trigger | Behaviour |
+|------|---------|-----------|
+| **Tool Invocation** | User picked a tool from the `/` command palette | Routes directly to Tool Assistant, skips complexity assessment |
+| **Chitchat** | Greetings, general-knowledge, capability questions | Manager answers directly via LLM — no SQL pipeline, no report |
+| **Clarify** | Question is ambiguous or missing critical info | Requests user clarification (HITL gate when enabled) |
+| **Simple** | A single SQL can answer | Direct to Data Scientist (skip Planner), then text summary (no HTML report) |
+| **Complex** | Report/chart/multi-step analysis needed | Planner → Workers → Dashboard full pipeline (HTML report) |
+
+### Inter-Agent Communication
+
+Agents communicate through a pluggable message bus with three modes (controlled by `bus-orc.mode`):
+
+| Mode | Behaviour | Use Case |
+|------|-----------|----------|
+| `OFF` (default) | Direct method calls | Production |
+| `SWITCH` | Bus-mediated request/reply | Full bus orchestration |
+
+### Context Compression
+
+A four-layer progressive strategy keeps conversations within token budgets:
+
+```mermaid
+flowchart LR
+    L1[L1: Truncate Observations<br/>≥70% token usage] -->|insufficient| L2[L2: Discard Old Turns<br/>Keep ≥3 recent rounds]
+    L2 -->|insufficient| L3[L3: LLM Summary<br/>≥90% token usage]
+    L3 -->|LLM context error| L4[L4: Emergency Truncate<br/>Keep last 2 rounds]
+```
+
+### Sandbox Execution
+
+The sandbox module follows a four-layer architecture for secure code execution:
+
+| Layer | Responsibility |
+|-------|---------------|
+| **Execution Layer** | `SandboxRuntime` (Docker/Local) — isolated code execution |
+| **Control Layer** | `SandboxControlService` — per-session locks, lifecycle management |
+| **User Layer** | `SandboxController` — REST API for code submission |
+| **Display Layer** | `DisplayResult` — formatted output for frontend rendering |
+
+Security defaults are **fail-closed**: Docker is preferred; Local runtime is dev/test only.
 
 ---
 
-## 🖥️ User Interface
+## Project Structure
+
+```
+MustBeTheSQL/
+├── sql-logic-client/           # Main client application
+│   ├── src/
+│   │   ├── pages/              #   Route pages (Chat, Schema, History, Agent Studio, ...)
+│   │   ├── components/
+│   │   │   ├── agent/          #   Agent execution UI (StepTimeline, ThinkingPanel, OutputPanel, ...)
+│   │   │   ├── chart/         #   Chart visualizations
+│   │   │   ├── editor/        #   Monaco SQL editor
+│   │   │   ├── layout/        #   App layout, sidebar, top nav
+│   │   │   ├── ui/            #   Shared UI components
+│   │   │   └── workflow/      #   Workflow editor nodes
+│   │   ├── stores/            #   Zustand stores (conversation, workspace, command palette)
+│   │   ├── contexts/          #   React contexts (Auth, LLMConfig, Settings, Layout)
+│   │   ├── api/               #   HTTP client
+│   │   ├── i18n/              #   Internationalization (en, zh)
+│   │   └── utils/             #   Utilities (vis parser, chart analyzer, export)
+│   ├── vite.config.ts         #   Vite config (proxy, docs integration)
+│   └── package.json
+│
+├── sql-logic-admin/           # Admin dashboard
+│   ├── src/
+│   │   ├── pages/Dashboard.tsx #   Overview, Users, LLM Monitor
+│   │   └── App.tsx
+│   └── package.json
+│
+└── sql-logic-docs/            # Documentation site
+    ├── docs/
+    │   └── guide/             #   Agent execution, workflow design, admin dashboard
+    └── docusaurus.config.ts
+```
 
 ### Pages
 
 | Page | Route | Purpose |
 |------|-------|---------|
-| **Dashboard** | `/dashboard` | **Agent Terminal** — the primary interface for natural-language-to-SQL with Agent execution timeline |
-| **Schema Browser** | `/schema-browser` | **Database Browser + Multi-Tab SQL Editor** — explore schemas, write and execute SQL directly |
-| **History** | `/history` | Query history + **conversation list** (grouped by conversation, with "Continue" to resume) |
-| **Agent Studio** | `/agent-studio` | **Agent Editor** — 5-section configuration (basics/prompts/tools/RAG/memory) + version management |
-| **MCP Servers** | `/mcp-servers` | MCP server management (add/connect/disconnect, supports SSE and Stdio transports) |
-| **Workspace Manage** | `/workspace-manage` | Workspace management — member invitations, role changes, workspace settings |
-| **Database** | `/database` | Manage database connections |
-| **Settings** | `/settings` | LLM configuration + **HA strategy panel** + **memory management panel** |
-| **Profile** | `/profile` | User profile |
-| **Login** | `/login` | Authentication + GitHub OAuth SSO button |
-
-### Dashboard — Agent Terminal
-
-The main page displays:
-- **Top bar**: database connection selector (with live indicator), LLM config selector, and auto-confirm toggle
-- **Workspace selector**: sidebar top allows switching workspaces for resource isolation
-- **Terminal-style output area**: Agent execution timeline with category-colored result cards
-- **Trace/Timeline toggle**: switch between timeline view and Trace performance view
-- **Command input** at the bottom: where users type natural language queries
-
-Each Agent node card shows:
-- Status icon (`✓` success, `◉` running, `✗` error, `○` pending)
-- Color-coded left border by category (planning/execution/gate/report)
-- Node name with emoji icon + message type badge
-- Formatted execution duration
-- Node-specific content (SQL code blocks, execution results, analysis text, etc.)
-
-### Agent Studio — Agent Editor
-
-5-section configuration interface:
-1. **Basics**: avatar, name, description
-2. **Prompt Config**: system prompt + welcome message
-3. **Tool Config**: 4 tool toggle cards (SQL/Schema/Python/Data Sample); MCP external tools appear here automatically after server registration
-4. **RAG Config**: enable toggle + Top-K + score threshold + **context strategy** (TRUNCATE/SUMMARIZE)
-5. **Memory**: injection toggle
-
-Bottom actions: Save / Set Default / Delete / **Publish Version** (snapshot)
-
-### Schema Browser — Database Explorer
-
-- **Sidebar**: Tree navigation for schemas, tables, columns, and indexes
-- **Editor area**: Multi-tab SQL console with Monaco Editor
-- SQL syntax highlighting via `sql-formatter`
-- Table data preview with inline editor support
-- DDL auto-generation and export
-
-### Settings — LLM HA & Memory
-
-- **LLM config cards**: provider/model/base URL/API key management + test connection button + health status dot
-- **HA strategy panel** (expandable per card): circuit status/success rate/latency metrics + strategy selector + fallback chain multi-select
-- **Memory management panel**: type filter (PROFILE/TASK/FACT/EPISODIC) + manual add form + memory list (with importance/time/delete)
-
-### History — Queries & Conversations
-
-- **Queries tab**: flat Agent execution record list, filterable by workspace
-- **Conversations tab**: conversation card list (title/turn count/last message/time), "Continue" button to resume a historical conversation
-
-### Admin Dashboard (Admin SPA, Port 3001)
-
-- **Overview**: stat cards + recharts bar chart (LLM call volume by Config)
-- **Users**: search + paginated table (username/email/status/quota/admin flag), actions: enable/disable, adjust quota
-- **LLM Monitor**: per-config call volume/success rate (progress bar)/failure count/avg latency/token consumption table
+| **Chat** | `/chat` | Multi-agent conversation interface with timeline, thinking, and report |
+| **Schema Browser** | `/schema-browser` | Database explorer + multi-tab SQL console |
+| **History** | `/history` | Query history + conversation list (with "Continue" to resume) |
+| **Agent Studio** | `/agent-studio` | Agent configuration (prompt/tools/RAG/memory) |
+| **Flow Editor** | `/flow-editor` | Visual workflow editor |
+| **MCP Servers** | `/mcp-servers` | MCP server management (SSE/Stdio) |
+| **Database** | `/database` | Database connection management |
+| **Settings** | `/settings` | LLM config + HA strategy + memory management |
+| **Workspace** | `/workspace-manage` | Workspace & member management |
+| **Knowledge** | `/knowledge` | Knowledge base management |
+| **Skills** | `/skills` | Skill management |
+| **Login** | `/login` | Authentication + GitHub OAuth |
 
 ---
 
-## 🏗️ Project Structure
+## Platform Features
 
-```
-src/
-├── api/
-│   └── client.ts                      # HTTP client (fetch-based, covers all APIs)
-├── components/
-│   ├── agent/
-│   │   ├── AgentFlowPanel.tsx         # Main Agent timeline (SSE streaming + conversationId + Trace toggle)
-│   │   └── cards/
-│   │       ├── EvidenceRecallCard.tsx # RAG knowledge recall display
-│   │       ├── FeasibilityCard.tsx    # Feasibility assessment card (semantic coloring)
-│   │       ├── SqlCodeBlock.tsx       # Syntax-highlighted SQL/code
-│   │       ├── ThinkingSection.tsx    # Collapsible detail section (with running animation)
-│   │       ├── TraceCard.tsx          # Trace performance view (stats header + waterfall chart)
-│   │       └── ResultChart.tsx        # Bar chart visualization
-│   ├── editor/
-│   │   └── SqlEditor.tsx             # Monaco-based SQL editor
-│   ├── workspace/
-│   │   ├── WorkspaceTree.tsx         # Schema tree navigator
-│   │   ├── WorkspaceEditor.tsx       # Multi-tab editor container
-│   │   ├── WorkspaceSelector.tsx     # Workspace selector
-│   │   ├── SqlConsole.tsx            # SQL execution console
-│   │   └── TableCell.tsx             # Table cell renderer
-│   ├── LlmStrategyPanel.tsx          # LLM HA strategy panel (metrics + strategy + fallback chain)
-│   ├── MemoryPanel.tsx               # Memory management panel (filter/add/delete)
-│   ├── Sidebar.tsx                   # Left navigation (with workspace selector, Admin entry)
-│   ├── TopNav.tsx                    # Top navigation bar
-│   ├── ConfirmDialog.tsx             # Confirm dialog
-│   └── ErrorBoundary.tsx             # Error boundary
-├── contexts/
-│   ├── SettingsContext.tsx            # App-wide settings context
-│   └── LlmConfigContext.tsx           # LLM configuration context
-├── pages/
-│   ├── DashboardPage.tsx             # Agent terminal page (with initialConversationId)
-│   ├── AgentStudioPage.tsx           # Agent editor (5-section + context strategy + version entry)
-│   ├── SchemaBrowserPage.tsx         # Schema browser (renamed from WorkspacePage)
-│   ├── HistoryPage.tsx               # Query history + conversation tabs (Continue button)
-│   ├── WorkspaceManagePage.tsx       # Workspace management (members/roles)
-│   ├── McpServerPage.tsx             # MCP server management (Phase E in progress)
-│   ├── DatabasePage.tsx              # Connection management
-│   ├── SettingsPage.tsx              # LLM config + HA strategy + memory management
-│   ├── ProfilePage.tsx               # User profile
-│   ├── LoginPage.tsx                 # Auth + GitHub OAuth button
-│   └── JoinWorkspacePage.tsx         # Join workspace
-├── stores/
-│   └── workspaceStore.ts             # Zustand workspace state
-├── types/
-│   ├── agent.ts                      # Agent timeline types (MessageType/category/colors/Trace)
-│   └── types.ts                      # Shared types (Page/admin/Agent/LlmConfig etc.)
-├── utils/
-│   ├── memoryUtils.ts                # In-memory cache
-│   └── storageUtils.ts               # LocalStorage helpers
-├── i18n/
-│   ├── index.ts                      # i18n entry
-│   └── locales/
-│       ├── en.json                   # English translations
-│       └── zh.json                   # Chinese translations
-├── App.tsx                           # Root component (routing + navigate events + Admin redirect)
-├── main.tsx                          # Entry point
-└── constants.ts                      # App constants
-```
+### Security
+- Sa-Token session management (Redis-backed)
+- GitHub OAuth SSO
+- 5-layer SQL validation chain
+- Optional rate limiting (30 req/min/user)
 
-### Standalone Admin Frontend (`sql-logic-admin/`)
+### LLM High Availability
+- 4 load-balancing strategies: Round-Robin / Latency-First / Success-Rate-First / Smart weighted
+- Circuit breaker: opens after 5 consecutive failures, 30s cooldown
+- User-configurable fallback chain
+- Session affinity for context stability
+- Per-minute metrics aggregation (call volume, success rate, latency, token usage)
 
-```
-sql-logic-admin/src/
-├── api/
-│   └── client.ts                     # Admin HTTP client
-├── pages/
-│   └── Dashboard.tsx                 # Admin Dashboard (Overview/Users/LLM Monitor tabs)
-├── App.tsx                           # Admin root component
-├── main.tsx                          # Admin entry
-└── index.css                         # Styles
-```
+### Memory System
+- Four memory types: PROFILE (preferences), TASK (patterns), FACT (business knowledge), EPISODIC (session context)
+- pgvector-backed semantic search with SHA256 deduplication
+- Automatic extraction from conversation transcripts
+- Top-K relevance injection into agent prompts
+
+### RAG Knowledge
+- pgvector dual-channel retrieval: business glossary terms + few-shot Q/A pairs
+- Configurable Top-K and score threshold per agent
+
+### MCP Tool Ecosystem
+- 4 built-in tools (SQL, Schema, Python, Data Sample)
+- MCP protocol support: SSE transport (remote) and Stdio transport (local CLI)
+- Dynamic tool discovery and registration
+- Agent Studio tool toggles control runtime tool gating
+
+### SQL Execution Safety
+- Multi-layer validation: safety check → user status → token quota
+- JSQLParser-based statement parsing
+- SQL audit logging via AOP
+- Automatic SQL repair (up to 2 retries)
 
 ---
 
-## ✨ Key Technologies
-
-| Technology | Purpose |
-|-----------|---------|
-| **React 19** | UI framework |
-| **TypeScript 5.8** | Type-safe JavaScript |
-| **Vite 6** | Dev server & build tool |
-| **Tailwind CSS 4.1** | Utility-first styling |
-| **Zustand 5** | Lightweight state management |
-| **Monaco Editor** (`@monaco-editor/react`) | SQL code editor |
-| **react-markdown** + **remark-gfm** | Markdown rendering for Agent reports |
-| **lucide-react** | Icon library |
-| **recharts** | Data visualization (result charts, admin dashboard charts) |
-| **shiki** | Code syntax highlighting |
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
 - pnpm / npm / yarn
-- Backend service running (see [backend README](https://github.com/shixia9/MustBeTheSQL-Server))
+- Backend service running (see [Backend README](https://github.com/shixia9/MustBeTheSQL-Server))
 
 ### 1. Clone and install
 
 ```bash
 git clone https://github.com/shixia9/MustBeTheSQL.git
-cd MustBeTheSQL
+cd MustBeTheSQL/sql-logic-client
 npm install
 ```
 
-### 2. Configure environment
-
-Copy `.env.example` to `.env` and set your backend API base URL and admin URL:
-
-```env
-VITE_API_BASE_URL=http://localhost:8080
-VITE_ADMIN_URL=http://localhost:3001
-```
-
-### 3. Start development server
+### 2. Start development server
 
 ```bash
 # Main client
 npm run dev
-# → http://localhost:3000
 
 # Admin dashboard (optional)
 cd ../sql-logic-admin
-npm run dev
-# → http://localhost:3001
+npm install && npm run dev
 ```
 
 ### 4. Production build
@@ -322,32 +264,148 @@ npm run preview
 
 ---
 
-## 🔗 Integration Points
+## Configuration
+
+Key configuration files:
+
+| File | Purpose |
+|------|---------|
+| `vite.config.ts` | Vite config (dev proxy, docs integration, build options) |
+| `tailwind.config.ts` | Tailwind theme + CSS variables |
+| `i18n/` | Internationalization resources (en, zh) |
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | Backend API base URL |
+| `VITE_ADMIN_URL` | `http://localhost:5144` | Admin dashboard URL |
+
+### Integration Points
 
 The frontend communicates with the backend via:
 
-| Channel | Protocol | Endpoints |
-|---------|----------|-----------|
-| **Agent SSE Stream** | Server-Sent Events | `POST /api/v1/agent/sql/stream` |
-| **Agent Resume** | SSE | `POST /api/v1/agent/sql/continue` |
-| **REST APIs** | JSON over HTTP | `/api/v1/*` |
-| **Admin Redirect** | New Tab | `VITE_ADMIN_URL` → Admin standalone SPA |
+| Channel | Protocol | Purpose |
+|---------|----------|---------|
+| **Agent SSE Stream** | Server-Sent Events | Real-time agent execution, thinking, and sandbox output |
+| **REST APIs** | JSON over HTTP | All non-streaming operations |
+| **Admin Redirect** | New Tab | Link to standalone admin SPA |
 
-### Request Context
+### SSE Event Types
 
-- **workspaceId**: carried in Agent requests and history queries for workspace-level isolation
-- **conversationId**: null on first turn, backfilled by COMPLETED event, subsequent queries carry the same ID for multi-turn conversations
-- **agentId**: custom Agent ID from Agent Studio, transmitted to backend for `AgentRuntimeConfigService` to load configuration
+| Event | Description |
+|-------|-------------|
+| `STARTED` | Agent node started execution |
+| `THINKING` | Streaming reasoning chunk (with `done` flag) |
+| `FINISHED` | Agent node completed with output |
+| `SANDBOX` | Sandbox code execution output (streaming) |
+| `PLAN_UPDATED` | Execution plan snapshot update |
+| `CONTEXT_COMPACT` | Context compression triggered (L1–L4) |
+| `COMPLETED` | Full agent run completed |
 
 ---
 
-## 🧪 Project Phases
+## API Endpoints
 
-### Completed
+### Multi-Agent
 
-- ✅ **Phase 1-5**: NL2SQL → Schema Linking → Plan Dispatch → HITL → RAG Knowledge
-- ✅ **Phase A**: Message type classification & category coloring + Workspace selector + Trace view + LLM test connection UI
-- ✅ **Phase B**: Agent Studio 5-section editor + LLM HA strategy panel + Memory management panel + Conversation context UI
-- ✅ **Phase C**: Sidebar History/Admin navigation + Conversation tabs & Continue + Tool toggle UI closure
-- ✅ **Phase D**: GitHub OAuth login button + Admin entry + contextStrategy UI + Workspace ownership fields
-- 🚧 **Phase E**: MCP server management page + Agent version management UI + Dynamic tool loading + Workspace ownership visualization
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/agentic/chat/stream` | POST | Start a multi-agent run (SSE streaming) |
+| `/api/v1/agentic/continue` | POST | Resume a paused HITL session (SSE) |
+| `/api/v1/sandbox/run` | POST | Execute code in sandbox |
+
+### SQL & Database
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/sql/execute` | POST | Execute SQL on connected database |
+| `/api/v1/sql/console/execute` | POST | SQL console execution |
+| `/api/v1/database/**` | Various | Database connection CRUD + metadata |
+| `/api/v1/schema/**` | Various | Schema browser (tables/columns/indexes/DDL) |
+
+### Workspaces
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/workspaces` | GET / POST | List / create workspaces |
+| `/api/v1/workspaces/{id}/members` | GET / POST | Member management |
+
+### Agent Studio
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/agent-entity` | CRUD | Agent configuration management |
+| `/api/v1/agent-entity/{id}/publish` | POST | Publish version snapshot |
+| `/api/v1/agent-entity/{id}/versions/{vid}/revert` | POST | Rollback to version |
+
+### LLM & Memory
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/llm-config` | CRUD | LLM provider configuration |
+| `/api/v1/llm-config/{id}/test` | POST | Test LLM connectivity |
+| `/api/v1/llm-config/{id}/strategy` | PUT | HA strategy + fallback chain |
+| `/api/v1/memory/**` | Various | Memory CRUD + extraction |
+
+### MCP Tools
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/mcp-servers` | GET / POST | List / add MCP servers |
+| `/api/v1/mcp-servers/{id}/connect` | POST | Reconnect |
+| `/api/v1/tools` | GET | List registered tools |
+
+---
+
+## Technology Stack
+
+| Technology | Purpose |
+|-----------|---------|
+| React 19 | UI framework |
+| TypeScript 5.8 | Type-safe development |
+| Vite 6 | Dev server & build tool |
+| Tailwind CSS 4 | Utility-first styling with CSS variables for theming |
+| Zustand 5 | Lightweight state management (persisted to localStorage) |
+| Monaco Editor | SQL code editor |
+| react-markdown + remark-gfm | Markdown rendering for agent reports |
+| lucide-react | Vector icon library |
+| recharts | Data visualization charts |
+| shiki | Code syntax highlighting |
+| i18next | Internationalization (English / Chinese) |
+
+---
+
+## Appendix: Feature Screenshots
+
+> The following sections are reserved for feature screenshots. Images will be added in future updates.
+
+### 1. Multi-Agent Chat Interface
+<!-- 截图占位：多Agent对话主界面，展示Agent执行时间线、思考过程面板、最终输出 -->
+
+### 2. Agent Thinking Process
+<!-- 截图占位：Agent思考过程流式展示，打字机效果，可折叠面板 -->
+
+### 3. Context Compression Visualization
+<!-- 截图占位：上下文压缩可视化，L1-L4层级展示，token预算进度环 -->
+
+### 4. Plan & TODO List
+<!-- 截图占位：执行计划TODO列表，步骤状态展示 -->
+
+### 5. SQL Execution & Results
+<!-- 截图占位：SQL生成、执行结果表格、图表可视化 -->
+
+### 6. Python Sandbox Execution
+<!-- 截图占位：代码执行终端，输出展示 -->
+
+### 7. HTML Report Rendering
+<!-- 截图占位：Dashboard Agent生成的HTML报告 -->
+
+### 8. Agent Studio Configuration
+<!-- 截图占位：Agent配置界面，prompt/工具/RAG/内存设置 -->
+
+### 9. Admin Dashboard
+<!-- 截图占位：管理后台，用户管理、LLM监控 -->
+
+### 10. Workspace Management
+<!-- 截图占位：多租户工作空间管理 -->

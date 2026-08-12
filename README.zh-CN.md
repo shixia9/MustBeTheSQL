@@ -1,4 +1,4 @@
-# 📊 Must Be The SQL (更新中...)
+# Must Be The SQL
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-19-blue" />
@@ -10,310 +10,253 @@
 </p>
 
 <p align="center">
-  <b>NL2SQL 智能 Agent 服务端 — StateGraph 多步推理引擎 + LLM 高可用 + MCP 工具生态 + 多租户工作区</b>
+  <b>Multi-Agent NL2SQL 平台 — 自主数据分析 · LLM 思考模式 · 上下文压缩 · 沙箱代码执行</b>
 </p>
 
 <p align="center">
-  <a href="./README.md">🇺🇸 English</a> |
-  <a href="#快速开始">⚡ 快速开始</a> |
-  <a href="https://github.com/shixia9/MustBeTheSQL-Server">服务端</a>
+  <a href="./README.md">English</a> |
+  <a href="#快速开始">快速开始</a> |
+  <a href="#架构设计">架构设计</a> |
+  <a href="https://github.com/shixia9/MustBeTheSQL-Server">后端</a>
 </p>
 
 ---
 
-## 📖 项目简介
-
-**SQL Logic Engine 前端** 是一个基于 React 19 + TypeScript + Vite 构建的现代化应用。它提供了直观的数据库探索和管理界面，以及一个**实时 AI Agent 终端**，可视化展示 SQL Agent 的多步推理过程——从记忆检索、知识召回、Schema 分析、执行计划、SQL 生成到最终报告的全链路。
-
-### 核心体验
-
-| 功能模块 | 说明 |
-|---------|------|
-| **Agent 终端** | 自然语言输入，SSE 实时流式渲染 18 个节点的执行时间线 |
-| **多轮追问** | 会话上下文自动累积，支持连续追问和 "Continue" 恢复历史会话 |
-| **Agent Studio** | 可视化配置 Agent（提示词/工具开关/RAG/记忆/上下文策略/版本管理） |
-| **工作区管理** | 创建/加入工作区，成员邀请与角色管理，工作区级资源隔离 |
-| **SQL 控制台** | 多标签 Monaco 编辑器 + Schema 树形浏览器 + DDL 生成 |
-| **LLM 配置** | 多 Provider 管理 + HA 策略面板（策略选择/降级链/健康指标） |
-| **MCP 工具生态** | 内置 4 个 BUILTIN 工具 + MCP 协议 (SSE/Stdio) 外部工具接入，Agent Studio 统一开关 |
-| **记忆管理** | 可视化记忆列表（类型筛选/手动添加/删除） |
-| **管理后台** | 独立 Admin SPA（用户管理/LLM 监控/使用统计） |
+<!-- 主页截图 -->
+<p align="center">
+  <em><!-- 系统主页截图占位 --></em>
+</p>
 
 ---
 
-## 🧠 AI Agent 实时时间线
+## 项目简介
 
-**Agent Flow Panel** 是应用的核心组件——一个终端/CLI 风格的实时时间线，逐节点展示后端 StateGraph 的执行过程。
+Must Be The SQL 是一个 AI 数据助手平台。用户用自然语言描述数据需求，一组专业 AI Agent 协作完成数据库探索、多步执行规划、SQL 生成与修复、沙箱代码分析，最终交付综合报告。
+
+每个 Agent 拥有独立的 LLM 思考过程，推理链路实时流式展示在前端，让用户清晰看到 Agent 的决策逻辑。
+
+### 核心能力
+
+- **多 Agent 协作** — Manager Agent 编排调度专业 Agent（Data Scientist、Code Assistant、Tool Assistant、Dashboard Assistant），各 Agent 自主决策
+- **渐进式上下文压缩** — 四层策略（L1–L4）在 token 预算内保持对话连续性，不丢失关键上下文
+- **沙箱代码执行** — Python/Shell 脚本在 Docker 隔离沙箱中运行，含安全校验
+- **多轮对话** — 上下文自动累积，支持追问、摘要、记忆注入
+- **MCP 工具生态** — 内置工具 + Model Context Protocol 外部工具集成
+- **人机协同** — 可选的执行计划审批环节，支持自动确认模式
+- **多租户工作区** — 用户→工作区两级隔离，4 级角色权限
+- **LLM 高可用** — 负载均衡、熔断器、降级链、会话亲和
+
+---
+
+## 架构设计
+
+### Multi-Agent 系统
+
+平台采用多 Agent 架构，**Manager** Agent 接收用户请求并分派给专业 Worker Agent。每个 Agent 拥有独立的 LLM 策略、记忆和动作集。
 
 ```mermaid
-sequenceDiagram
-    actor User as 用户
-    participant FE as 前端
-    participant BE as 后端
-    participant DB as 数据库
+flowchart TB
+    User[用户提问] --> Manager[Manager Agent<br/>编排器]
 
-    User->>FE: 输入自然语言问题，选择工作区/Agent
-    FE->>BE: POST /api/v1/agent/sql/stream (SSE, 含 workspaceId/conversationId)
+    Manager --> Router{复杂度路由}
 
-    Note over BE: StateGraph 开始执行
+    Router -->|闲聊| Chitchat[Manager 直接用 LLM 回答<br/>不走 SQL 流程]
+    Router -->|澄清| Clarify[请求用户澄清<br/>HITL 卡点]
+    Router -->|简单| DS[Data Scientist]
+    Router -->|复杂| Planner[Planner Agent<br/>任务分解]
+    Router -->|工具| TA[Tool Assistant]
 
-    BE-->>FE: SSE: MEMORY_RECALL (检索到的用户记忆)
-    BE-->>FE: SSE: EVIDENCE_RECALL (改写后的查询, RAG 结果)
-    BE-->>FE: SSE: SCHEMA_LINKING (过滤后的表, 外键关系)
-    BE-->>FE: SSE: FEASIBILITY_ASSESSMENT (任务类型, 可行性结论)
-    BE-->>FE: SSE: PLANNER (多步执行计划)
+    Planner --> DS
+    Planner --> CA[Code Assistant]
+    Planner --> TA
 
-    alt 需要人工审核
-        FE-->>User: 显示包含完整计划的审批卡片
-        User->>FE: 批准 / 拒绝 + 反馈意见
-        FE->>BE: POST /api/v1/agent/sql/continue
-    end
+    DS -->|SQL 生成 + 执行| DB[(数据库)]
+    CA -->|Python/Shell 代码| Sandbox[Docker 沙箱]
+    TA -->|MCP 工具调用| ExtTools[外部工具]
 
-    Note over BE: 执行工具链 (SQL / Python)
-
-    BE-->>FE: SSE: SQL_GENERATION (生成的 SQL, Token 统计)
-    BE-->>FE: SSE: SQL_EXECUTION (结果集 / 错误)
-    alt SQL 出错
-        BE-->>FE: SSE: SQL_FIXER (修复后的 SQL)
-        BE-->>FE: SSE: SQL_EXECUTION (重试结果)
-    end
-
-    BE-->>FE: SSE: PYTHON_GENERATION (生成的代码)
-    BE-->>FE: SSE: PYTHON_EXECUTION (输出)
-    BE-->>FE: SSE: PYTHON_ANALYSIS (分析结论)
-
-    BE-->>FE: SSE: REPORT (最终 Markdown 报告)
-    BE-->>FE: SSE: COMPLETED (含 conversationId)
-
-    FE-->>User: 展示完整的 Agent 执行时间线 + 可切换 Trace 视图
+    DS & CA & TA --> Dashboard[Dashboard Assistant]
+    Dashboard -->|htmlReport: true| Report[HTML 报告 + 图表]
+    Report --> User
 ```
 
-### Agent 时间线特性
+### Agent 角色
 
-| 特性 | 说明 |
-|------|------|
-| **实时流式渲染** | 每个节点完成的瞬间即出现对应的时间线卡片 |
-| **消息类型区分** | 5 种消息类型（THINKING/TOOL_CALL/TOOL_RESULT/REPORT/STATUS），各有独立配色与动画 |
-| **逐步骤可视化** | 18 种节点类型，各有独立图标、分类配色（planning 蓝/execution 绿/gate 琥珀/report 主色）和中文标签 |
-| **人工介入（HITL）界面** | 审批卡片展示完整执行计划，包含可折叠的 plan/view/report 区块；用户可批准、拒绝或提供修改意见 |
-| **自动确认开关** | 一键切换是否跳过审核门控（计划自动执行） |
-| **Trace 视图** | 切换「Timeline」/「Trace」，查看 Token 统计 + 时序瀑布条形图 + 每步延迟 |
-| **SQL 结果表格** | 渲染查询结果，支持分页和图表切换（数值数据柱状图） |
-| **Python 代码展示** | 可折叠的代码块，支持语法高亮（shiki） |
-| **可行性评估卡片** | 带图标与语义配色（✓ 可执行 / ⚠ 需澄清 / 💬 闲聊） |
-| **运行态动画** | 运行中节点显示脉冲文本 + 旋转加载图标 |
-| **执行耗时** | 每个步骤显示格式化耗时（如 `1.2s`） |
-| **错误高亮** | 失败步骤红色标记，显示详细错误信息 |
-| **知识召回卡片** | 可折叠卡片展示 RAG 检索到的术语表和 Few-Shot 问答对及关联度分数 |
-| **多轮追问** | "New" 按钮重置会话，COMPLETED 事件回填 conversationId 实现连续对话 |
+| Agent | 角色 | 能力 |
+|-------|------|------|
+| **Manager** | 编排器 | 接收用户请求，按复杂度路由，协调 Worker Agent，汇总结果 |
+| **Planner** | 任务规划 | 将复杂请求分解为结构化执行计划，逐步分配任务 |
+| **Data Scientist** | SQL 专家 | 多候选 SQL 生成、执行、自动修复、图表可视化 |
+| **Code Assistant** | 代码工程师 | Python/Shell 代码生成、沙箱执行、数据分析 |
+| **Tool Assistant** | 工具专家 | MCP 外部工具发现与调用 |
+| **Dashboard Assistant** | 报告生成 | 将执行结果合成为 HTML 报告、仪表盘、摘要 |
+
+### 路由路径
+
+Manager Agent 对每个请求进行分类，走以下五条路径之一：
+
+| 路径 | 触发条件 | 行为 |
+|------|---------|------|
+| **工具执行** | 用户从 `/` 命令面板选择了「工具」 | 直连 Tool Assistant，跳过复杂度评估 |
+| **闲聊** | 问候、通用知识、能力咨询 | Manager 直接用 LLM 回答 — 不走 SQL 流程，不生成报告 |
+| **澄清** | 问题模糊或缺少关键信息 | 请求用户澄清（启用 HITL 时为审批卡点） |
+| **简单** | 单条 SQL 即可回答 | 直连 Data Scientist（跳过 Planner），再走文本摘要（不生成 HTML 报告） |
+| **复杂** | 需要报告/图表/多步分析 | Planner → Workers → Dashboard 全流程（生成 HTML 报告） |
+
+### Agent 间通信
+
+Agent 通过可插拔消息总线通信，支持三种模式（由 `bus-orc.mode` 控制）：
+
+| 模式 | 行为 | 适用场景 |
+|------|------|---------|
+| `OFF`（默认） | 直接方法调用 | 生产环境 |
+| `SWITCH` | 总线中介请求/响应 | 完全总线编排 |
+
+### 上下文压缩
+
+四层渐进式策略在 token 预算内保持对话连续性：
+
+```mermaid
+flowchart LR
+    L1[L1: 截断观察<br/>≥70% token 使用] -->|不足| L2[L2: 丢弃旧轮<br/>保留 ≥3 轮近期对话]
+    L2 -->|不足| L3[L3: LLM 摘要<br/>≥90% token 使用]
+    L3 -->|LLM 上下文错误| L4[L4: 紧急截断<br/>保留最后 2 轮]
+```
+
+### 沙箱执行
+
+沙箱模块采用四层架构，保障代码执行安全：
+
+| 层 | 职责 |
+|----|------|
+| **执行层** | `SandboxRuntime`（Docker/Local）— 隔离代码执行 |
+| **控制层** | `SandboxControlService` — 会话级锁、生命周期管理 |
+| **用户层** | `SandboxController` — 代码提交 REST API |
+| **展示层** | `DisplayResult` — 格式化输出供前端渲染 |
+
+安全默认 **fail-closed**：优先 Docker；Local 运行时仅限开发测试。
 
 ---
 
-## 🖥️ 用户界面
+## 项目结构
 
-### 页面总览
+```
+MustBeTheSQL/
+├── sql-logic-client/           # 主客户端应用
+│   ├── src/
+│   │   ├── pages/              #   路由页面（对话、Schema、历史、Agent Studio 等）
+│   │   ├── components/
+│   │   │   ├── agent/          #   Agent 执行 UI（StepTimeline、ThinkingPanel、OutputPanel 等）
+│   │   │   ├── chart/         #   图表可视化
+│   │   │   ├── editor/        #   Monaco SQL 编辑器
+│   │   │   ├── layout/        #   应用布局、侧边栏、顶部导航
+│   │   │   ├── ui/            #   共享 UI 组件
+│   │   │   └── workflow/      #   工作流编辑器节点
+│   │   ├── stores/            #   Zustand 状态管理（对话、工作区、命令面板）
+│   │   ├── contexts/          #   React Context（认证、LLM配置、设置、布局）
+│   │   ├── api/               #   HTTP 客户端
+│   │   ├── i18n/              #   国际化（中/英）
+│   │   └── utils/             #   工具函数（可视化解析、图表分析、导出）
+│   ├── vite.config.ts         #   Vite 配置（代理、文档集成）
+│   └── package.json
+│
+├── sql-logic-admin/           # 管理后台
+│   ├── src/
+│   │   ├── pages/Dashboard.tsx #   概览、用户管理、LLM 监控
+│   │   └── App.tsx
+│   └── package.json
+│
+└── sql-logic-docs/            # 文档站点
+    ├── docs/
+    │   └── guide/             #   Agent 执行、工作流设计、管理后台
+    └── docusaurus.config.ts
+```
+
+### 页面一览
 
 | 页面 | 路由 | 用途 |
 |------|------|------|
-| **Dashboard** | `/dashboard` | **Agent 终端** — 自然语言转 SQL 的主界面，展示 Agent 执行时间线 |
-| **Schema Browser** | `/schema-browser` | **数据库浏览器 + 多标签 SQL 编辑器** — 探索 Schema、直接编写和执行 SQL |
-| **History** | `/history` | 查询历史 + **会话列表**（按 conversation 分组，支持 "Continue" 继续追问） |
-| **Agent Studio** | `/agent-studio` | **Agent 编辑器** — 五段式配置（基础信息/提示词/工具/RAG/记忆）+ 版本管理 |
-| **MCP Servers** | `/mcp-servers` | MCP 服务器管理（添加/连接/断开，支持 SSE 和 Stdio 两种传输协议） |
-| **Workspace Manage** | `/workspace-manage` | 工作区管理 — 成员邀请、角色变更、工作区设置 |
-| **Database** | `/database` | 管理数据库连接 |
-| **Settings** | `/settings` | LLM 配置 + **HA 策略面板** + **记忆管理面板** |
-| **Profile** | `/profile` | 用户个人信息 |
-| **Login** | `/login` | 登录/注册 + GitHub OAuth SSO 按钮 |
-
-### Dashboard — Agent 终端
-
-主页展示如下内容：
-- **顶部栏**：数据库连接选择器（含在线指示灯）、LLM 配置选择器、自动确认开关
-- **工作区选择器**：侧边栏顶部可切换工作区，实现资源隔离
-- **终端风格输出区**：展示 Agent 执行时间线，每个节点一个分类配色结果卡片
-- **Trace/Timeline 切换**：时间线视图和 Trace 性能视图一键切换
-- **底部的命令输入框**：用户在此输入自然语言查询
-
-每个 Agent 节点卡片包含：
-- 状态图标（`✓` 成功、`◉` 运行中、`✗` 失败、`○` 等待）
-- 按分类的彩色左边框（planning/execution/gate/report）
-- 带 Emoji 图标的节点名称 + 消息类型徽章
-- 格式化执行耗时
-- 节点特定内容（SQL 代码块、执行结果、分析文本等）
-
-### Agent Studio — Agent 编辑器
-
-五段式配置界面：
-1. **基础信息**：头像、名称、描述
-2. **提示词配置**：系统提示词 + 欢迎消息
-3. **工具配置**：4 个工具开关卡片（SQL/Schema/Python/Data Sample），MCP 外部工具动态注册后自动出现在此面板
-4. **RAG 检索配置**：启用开关 + Top-K + Score 阈值 + **上下文策略**（TRUNCATE/SUMMARIZE）
-5. **记忆系统**：注入开关
-
-底部操作：保存 / 设为默认 / 删除 / **Publish Version**（版本快照）
-
-### Schema Browser — 数据库工作台
-
-- **左侧面板**：Schema、表、列、索引的树形导航
-- **编辑区**：基于 Monaco Editor 的多标签 SQL 控制台
-- SQL 语法高亮（通过 `sql-formatter`）
-- 表数据预览，支持嵌入编辑器
-- DDL 自动生成与导出
-
-### Settings — LLM 高可用与记忆管理
-
-- **LLM 配置卡片**：Provider/模型/Base URL/API Key 管理 + 测试连接按钮 + 健康状态点
-- **HA 策略面板**（每张卡片可展开）：熔断状态/成功率/延迟指标 + 策略选择器 + 降级回退链多选
-- **记忆管理面板**：类型筛选（PROFILE/TASK/FACT/EPISODIC）+ 手动添加表单 + 记忆列表（含重要性/时间/删除）
-
-### History — 查询与会话
-
-- **Queries 标签**：扁平 Agent 执行记录列表，按工作区过滤
-- **Conversations 标签**：会话卡片列表（标题/轮次数/最后消息/时间），「Continue」按钮恢复历史会话
-
-### 管理后台（Admin SPA，端口 3001）
-
-- **Overview**：统计卡片 + recharts 柱状图（LLM 调用量 by Config）
-- **Users**：搜索 + 分页表格（用户名/邮箱/状态/配额/管理员标记），操作：启用/禁用、调整配额
-- **LLM Monitor**：各配置调用量/成功率（进度条）/失败数/平均延迟/Token 消耗表
+| **对话** | `/chat` | 多 Agent 对话界面，含时间线、思考过程和报告 |
+| **Schema 浏览** | `/schema-browser` | 数据库浏览 + 多标签 SQL 控制台 |
+| **历史** | `/history` | 查询历史 + 对话列表（支持"继续"恢复） |
+| **Agent Studio** | `/agent-studio` | Agent 配置（提示词/工具/RAG/记忆） |
+| **工作流编辑** | `/flow-editor` | 可视化工作流编辑器 |
+| **MCP 服务器** | `/mcp-servers` | MCP 服务器管理（SSE/Stdio） |
+| **数据库** | `/database` | 数据库连接管理 |
+| **设置** | `/settings` | LLM 配置 + HA 策略 + 记忆管理 |
+| **工作区** | `/workspace-manage` | 工作区与成员管理 |
+| **知识库** | `/knowledge` | 知识库管理 |
+| **技能** | `/skills` | 技能管理 |
+| **登录** | `/login` | 认证 + GitHub OAuth |
 
 ---
 
-## 🏗️ 项目结构
+## 平台功能
 
-```
-src/
-├── api/
-│   └── client.ts                      # HTTP 客户端（基于 fetch，覆盖所有 API）
-├── components/
-│   ├── agent/
-│   │   ├── AgentFlowPanel.tsx         # 主 Agent 时间线组件（SSE 流式 + conversationId + Trace 切换）
-│   │   └── cards/
-│   │       ├── EvidenceRecallCard.tsx # RAG 知识召回展示
-│   │       ├── FeasibilityCard.tsx    # 可行性评估卡片（语义配色）
-│   │       ├── SqlCodeBlock.tsx       # 语法高亮 SQL/代码
-│   │       ├── ThinkingSection.tsx    # 可折叠详情区块（含运行态动画）
-│   │       ├── TraceCard.tsx          # Trace 性能视图（统计头 + 瀑布图）
-│   │       └── ResultChart.tsx        # 柱状图可视化
-│   ├── editor/
-│   │   └── SqlEditor.tsx             # 基于 Monaco 的 SQL 编辑器
-│   ├── workspace/
-│   │   ├── WorkspaceTree.tsx         # Schema 树形导航
-│   │   ├── WorkspaceEditor.tsx       # 多标签编辑器容器
-│   │   ├── WorkspaceSelector.tsx     # 工作区选择器
-│   │   ├── SqlConsole.tsx            # SQL 执行控制台
-│   │   └── TableCell.tsx             # 表格单元渲染
-│   ├── LlmStrategyPanel.tsx          # LLM HA 策略面板（指标 + 策略 + 降级链）
-│   ├── MemoryPanel.tsx               # 记忆管理面板（筛选/添加/删除）
-│   ├── Sidebar.tsx                   # 左侧导航（含工作区选择器、Admin 入口）
-│   ├── TopNav.tsx                    # 顶部导航栏
-│   ├── ConfirmDialog.tsx             # 确认对话框
-│   └── ErrorBoundary.tsx             # 错误边界
-├── contexts/
-│   ├── SettingsContext.tsx            # 全局设置上下文
-│   └── LlmConfigContext.tsx           # LLM 配置上下文
-├── pages/
-│   ├── DashboardPage.tsx             # Agent 终端主页（含 initialConversationId）
-│   ├── AgentStudioPage.tsx           # Agent 编辑器（五段式 + 上下文策略 + 版本管理入口）
-│   ├── SchemaBrowserPage.tsx         # Schema 浏览器（重命名自 WorkspacePage）
-│   ├── HistoryPage.tsx               # 查询历史 + 会话标签页（Continue 按钮）
-│   ├── WorkspaceManagePage.tsx       # 工作区管理（成员/角色）
-│   ├── McpServerPage.tsx             # MCP 服务器管理（Phase E 建设中）
-│   ├── DatabasePage.tsx              # 连接管理
-│   ├── SettingsPage.tsx              # LLM 配置 + HA 策略 + 记忆管理
-│   ├── ProfilePage.tsx               # 个人信息
-│   ├── LoginPage.tsx                 # 登录/注册 + GitHub OAuth 按钮
-│   └── JoinWorkspacePage.tsx         # 加入工作区
-├── stores/
-│   └── workspaceStore.ts             # Zustand 工作区状态管理
-├── types/
-│   ├── agent.ts                      # Agent 时间线类型（MessageType/分类/配色/Trace）
-│   └── types.ts                      # 共享类型（含 Page/admin/Agent/LlmConfig 等）
-├── utils/
-│   ├── memoryUtils.ts                # 内存缓存
-│   └── storageUtils.ts               # LocalStorage 工具
-├── i18n/
-│   ├── index.ts                      # 国际化入口
-│   └── locales/
-│       ├── en.json                   # 英语翻译
-│       └── zh.json                   # 中文翻译
-├── App.tsx                           # 根组件（路由 + navigate 事件 + Admin 跳转）
-├── main.tsx                          # 入口文件
-└── constants.ts                      # 应用常量
-```
+### 安全认证
+- Sa-Token 会话管理（Redis 支持）
+- GitHub OAuth 单点登录
+- 5 层 SQL 校验链
+- 可选限流（30 请求/分钟/用户）
 
-### 独立 Admin 前端（`sql-logic-admin/`）
+### LLM 高可用
+- 4 种负载均衡策略：轮询 / 延迟优先 / 成功率优先 / 智能加权
+- 熔断器：连续 5 次失败后开启，30 秒冷却
+- 用户可配置降级链
+- 会话亲和保持上下文稳定
+- 每分钟指标聚合（调用量、成功率、延迟、token 用量）
 
-```
-sql-logic-admin/src/
-├── api/
-│   └── client.ts                     # Admin HTTP 客户端
-├── pages/
-│   └── Dashboard.tsx                 # Admin Dashboard（Overview/Users/LLM Monitor 三标签）
-├── App.tsx                           # Admin 根组件
-├── main.tsx                          # Admin 入口
-└── index.css                         # 样式
-```
+### 记忆系统
+- 四种记忆类型：PROFILE（偏好）、TASK（任务模式）、FACT（业务知识）、EPISODIC（会话上下文）
+- pgvector 语义搜索 + SHA256 去重
+- 从对话记录自动抽取
+- Top-K 相关性注入 Agent 提示词
+
+### RAG 知识
+- pgvector 双通道检索：业务术语 + Few-shot 问答对
+- 每个 Agent 可配置 Top-K 和分数阈值
+
+### MCP 工具生态
+- 4 个内置工具（SQL、Schema、Python、数据采样）
+- MCP 协议支持：SSE 传输（远程）和 Stdio 传输（本地 CLI）
+- 动态工具发现与注册
+- Agent Studio 工具开关控制运行时门控
+
+### SQL 执行安全
+- 多层校验：安全检查 → 用户状态 → token 配额
+- JSQLParser 语句解析
+- AOP SQL 审计日志
+- 自动 SQL 修复（最多 2 次重试）
 
 ---
 
-## ✨ 核心技术栈
-
-| 技术 | 用途 |
-|------|------|
-| **React 19** | UI 框架 |
-| **TypeScript 5.8** | 类型安全 |
-| **Vite 6** | 开发服务器与构建工具 |
-| **Tailwind CSS 4.1** | 原子化样式 |
-| **Zustand 5** | 轻量状态管理 |
-| **Monaco Editor** (`@monaco-editor/react`) | SQL 代码编辑器 |
-| **react-markdown** + **remark-gfm** | 报告 Markdown 渲染 |
-| **lucide-react** | 图标库 |
-| **recharts** | 数据可视化（结果图表、管理后台统计图） |
-| **shiki** | 代码语法高亮 |
-
----
-
-## 🚀 快速开始
+## 快速开始
 
 ### 前置条件
 
 - Node.js 18+
 - pnpm / npm / yarn
-- 后端服务已启动（参见[后端 README](https://github.com/shixia9/MustBeTheSQL-Server)）
+- 后端服务已启动（见 [后端 README](https://github.com/shixia9/MustBeTheSQL-Server)）
 
 ### 1. 克隆并安装
 
 ```bash
 git clone https://github.com/shixia9/MustBeTheSQL.git
-cd MustBeTheSQL
+cd MustBeTheSQL/sql-logic-client
 npm install
 ```
 
-### 2. 配置环境
-
-复制 `.env.example` 为 `.env`，设置后端 API 地址和管理后台地址：
-
-```env
-VITE_API_BASE_URL=http://localhost:8080
-VITE_ADMIN_URL=http://localhost:3001
-```
-
-### 3. 启动开发服务器
+### 2. 启动开发服务器
 
 ```bash
 # 主客户端
 npm run dev
-# → http://localhost:3000
 
 # 管理后台（可选）
 cd ../sql-logic-admin
-npm run dev
-# → http://localhost:3001
+npm install && npm run dev
 ```
 
-### 4. 构建生产版本
+### 4. 生产构建
 
 ```bash
 npm run build
@@ -322,32 +265,148 @@ npm run preview
 
 ---
 
-## 🔗 集成方式
+## 配置说明
 
-前端通过以下方式与后端通信：
+核心配置文件：
 
-| 通道 | 协议 | 端点 |
+| 文件 | 用途 |
+|------|------|
+| `vite.config.ts` | Vite 配置（开发代理、文档集成、构建选项） |
+| `tailwind.config.ts` | Tailwind 主题 + CSS 变量 |
+| `i18n/` | 国际化资源（中/英） |
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `VITE_API_BASE_URL` | `http://localhost:8080` | 后端 API 地址 |
+| `VITE_ADMIN_URL` | `http://localhost:5144` | 管理后台地址 |
+
+### 集成方式
+
+前端与后端通过以下方式通信：
+
+| 通道 | 协议 | 用途 |
 |------|------|------|
-| **Agent SSE 流** | Server-Sent Events | `POST /api/v1/agent/sql/stream` |
-| **Agent 恢复** | SSE | `POST /api/v1/agent/sql/continue` |
-| **REST API** | JSON over HTTP | `/api/v1/*` |
-| **Admin 跳转** | 新标签页 | `VITE_ADMIN_URL` → Admin 独立 SPA |
+| **Agent SSE 流** | Server-Sent Events | 实时 Agent 执行、思考过程和沙箱输出 |
+| **REST API** | JSON over HTTP | 所有非流式操作 |
+| **管理后台跳转** | 新标签页 | 跳转至独立管理 SPA |
 
-### 请求上下文
+### SSE 事件类型
 
-- **workspaceId**：Agent 请求和会话查询可携带，实现工作区级隔离
-- **conversationId**：首轮为 null，COMPLETED 事件回填，后续追问携带同一 ID 实现多轮对话
-- **agentId**：Agent Studio 创建的自定义 Agent ID，传输到后端通过 `AgentRuntimeConfigService` 加载配置
+| 事件 | 说明 |
+|------|------|
+| `STARTED` | Agent 节点开始执行 |
+| `THINKING` | 流式推理分块（含 `done` 标志） |
+| `FINISHED` | Agent 节点执行完成，携带输出 |
+| `SANDBOX` | 沙箱代码执行输出（流式） |
+| `PLAN_UPDATED` | 执行计划快照更新 |
+| `CONTEXT_COMPACT` | 上下文压缩触发（L1–L4） |
+| `COMPLETED` | 完整 Agent 运行结束 |
 
 ---
 
-## 🧪 项目阶段
+## API 接口
 
-### 已完成
+### Multi-Agent
 
-- ✅ **Phase 1-5**：NL2SQL → Schema Linking → 计划调度 → HITL → RAG 知识库
-- ✅ **Phase A**：消息类型区分与分类配色 + 工作区选择器 + Trace 视图 + LLM 测试连接 UI
-- ✅ **Phase B**：Agent Studio 五段式编辑器 + LLM HA 策略面板 + 记忆管理面板 + 会话上下文 UI
-- ✅ **Phase C**：侧边栏 History/Admin 导航 + 会话标签页与 Continue + 工具开关 UI 闭环
-- ✅ **Phase D**：GitHub OAuth 登录按钮 + Admin 入口 + contextStrategy UI + 工作区归属字段
-- 🚧 **Phase E**：MCP 服务器管理页面 + Agent 版本管理 UI + 工具动态加载 + 工作区归属可视化
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/agentic/chat/stream` | POST | 启动 Multi-Agent 运行（SSE 流式） |
+| `/api/v1/agentic/continue` | POST | 恢复暂停的 HITL 会话（SSE） |
+| `/api/v1/sandbox/run` | POST | 在沙箱中执行代码 |
+
+### SQL 与数据库
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/sql/execute` | POST | 在连接的数据库上执行 SQL |
+| `/api/v1/sql/console/execute` | POST | SQL 控制台执行 |
+| `/api/v1/database/**` | 各种 | 数据库连接 CRUD + 元数据 |
+| `/api/v1/schema/**` | 各种 | Schema 浏览（表/列/索引/DDL） |
+
+### 工作区
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/workspaces` | GET / POST | 列表 / 创建工作区 |
+| `/api/v1/workspaces/{id}/members` | GET / POST | 成员管理 |
+
+### Agent Studio
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/agent-entity` | CRUD | Agent 配置管理 |
+| `/api/v1/agent-entity/{id}/publish` | POST | 发布版本快照 |
+| `/api/v1/agent-entity/{id}/versions/{vid}/revert` | POST | 回滚到指定版本 |
+
+### LLM 与记忆
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/llm-config` | CRUD | LLM 提供商配置 |
+| `/api/v1/llm-config/{id}/test` | POST | 测试 LLM 连通性 |
+| `/api/v1/llm-config/{id}/strategy` | PUT | HA 策略 + 降级链 |
+| `/api/v1/memory/**` | 各种 | 记忆 CRUD + 抽取 |
+
+### MCP 工具
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/mcp-servers` | GET / POST | 列表 / 添加 MCP 服务器 |
+| `/api/v1/mcp-servers/{id}/connect` | POST | 重连 |
+| `/api/v1/tools` | GET | 列出已注册工具 |
+
+---
+
+## 技术栈
+
+| 技术 | 用途 |
+|------|------|
+| React 19 | UI 框架 |
+| TypeScript 5.8 | 类型安全开发 |
+| Vite 6 | 开发服务器与构建工具 |
+| Tailwind CSS 4 | 原子化 CSS，CSS 变量主题系统 |
+| Zustand 5 | 轻量状态管理（持久化到 localStorage） |
+| Monaco Editor | SQL 代码编辑器 |
+| react-markdown + remark-gfm | Agent 报告 Markdown 渲染 |
+| lucide-react | 矢量图标库 |
+| recharts | 数据可视化图表 |
+| shiki | 代码语法高亮 |
+| i18next | 国际化（中文 / 英文） |
+
+---
+
+## 附录：功能截图
+
+> 以下区域预留给功能截图，图片将在后续更新中补充。
+
+### 1. 多 Agent 对话界面
+<!-- 截图占位：多Agent对话主界面，展示Agent执行时间线、思考过程面板、最终输出 -->
+
+### 2. Agent 思考过程
+<!-- 截图占位：Agent思考过程流式展示，打字机效果，可折叠面板 -->
+
+### 3. 上下文压缩可视化
+<!-- 截图占位：上下文压缩可视化，L1-L4层级展示，token预算进度环 -->
+
+### 4. 执行计划 TODO 列表
+<!-- 截图占位：执行计划TODO列表，步骤状态展示 -->
+
+### 5. SQL 执行与结果
+<!-- 截图占位：SQL生成、执行结果表格、图表可视化 -->
+
+### 6. Python 沙箱执行
+<!-- 截图占位：代码执行终端，输出展示 -->
+
+### 7. HTML 报告渲染
+<!-- 截图占位：Dashboard Agent生成的HTML报告 -->
+
+### 8. Agent Studio 配置
+<!-- 截图占位：Agent配置界面，prompt/工具/RAG/内存设置 -->
+
+### 9. 管理后台
+<!-- 截图占位：管理后台，用户管理、LLM监控 -->
+
+### 10. 工作空间管理
+<!-- 截图占位：多租户工作空间管理 -->
