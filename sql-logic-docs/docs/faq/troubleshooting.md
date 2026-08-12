@@ -14,8 +14,8 @@ description: 部署与运行常见问题排查
 flowchart TD
   P["出现问题"] --> Q1{"是什么类型？"}
   Q1 -- "页面打不开 / 404" --> D1["部署类：查 baseUrl 与 Nginx"]
-  Q1 -- "工作流结果不对" --> D2["运行类：查节点输入输出"]
-  Q1 -- "Agent 没反应 / 报错" --> D3["Agent 类：查提问与数据源"]
+  Q1 -- "Agent 结果不对" --> D2["运行类：查提问与数据源"]
+  Q1 -- "Agent 没反应 / 报错" --> D3["Agent 类：查 LLM 与配置"]
   Q1 -- "构建失败" --> D4["构建类：查依赖与配置"]
   style P fill:#fee,stroke:#d94545
 ```
@@ -40,30 +40,15 @@ flowchart TD
 
 子域名模式（`docs.example.com`）必须把 `baseUrl` 从 `/docs/` 改为 `/` 再重新构建，否则 URL 会变成 `docs.example.com/docs/docs/...`。
 
+### 后端启动失败：数据库连接拒绝
+
+检查项：
+1. MySQL、PostgreSQL、Redis、Nacos 是否都已启动
+2. `application-local.yml` 中的连接凭据是否正确
+3. PostgreSQL 是否安装了 pgvector 扩展（`CREATE EXTENSION vector;`）
+4. Flyway 迁移脚本版本是否冲突
+
 ## 运行类
-
-### DatabaseResource 看不到表清单
-
-1. 确认节点已选中连接；
-2. 确认数据库账号对目标 Schema 有查询权限；
-3. 在控制台 Workflows 里查看这次执行的错误信息；
-4. 确认后端能连通该数据源（看后端日志）。
-
-### 工作流执行失败
-
-```mermaid
-flowchart LR
-  Fail["执行失败"] --> Find["控制台 Workflows 找到这次记录"]
-  Find --> Node["点进记录，找标红的节点"]
-  Node --> In["查看该节点的输入是否正确"]
-  In --> Fix["回主客户端改配置重跑"]
-  style Fail fill:#fee,stroke:#d94545
-  style Fix fill:#efe,stroke:#3b8c5e
-```
-
-绝大多数失败都源于某个节点的输入不对（选错表、提问太模糊），定位到具体节点后改配置重跑即可。
-
-## Agent 类
 
 ### Agent 结果不准或答非所问
 
@@ -71,15 +56,94 @@ flowchart LR
 
 ### Agent 一直没有结果
 
-- 检查上游数据节点是否已成功执行（Agent 会等待所有上游就绪）；
-- 在控制台查看该 Agent 的步骤是否卡在某一步；
-- 确认后端 LLM 配置正常（看后端日志是否有调用异常）。
+- 检查后端 LLM 配置是否正常（看后端日志是否有调用异常）
+- 确认 LLM API Key 有效且有余额
+- 在控制台 LLM Monitor 查看该对话的 Agent 步骤是否卡在某一步
+- 如果是 Code Assistant 卡住，检查 Docker 是否可用（沙箱执行依赖 Docker）
+
+```mermaid
+flowchart LR
+  Stuck["Agent 卡住"] --> Check1{"LLM 配置正常？"}
+  Check1 -- "否" --> Fix1["检查 API Key / 余额"]
+  Check1 -- "是" --> Check2{"Docker 可用？<br/>（Code Assistant）"}
+  Check2 -- "否" --> Fix2["启动 Docker 或配置沙箱"]
+  Check2 -- "是" --> Check3["看后端日志<br/>找具体错误"]
+  style Stuck fill:#fee,stroke:#d94545
+  style Check3 fill:#efe,stroke:#3b8c5e
+```
+
+### 思考过程不显示
+
+- 确认 LLM 支持原生思考模式（豆包、DeepSeek 等）
+- 检查 `application-local.yml` 中 thinking 模式相关配置（`thinking-base-url`、`thinking-model-name`、`thinking-api-key`）
+- Manager Agent 不输出思考过程是正常的（设计如此）
+- 如果所有 Agent 都没有思考过程，可能是 LLM 不支持或配置缺失，系统会静默回退到普通模式
+
+### SQL 执行失败
+
+```mermaid
+flowchart TD
+  Fail["SQL 失败"] --> Auto["Agent 自动修复<br/>（最多 2 次重试）"]
+  Auto -->|"修复成功"| OK["继续执行"]
+  Auto -->|"修复失败"| Card["错误信息展示在结果卡片"]
+  Card --> Tip["调整提问后重新执行"]
+  style Fail fill:#fee,stroke:#d94545
+  style OK fill:#efe,stroke:#3b8c5e
+```
+
+常见原因：
+- 表名/字段名拼写错误（Agent 生成 SQL 时 Schema 信息不完整）
+- 数据库账号权限不足
+- SQL 语法不兼容目标数据库
+
+### 手动上下文压缩失败
+
+- 检查 LLM 服务是否可用（L3 压缩需要 LLM 调用）
+- 查看后端日志中 `compact-context` 端点的错误信息
+- 如果对话刚开始（token 使用率很低），可能无可压缩空间
+
+### 沙箱代码执行被拒绝
+
+- 确认 Docker 已安装且正在运行
+- 检查 `sandbox.allow-local-runtime` 配置——生产环境应为 `false`
+- 查看后端日志是否报安全校验拦截（AST 校验或黑名单检测）
+
+:::warning 安全提示
+切勿在生产环境设置 `sandbox.allow-local-runtime=true`。Local 运行时没有 Docker 隔离，代码直接在宿主执行，有安全风险。
+:::
+
+### HTML 报告不渲染
+
+- 确认 Dashboard Assistant 已完成（SSE: DASHBOARD FINISHED）
+- 检查右侧面板是否已展开
+- 如果报告内容为空，可能是 Agent 未生成 HTML——查看思考过程和结果卡片
 
 ## 构建类
 
-### 构建报错：Cannot find module '@docusaurus/...'
+### 后端构建报错：找不到符号
+
+```bash
+# 先安装整个 reactor（父 POM 必须在本地仓库）
+cd MustBeTheSQL-Server
+mvn install -DskipTests
+```
+
+:::tip Maven 路径
+如果 `mvn` 命令未找到，需要先 `source ~/.zshrc` 或使用完整路径：
+`/Users/.../apache-maven-3.9.16/bin/mvn`
+:::
+
+### 前端构建报错：Cannot find module
 
 依赖未安装或版本漂移，清理重装：
+
+```bash
+cd MustBeTheSQL/sql-logic-client
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### 文档站点构建报错：Cannot find module '@docusaurus/...'
 
 ```bash
 cd MustBeTheSQL/sql-logic-docs
@@ -104,6 +168,6 @@ markdown: { mermaid: true },
 
 ## 还解决不了？
 
-1. 先在控制台 Workflows 里看错误详情——90% 的问题这里都有线索；
-2. 对照本页对应分类逐项检查；
-3. 仍无法解决时，带上「控制台截图 + 出错节点的输入输出」寻求帮助，信息越完整定位越快。
+1. 先在控制台 LLM Monitor 里看错误详情——90% 的问题这里都有线索
+2. 对照本页对应分类逐项检查
+3. 仍无法解决时，带上「控制台截图 + 出错 Agent 的思考过程 + 后端日志」寻求帮助，信息越完整定位越快

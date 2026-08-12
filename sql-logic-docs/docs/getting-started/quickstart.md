@@ -1,12 +1,12 @@
 ---
 sidebar_position: 3
 title: 快速开始
-description: 十分钟跑通你的第一个工作流
+description: 十分钟跑通你的第一次多 Agent 对话
 ---
 
 # 快速开始
 
-本章带你启动所有服务，并跑通一个最小但完整的工作流：**连接数据库 → 提问 → 得到可读结论**。
+本章带你启动所有服务，并跑通一个最小但完整的流程：**连接数据库 → 自然语言提问 → 看到多 Agent 协作与思考过程 → 得到可读报告**。
 
 ## 1. 启动服务
 
@@ -15,7 +15,7 @@ description: 十分钟跑通你的第一个工作流
 ```bash
 # 终端 1 — 后端（默认 :8080，Swagger 在 /swagger-ui.html）
 cd MustBeTheSQL-Server
-mvn spring-boot:run
+mvn spring-boot:run -pl sql-logic-service
 
 # 终端 2 — 主客户端（:3000）
 cd MustBeTheSQL/sql-logic-client
@@ -39,56 +39,81 @@ npm run dev
 
 ## 2. 添加一个数据源
 
-1. 打开主客户端 [http://localhost:3000](http://localhost:3000)，进入 **连接管理**。
-2. 新建连接，填写数据库类型、Host、端口、用户名、密码。
+1. 打开主客户端 [http://localhost:3000](http://localhost:3000)，登录后进入工作区。
+2. 进入 **数据库连接** 页面，新建连接：填写数据库类型、Host、端口、用户名、密码。
 3. 点击 **测试连接**，成功后保存。
 
-## 3. 搭建你的第一个工作流
+## 3. 开始第一次对话
 
-我们要搭的工作流非常简单：
+进入 **对话** 页面（`/chat`），在输入框用自然语言提问。例如：
+
+> 「统计这张表每天的行数，并按日期升序排列」
+
+按下回车后，你会看到一条终端风格的实时时间线展开：
 
 ```mermaid
-flowchart LR
-  DB["DatabaseResource<br/>选中一张表"] --> A["Agent<br/>问：这张表每天有多少行？"]
-  A --> R["结果<br/>按天聚合的可读图表"]
-  style DB fill:#eef,stroke:#5b7fd9
-  style R fill:#efe,stroke:#3b8c5e
+sequenceDiagram
+  actor User as 你
+  participant FE as 前端
+  participant BE as 后端
+
+  User->>FE: 输入自然语言问题
+  FE->>BE: POST /api/v1/agentic/chat/stream (SSE)
+
+  BE-->>FE: SSE: MANAGER STARTED
+  BE-->>FE: SSE: PLANNER THINKING（流式推理分块）
+  BE-->>FE: SSE: PLANNER FINISHED（计划步骤）
+  BE-->>FE: SSE: PLAN_UPDATED（TODO 列表快照）
+
+  BE-->>FE: SSE: DATA_SCIENTIST THINKING（流式）
+  BE-->>FE: SSE: DATA_SCIENTIST FINISHED（SQL + 结果）
+
+  BE-->>FE: SSE: DASHBOARD THINKING（流式）
+  BE-->>FE: SSE: DASHBOARD FINISHED（HTML 报告）
+  BE-->>FE: SSE: COMPLETED
+
+  FE-->>User: 完整时间线 + 思考面板 + 报告
 ```
 
-操作步骤：
+## 4. 观察思考过程
 
-1. 进入 **工作流画布**。
-2. 从左侧节点面板拖入一个 **DatabaseResource** 节点。
-3. 在节点配置里依次选择：**连接 → Schema → 表**。表清单是实时从数据库拉取的，无需手填。
-4. 拖入一个 **Agent** 节点，把 DatabaseResource 的输出连到 Agent 的输入。
-5. 在 Agent 节点里用自然语言写下你的问题，例如：
+每个 Agent 执行时，会先展示一段**可折叠的思考面板**：
 
-   > 「统计这张表每天的行数，并按日期升序排列」
+- **流式打字机效果** — LLM 推理分块通过 SSE 实时到达，文字逐步增长
+- **自动折叠** — 推理完成后 800ms 自动折叠，未查看时显示未读徽标
+- **状态指示** — 思考中显示旋转加载器，完成时显示绿色勾号
 
-## 4. 运行并查看结果
+点击思考面板的标题栏可以手动展开/折叠，查看完整的推理链路。
 
-点击画布右上角的 **运行**。引擎会按连线顺序依次执行节点：
+## 5. 查看执行结果
 
-- 每个节点执行完毕后，结果卡片会弹入执行时间线。
-- Agent 的输出会以 **Markdown** 渲染，表格、列表、代码块都能正确显示。
-- 如果结果无法解析为 Markdown，会回退显示原始 JSON，保证信息不丢失。
+每个 Agent 完成后，结果会出现在时间线对应的步骤卡片中：
 
-:::tip 看不到表清单？
-确认 DatabaseResource 节点已选中连接，且数据库账号对目标 Schema 有查询权限。详见 [排错指引](/docs/faq/troubleshooting)。
-:::
+- **Planner** — 展示分解后的执行计划 TODO 列表
+- **Data Scientist** — 展示生成的 SQL、执行结果表格、自动图表
+- **Code Assistant** — 展示沙箱代码执行终端输出
+- **Dashboard Assistant** — 在右侧面板渲染 HTML 报告（含图表）
 
-## 5. 在控制台回看执行情况
+## 6. 回合操作栏
+
+每轮对话结束后，底部会出现一条水平操作栏：
+
+- **上下文进度环** — 显示当前 token 预算使用率，点击可手动触发上下文压缩
+- **复制** — 复制该轮 Agent 回复文本
+- **重新执行** — 重新执行该轮问题
+
+## 7. 在控制台回看执行情况
 
 打开 [http://localhost:3001](http://localhost:3001) 控制台：
 
-- **Dashboard** — 工作流总览与状态徽标（成功 / 失败 / 运行中）。
-- **Workflows** — 每次执行的记录，支持搜索。
-- **LLM Monitor → Agents** — 每个 Agent 的步骤级指标。
+- **Dashboard** — 全局概览，工作流执行总数与成功率
+- **LLM Monitor** — 每个 Agent 的步骤级指标、LLM 调用次数与令牌消耗
+- **Users** — 用户管理
 
 ## 恭喜
 
 你已经跑通了 Must Be The SQL 的核心闭环。接下来推荐：
 
 - 理解你刚才做了什么 → [核心概念](/docs/constructure/concepts)
-- 设计更复杂的工作流 → [工作流设计](/docs/guide/workflow-design)
-- 了解 Agent 的两种模式 → [Agent 执行](/docs/guide/agent-execution)
+- 深入了解 Agent 协作机制 → [Agent 执行](/docs/guide/agent-execution)
+- 了解上下文压缩如何工作 → [核心概念 - 上下文压缩](/docs/constructure/concepts#上下文压缩)

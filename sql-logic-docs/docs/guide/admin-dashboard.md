@@ -13,9 +13,10 @@ description: 回看执行记录、监控 Agent 与 LLM 调用
 ```mermaid
 flowchart TB
   Dash["控制台"] --> D1["Dashboard<br/>全局概览"]
-  Dash --> D2["Workflows<br/>执行记录列表"]
-  Dash --> D3["LLM Monitor<br/>Agent 与调用监控"]
-  D3 --> D3a["Agents<br/>每个 Agent 的步骤指标"]
+  Dash --> D2["LLM Monitor<br/>Agent 与调用监控"]
+  Dash --> D3["Users<br/>用户管理"]
+  D2 --> D2a["Agent 指标<br/>每步耗时与状态"]
+  D2 --> D2b["LLM 调用<br/>次数与令牌消耗"]
   style Dash fill:#eef,stroke:#5b7fd9
 ```
 
@@ -25,65 +26,71 @@ flowchart TB
 
 进入控制台第一眼看到的是 Dashboard，给你一个全局快照：
 
-- 工作流执行总数与成功率；
-- 最近执行的成败状态；
-- LLM 调用趋势。
+- 工作流执行总数与成功率
+- 最近执行的成败状态
+- LLM 调用趋势
 
 每条执行记录都有一个状态徽标：
 
 | 徽标 | 含义 |
 | --- | --- |
-| 🟢 成功 | 工作流正常跑完 |
-| 🔴 失败 | 某个节点出错，工作流中断 |
+| 🟢 成功 | 多 Agent 对话正常跑完 |
+| 🔴 失败 | 某个 Agent 出错，对话中断 |
 | 🟡 运行中 / 未知 | 正在执行，或状态未上报 |
 
-## Workflows：执行记录
+## LLM Monitor：Agent 与调用监控
 
-这里以列表形式展示每一次工作流执行，支持搜索：
+这是控制台的核心视图，专门看 Agent 的「内部表现」：
 
-- 按状态筛选（成功 / 失败 / 运行中）；
-- 按关键词搜索工作流名称；
-- 分页浏览历史记录。
+### Agent 指标
 
-点进某条记录，可以看到这次执行里每个节点的输入输出——这是排错的核心入口。
+每次多 Agent 对话都会被记录，可查看：
 
-```mermaid
-flowchart LR
-  List["执行记录列表"] --> Filter["按状态/关键词筛选"]
-  Filter --> Detail["点进某条记录"]
-  Detail --> Steps["查看每节点输入输出"]
-  Steps --> Debug["定位出错节点"]
-  style Debug fill:#fee,stroke:#d94545
-```
+- **每个 Agent 跑了哪些步骤** — Manager → Planner → Data Scientist → Dashboard 等
+- **每步耗时与状态** — 哪个 Agent 慢、哪个出错
+- **LLM 调用次数与令牌消耗** — token 花在哪了
 
-## LLM Monitor → Agents
+### 适合回答这些问题
 
-这个视图专门看 Agent 的「内部表现」：
+| 问题 | 看哪里 |
+|------|--------|
+| 「这次执行为什么慢？」 | 哪个 Agent 步骤耗时长 |
+| 「Token 花在哪了？」 | 哪个 Agent 调用多、消耗大 |
+| 「Agent 是不是在空转？」 | 步骤是否合理、有无重复 |
+| 「思考过程有没有触发压缩？」 | 上下文压缩事件记录 |
 
-- 每个 Agent 跑了哪些步骤；
-- 每步耗时与状态；
-- LLM 调用次数与令牌消耗。
+### LLM 高可用监控
 
-适合回答这些问题：
+如果配置了多个 LLM 提供商，还可以看到：
 
-- 「这次执行为什么慢？」→ 看哪一步耗时长。
-- 「Token 花在哪了？」→ 看哪个 Agent 调用多。
-- 「Agent 是不是在空转？」→ 看步骤是否合理。
+- 4 种负载均衡策略的执行情况：轮询 / 延迟优先 / 成功率优先 / 智能加权
+- 熔断器状态：连续 5 次失败后开启，30 秒冷却
+- 降级链触发：主 LLM 不可用时是否成功降级
+- 会话亲和：同一会话是否路由到同一 LLM
+
+## Users：用户管理
+
+管理工作区成员：
+
+- 成员列表与角色（OWNER / ADMIN / MEMBER / VIEWER）
+- 邀请新成员加入工作区
+- 修改成员角色
 
 ## 用控制台排错的标准流程
 
-当某个工作流跑出意外结果时，按这个顺序排查：
+当某次对话跑出意外结果时，按这个顺序排查：
 
 ```mermaid
 flowchart TD
-  Start["结果异常"] --> S1["在 Workflows 找到这次执行"]
+  Start["结果异常"] --> S1["在 LLM Monitor 找到这次对话"]
   S1 --> S2["看状态徽标：成功还是失败？"]
   S2 --> S3{"失败？"}
-  S3 -- 是 --> F1["点进记录，定位标红的节点"]
-  F1 --> F2["看该节点输入是否正确"]
-  S3 -- 否 --> G1["逐节点检查输出"]
-  G1 --> G2["找到第一个不对的节点"]
-  G2 --> G3["回到主客户端改配置重跑"]
+  S3 -- 是 --> F1["查看哪个 Agent 标红"]
+  F1 --> F2["看该 Agent 的输入是否正确"]
+  F2 --> F3["看 LLM 调用是否异常"]
+  S3 -- 否 --> G1["逐 Agent 检查输出"]
+  G1 --> G2["找到第一个不对的 Agent"]
+  G2 --> G3["回到主客户端调整提问重跑"]
   style Start fill:#fee,stroke:#d94545
   style G3 fill:#efe,stroke:#3b8c5e
 ```
@@ -93,9 +100,10 @@ flowchart TD
 | 想做的事 | 去哪里 |
 | --- | --- |
 | 看整体健康状况 | Dashboard |
-| 翻历史执行记录 | Workflows |
-| 分析 Agent 性能与开销 | LLM Monitor → Agents |
-| 定位某次失败 | Workflows → 点进记录 → 找标红节点 |
+| 分析 Agent 性能与开销 | LLM Monitor → Agent 指标 |
+| 查看 LLM 高可用状态 | LLM Monitor → 调用趋势 |
+| 定位某次失败 | LLM Monitor → 找标红 Agent |
+| 管理工作区成员 | Users |
 
 ## 下一步
 

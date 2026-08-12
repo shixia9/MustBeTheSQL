@@ -1,54 +1,64 @@
 ---
 slug: /
 title: 首页
-description: Must Be The SQL 产品文档 — 面向数据团队的可视化 SQL 工作流引擎
+description: Must Be The SQL 产品文档 — 企业级 Multi-Agent NL2SQL 数据分析平台
 hide_table_of_contents: true
 ---
 
 # 欢迎使用 Must Be The SQL
 
-**Must Be The SQL** 是一个面向数据团队的可视化 SQL 工作流引擎。
-在画布上连接数据库、编排 Agent、产出可读结论——无需编写代码，也无需记忆 SQL 语法。
+**Must Be The SQL** 是一个企业级 Multi-Agent NL2SQL 数据分析平台。
+用户用自然语言提问，一组专业 AI Agent 协作完成数据库探索、SQL 生成与修复、沙箱代码分析和报告交付——每个 Agent 的思考过程实时可见。
 
-> **新用户？** 从 [快速开始](/docs/getting-started/quickstart) 入手，十分钟跑通你的第一个工作流。
-> **想了解原理？** 阅读 [核心概念](/docs/constructure/concepts)，理解节点、工作流与 Agent 如何协作。
+> **新用户？** 从 [快速开始](/docs/getting-started/quickstart) 入手，十分钟跑通你的第一次多 Agent 对话。
+> **想了解原理？** 阅读 [核心概念](/docs/constructure/concepts)，理解 Multi-Agent、思考模式与上下文压缩如何协作。
 
 ---
 
 ## 它能为你做什么
 
-- **可视化编排** — 用拖拽画布把「取数 → 分析 → 结论」串成可复用的工作流，告别一次性脚本。
-- **自然语言提问** — 对着数据用大白话提问，由 Agent 自动生成并执行 SQL，结果以可读的方式呈现。
-- **真实数据源感知** — 连接数据库后自动列出 Schema 与表，选中即可用，无需手填连接串。
-- **执行可追溯** — 每一步执行都进入时间线，结果以 Markdown 渲染，过程可回看、可分享。
-- **运维可观测** — 独立控制台提供工作流状态、Agent 步骤指标与 LLM 调用监控。
+- **自然语言提问** — 用大白话描述数据需求，Manager Agent 自动编排专业 Agent 协作完成
+- **实时思考过程** — 每个 Agent 的 LLM 推理链路通过 SSE 流式展示，决策逻辑透明可见
+- **自主 SQL 生成与修复** — Data Scientist Agent 生成多候选 SQL、执行、自动修复
+- **沙箱代码执行** — Python/Shell 脚本在 Docker 隔离沙箱中运行，含安全校验
+- **交互式 HTML 报告** — Dashboard Assistant 将分析结果合成为带图表的 HTML 报告
+- **渐进式上下文压缩** — 四层策略（L1–L4）在 token 预算内保持长对话连续性
+- **多租户工作区** — 用户→工作区两级隔离，4 级角色权限
+- **运维可观测** — 独立控制台提供 LLM 调用监控、Agent 指标与执行回看
 
-## 一个典型工作流长什么样
+## 一个典型对话长什么样
 
 ```mermaid
-flowchart LR
-  A[("数据库连接")] --> B["DatabaseResource 节点<br/>选中表与 Schema"]
-  B --> C["Agent 节点<br/>自然语言提问"]
-  C --> D["可读结果<br/>Markdown 渲染"]
-  style A fill:#eef,stroke:#5b7fd9
-  style D fill:#efe,stroke:#3b8c5e
+flowchart TB
+  User[用户提问] --> Manager[Manager Agent<br/>编排器]
+  Manager -->|复杂度评估| Router{复杂度路由}
+  Router -->|简单| Dashboard[Dashboard Assistant<br/>直接回答]
+  Router -->|复杂| Planner[Planner Agent<br/>任务分解]
+  Planner --> Plan[执行计划]
+  Plan --> DS[Data Scientist<br/>SQL 生成 + 执行]
+  Plan --> CA[Code Assistant<br/>沙箱代码分析]
+  DS & CA --> Dashboard
+  Dashboard --> Report[HTML 报告 + 图表]
+  Report --> User
+  style User fill:#eef,stroke:#5b7fd9
+  style Report fill:#efe,stroke:#3b8c5e
 ```
 
-你把「数据从哪来」交给 DatabaseResource 节点，把「想要什么」交给 Agent 节点，剩下的交给引擎。
+你只需提出问题，Manager Agent 决定调度哪些专业 Agent，每个 Agent 的思考过程和执行结果实时展示在时间线上。
 
 ## 文档导览
 
 | 章节 | 适合谁 | 回答什么问题 |
 | --- | --- | --- |
 | [快速开始](/docs/getting-started/introduction) | 第一次接触的人 | 它是什么、装在哪、怎么跑起来 |
-| [核心概念](/docs/constructure/concepts) | 想理解原理的人 | 节点、工作流、Agent、连接之间是什么关系 |
-| [使用指南](/docs/guide/workflow-design) | 日常使用者 | 怎么设计、执行、监控一个工作流 |
+| [核心概念](/docs/constructure/concepts) | 想理解原理的人 | Multi-Agent、思考模式、上下文压缩、沙箱之间是什么关系 |
+| [使用指南](/docs/guide/agent-execution) | 日常使用者 | 怎么与多 Agent 系统交互、怎么看思考过程和报告 |
 | [API 说明](/docs/api/overview) | 需要对接的开发者 | 有哪些接口、怎么跳转 Swagger |
 | [常见问题](/docs/faq/general) | 遇到问题的人 | 高频疑问与排错指引 |
 
 ## 下一步
 
-**🚀 [快速开始 →](/docs/getting-started/quickstart)** — 十分钟完成安装并跑通第一个工作流。
+**🚀 [快速开始 →](/docs/getting-started/quickstart)** — 十分钟完成安装并跑通第一次多 Agent 对话。
 
 :::note 文档与接口文档的区别
 本站是**产品使用手册**（怎么用），由 Docusaurus 构建。Java 后端的接口契约由独立的 Swagger（OpenAPI）提供，两者分开。需要时可在 [API 说明](/docs/api/overview) 中一键跳转。

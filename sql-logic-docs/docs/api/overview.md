@@ -34,11 +34,87 @@ flowchart LR
 
 ## 主要接口分类
 
-| 接口分类 | 说明 | 典型场景 |
-| --- | --- | --- |
-| 工作流管理 | 创建、运行、查询工作流 | 主客户端提交工作流 |
-| 数据源管理 | 配置与测试连接、拉取表清单 | 连接管理、节点选表 |
-| Admin 数据 | 工作流记录、Agent 指标 | 控制台展示 |
+### Multi-Agent 对话
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/agentic/chat/stream` | POST | 启动多 Agent 对话（SSE 流式） |
+| `/api/v1/agentic/continue` | POST | 恢复暂停的 HITL 会话（SSE） |
+| `/api/v1/agentic/context-budget` | GET | 查询当前 token 预算使用情况 |
+| `/api/v1/agentic/compact-context` | POST | 手动触发上下文压缩 |
+
+### 沙箱执行
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/sandbox/run` | POST | 在沙箱中执行 Python/Shell 代码 |
+
+### SQL 与数据库
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/sql/execute` | POST | 在连接的数据库上执行 SQL |
+| `/api/v1/sql/console/execute` | POST | SQL 控制台执行 |
+| `/api/v1/database/**` | 各种 | 数据库连接 CRUD + 元数据 |
+| `/api/v1/schema/**` | 各种 | Schema 浏览（表/列/索引/DDL） |
+
+### 工作区
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/workspaces` | GET / POST | 列表 / 创建工作区 |
+| `/api/v1/workspaces/{id}/members` | GET / POST | 成员管理 |
+
+### Agent Studio
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/agent-entity` | CRUD | Agent 配置管理 |
+| `/api/v1/agent-entity/{id}/publish` | POST | 发布版本快照 |
+| `/api/v1/agent-entity/{id}/versions/{vid}/revert` | POST | 回滚到指定版本 |
+
+### LLM 与记忆
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/llm-config` | CRUD | LLM 提供商配置 |
+| `/api/v1/llm-config/{id}/test` | POST | 测试 LLM 连通性 |
+| `/api/v1/llm-config/{id}/strategy` | PUT | HA 策略 + 降级链 |
+| `/api/v1/memory/**` | 各种 | 记忆 CRUD + 抽取 |
+
+### MCP 工具
+
+| 接口 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/mcp-servers` | GET / POST | 列表 / 添加 MCP 服务器 |
+| `/api/v1/mcp-servers/{id}/connect` | POST | 重连 |
+| `/api/v1/tools` | GET | 列出已注册工具 |
+
+## SSE 事件类型
+
+多 Agent 对话接口（`/api/v1/agentic/chat/stream`）通过 SSE 推送以下事件：
+
+| 事件 | 说明 |
+|------|------|
+| `STARTED` | Agent 节点开始执行 |
+| `THINKING` | 流式推理分块（含 `done` 标志） |
+| `FINISHED` | Agent 节点执行完成，携带输出 |
+| `SANDBOX` | 沙箱代码执行输出（流式） |
+| `PLAN_UPDATED` | 执行计划快照更新 |
+| `CONTEXT_COMPACT` | 上下文压缩触发（L1–L4） |
+| `COMPLETED` | 完整 Agent 运行结束 |
+
+## 响应格式
+
+所有 API 响应统一包裹在标准信封中：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { ... }
+}
+```
 
 :::info 想看完整接口列表
 完整、可交互的接口清单请见 [Swagger UI](http://localhost:8080/swagger-ui.html)（本地），生产环境替换为对外域名。
