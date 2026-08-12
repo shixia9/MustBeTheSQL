@@ -404,24 +404,36 @@ export default function ChatPage() {
                   ts: Date.now(),
                 }];
               } else if (parsed.outputType === 'THINKING') {
-                // Agent thinking-process event.
+                // Agent thinking-process event (streaming chunks).
+                // The backend sends multiple THINKING events with done=false
+                // (each carrying a reasoning text delta) followed by a final
+                // event with done=true to signal completion.
                 const nodeName = parsed.nodeName || 'UNKNOWN';
-                const thinkingContent = parsed.data?.content || '';
+                const chunk = parsed.data?.content || '';
+                const isDone = parsed.data?.done === true;
                 const existingIdx = updated.steps.findIndex(s => s.nodeName === nodeName);
                 if (existingIdx >= 0) {
-                  updated.steps = updated.steps.map(s =>
-                    s.nodeName === nodeName
-                      ? { ...s, thinking: thinkingContent, thinkingStatus: 'streaming' as const }
-                      : s
-                  );
+                  updated.steps = updated.steps.map(s => {
+                    if (s.nodeName !== nodeName) return s;
+                    // Accumulate chunks during streaming; on done, keep
+                    // existing text and transition to 'done' status.
+                    const accumulated = isDone
+                      ? (s.thinking || '')
+                      : (s.thinking || '') + chunk;
+                    return {
+                      ...s,
+                      thinking: accumulated,
+                      thinkingStatus: isDone ? 'done' as const : 'streaming' as const,
+                    };
+                  });
                 } else {
                   // THINKING arrived before STARTED (edge case) — create a
                   // running step so the reasoning is not lost.
                   updated.steps = [...updated.steps, {
                     nodeName,
                     status: 'running' as const,
-                    thinking: thinkingContent,
-                    thinkingStatus: 'streaming' as const,
+                    thinking: isDone ? '' : chunk,
+                    thinkingStatus: isDone ? 'done' as const : 'streaming' as const,
                     messageType: 'THINKING',
                   }];
                 }
