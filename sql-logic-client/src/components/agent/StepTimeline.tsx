@@ -55,15 +55,15 @@ const MSG_COLORS: Record<string, string> = {
 function extractSummary(step: StepData): string | null {
   const o = step.output;
   if (!o) return null;
-  if (o.errorMsg) return `Error: ${String(o.errorMsg).slice(0, 300)}`;
-  if (o.report) return `Report: ${String(o.report).slice(0, 200)}`;
-  if (o.sql) return `SQL: ${String(o.sql).slice(0, 300)}`;
-  if (o.plan) return `Plan: ${String(o.plan).slice(0, 200)}`;
-  if (o.pythonCode) return `Python: ${String(o.pythonCode).slice(0, 200)}`;
-  if (o.toolName) return `Tool: ${o.toolName} → ${String(o.toolResult || '').slice(0, 150)}`;
+  if (o.errorMsg) return `Error: ${o.errorMsg}`;
+  if (o.report) return `Report: ${o.report}`;
+  if (o.sql) return `SQL: ${o.sql}`;
+  if (o.plan) return `Plan: ${o.plan}`;
+  if (o.pythonCode) return `Python: ${o.pythonCode}`;
+  if (o.toolName) return `Tool: ${o.toolName} → ${o.toolResult || ''}`;
   if (o.nextNode) return `Routing → ${o.nextNode}`;
-  if (o.sqlExecutionResult) return `Result: ${JSON.stringify(o.sqlExecutionResult).slice(0, 200)}`;
-  if (o.content) return String(o.content).slice(0, 300);
+  if (o.sqlExecutionResult) return `Result: ${JSON.stringify(o.sqlExecutionResult)}`;
+  if (o.content) return String(o.content);
   if (o.agentSuccess === false) return 'Agent execution failed — check backend logs for details';
   return null;
 }
@@ -461,7 +461,7 @@ export default function StepTimeline({
                         letterSpacing: '-0.01em',
                         fontFamily: '"JetBrains Mono", ui-monospace, monospace',
                         wordBreak: 'break-all',
-                        maxHeight: '150px',
+                        maxHeight: '400px',
                         overflow: 'auto',
                       }}
                     >
@@ -551,9 +551,9 @@ export default function StepTimeline({
               <CollapsibleSection title="Chart Definitions" count={(() => {
                 try { return JSON.parse(chartJson).length; } catch { return 0; }
               })()} defaultOpen={false}>
-                <pre className="text-[10px] leading-relaxed overflow-auto max-h-32 p-2 rounded font-mono"
+                <pre className="text-[10px] leading-relaxed overflow-auto max-h-60 p-2 rounded font-mono"
                   style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-tertiary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {chartJson.length > 800 ? chartJson.substring(0, 800) + '\n...' : chartJson}
+                  {chartJson}
                 </pre>
               </CollapsibleSection>
             )}
@@ -570,9 +570,9 @@ export default function StepTimeline({
             {/* Collapsible HTML report */}
             {hasHtml && (
               <CollapsibleSection title="HTML Report" defaultOpen={false}>
-                <pre className="text-[10px] leading-relaxed overflow-auto max-h-40 p-2 rounded font-mono"
+                <pre className="text-[10px] leading-relaxed overflow-auto max-h-60 p-2 rounded font-mono"
                   style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-tertiary)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {htmlContent.length > 600 ? htmlContent.substring(0, 600) + '\n<!-- ...truncated... -->' : htmlContent}
+                  {htmlContent}
                 </pre>
               </CollapsibleSection>
             )}

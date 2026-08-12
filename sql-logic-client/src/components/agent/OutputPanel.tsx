@@ -256,7 +256,7 @@ export default function OutputPanel({ output: _output, steps, turns: _turns }: {
                         background: 'var(--color-app-bg)',
                         color: 'var(--color-ink-secondary)',
                         fontFamily: '"JetBrains Mono", monospace',
-                        maxHeight: '200px',
+                        maxHeight: '400px',
                       }}>
                         {s.output.plan}
                       </pre>
