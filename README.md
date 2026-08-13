@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="./README.zh-CN.md">中文</a> |
   <a href="https://github.com/shixia9/MustBeTheSQL-Server">Backend</a> |
   <a href="#quick-start">Quick Start</a> |
   <a href="#architecture">Architecture</a>
