@@ -12,6 +12,7 @@ import WelcomePanel from '../components/chat/WelcomePanel';
 import CommandPalette from '../components/agent/CommandPalette';
 import { useCommandPaletteStore } from '../stores/commandPaletteStore';
 import type { ToolItem } from '../types/agent';
+import TableSelector from '../components/chat/TableSelector';
 import { Database, ChevronDown } from 'lucide-react';
 
 /** Display names for the 4 progressive context-compaction layers. */
@@ -46,6 +47,7 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [hitlPending, setHitlPending] = useState<{ threadId: string; plan: any } | null>(null);
   const [autoConfirm, setAutoConfirm] = useState(true);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [databases, setDatabases] = useState<{ id: number; name: string; dbType: string }[]>([]);
   const [schemas, setSchemas] = useState<string[]>([]);
   const [connPickerOpen, setConnPickerOpen] = useState(false);
@@ -177,6 +179,7 @@ export default function ChatPage() {
         autoConfirm,
         schemaContext: schemaName,
         conversationId: conversationId || undefined, // multi-turn: carry existing conversation id
+        tableNames: selectedTables.length > 0 ? selectedTables : undefined,
       };
       // T7: when the user picks a call_tool item from the "/" palette, dispatch
       // a tool-invocation marker so ManagerAgent (T8) can route to the tool agent
@@ -507,7 +510,7 @@ export default function ChatPage() {
         });
       }
     }
-  }, [activeConnectionId, activeSchema, selectedConfig, autoConfirm, conversationId, navigate, appendStoreTurn]);
+  }, [activeConnectionId, activeSchema, selectedConfig, autoConfirm, selectedTables, conversationId, navigate, appendStoreTurn]);
 
   const handleSubmit = () => {
     if (isStreaming) return;
@@ -718,6 +721,14 @@ export default function ChatPage() {
                 </div>
               )}
             </div>
+
+            {/* Table selector */}
+            <TableSelector
+              connectionId={activeConnectionId}
+              schemaName={activeSchema}
+              selectedTables={selectedTables}
+              onChange={setSelectedTables}
+            />
 
             {/* Auto-confirm toggle — pushed right */}
             <button
