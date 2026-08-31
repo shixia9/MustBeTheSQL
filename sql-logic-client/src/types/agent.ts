@@ -156,7 +156,7 @@ export function formatDuration(ms?: number): string {
 /** Terminal SSE event types emitted by the agent controller */
 export type AgentEventType =
   | { type: 'COMPLETED' }
-  | { type: 'ERROR'; message: string }
+  | { type: 'ERROR'; code?: string; message: string }
   | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string | object; repairCount: number; needsReview: boolean; hitlVersion?: number; reason?: string }
   | { type: 'NODE'; nodeName: string; data: Record<string, any>; stepNo: number | null };
 

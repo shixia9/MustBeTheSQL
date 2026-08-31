@@ -585,7 +585,16 @@ export default function ChatPage() {
         }),
         credentials: 'include',
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      if (!response.ok) {
+        const body = await response.text();
+        try {
+          const error = JSON.parse(body);
+          throw new Error(`${error.code || `HTTP_${response.status}`}: ${error.message || 'Resume failed'}`);
+        } catch (parseError: any) {
+          if (parseError?.message && !parseError.message.startsWith('Unexpected token')) throw parseError;
+          throw new Error(`HTTP ${response.status}: ${body}`);
+        }
+      }
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
       const decoder = new TextDecoder();
