@@ -157,7 +157,7 @@ export function formatDuration(ms?: number): string {
 export type AgentEventType =
   | { type: 'COMPLETED' }
   | { type: 'ERROR'; message: string }
-  | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string; repairCount: number; needsReview: boolean }
+  | { type: 'AWAITING_CONFIRMATION'; threadId: string; plan: string | object; repairCount: number; needsReview: boolean; hitlVersion?: number; reason?: string }
   | { type: 'NODE'; nodeName: string; data: Record<string, any>; stepNo: number | null };
 
 /** Glossary entry recalled by RAG */

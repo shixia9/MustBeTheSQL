@@ -45,7 +45,10 @@ export default function ChatPage() {
   const [currentTurn, setCurrentTurn] = useState<TurnData | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [inputValue, setInputValue] = useState('');
-  const [hitlPending, setHitlPending] = useState<{ threadId: string; plan: any } | null>(null);
+  const [hitlPending, setHitlPending] = useState<{
+    threadId: string; plan: any; repairCount?: number; hitlVersion?: number; reason?: string;
+  } | null>(null);
+  const [hitlFeedback, setHitlFeedback] = useState('');
   const [autoConfirm, setAutoConfirm] = useState(true);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [databases, setDatabases] = useState<{ id: number; name: string; dbType: string }[]>([]);
@@ -221,6 +224,18 @@ export default function ChatPage() {
 
           try {
             const parsed = JSON.parse(data);
+
+            if (parsed.type === 'AWAITING_CONFIRMATION') {
+              setHitlPending({
+                threadId: String(parsed.threadId || ''),
+                plan: parsed.plan ?? '',
+                repairCount: Number(parsed.repairCount ?? 0),
+                hitlVersion: Number(parsed.hitlVersion ?? 0),
+                reason: String(parsed.reason || ''),
+              });
+              setHitlFeedback('');
+              continue;
+            }
 
             setCurrentTurn(prev => {
               if (!prev) return prev;
@@ -553,15 +568,85 @@ export default function ChatPage() {
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const handleHITLConfirm = (approved: boolean, feedback?: string) => {
+  const handleHITLConfirm = async (approved: boolean, feedback?: string) => {
     if (!hitlPending) return;
-    fetch('/api/v1/agentic/continue', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ threadId: hitlPending.threadId, approved, feedback }),
-      credentials: 'include',
-    });
+    const pending = hitlPending;
     setHitlPending(null);
+    setIsStreaming(true);
+    try {
+      const response = await fetch('/api/v1/agentic/continue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          threadId: pending.threadId,
+          approved,
+          feedback: feedback ?? hitlFeedback,
+          hitlVersion: pending.hitlVersion,
+        }),
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No response body');
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const events: any[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue;
+          const raw = line.slice(5).trim();
+          if (!raw || raw === '[DONE]') continue;
+          try { events.push(JSON.parse(raw)); } catch { /* ignore malformed SSE */ }
+        }
+      }
+      const errorEvent = events.find(e => e.type === 'ERROR');
+      const awaiting = events.find(e => e.type === 'AWAITING_CONFIRMATION');
+      if (awaiting) {
+        setHitlPending({
+          threadId: String(awaiting.threadId || pending.threadId),
+          plan: awaiting.plan ?? '',
+          repairCount: Number(awaiting.repairCount ?? 0),
+          hitlVersion: Number(awaiting.hitlVersion ?? 0),
+          reason: String(awaiting.reason || ''),
+        });
+      }
+      if (errorEvent) throw new Error(errorEvent.message || 'Resume failed');
+      const resumedSteps = events
+        .filter(e => e.outputType === 'FINISHED' && e.nodeName && e.nodeName !== 'MANAGER')
+        .map(e => ({
+          nodeName: e.nodeName,
+          status: 'completed' as const,
+          content: JSON.stringify(e.data || {}),
+          output: e.data || {},
+          messageType: e.messageType,
+        }));
+      if (resumedSteps.length > 0) {
+        setTurnsLocal(prev => {
+          if (prev.length === 0) return prev;
+          const updated = prev.map((t, i) =>
+            i === prev.length - 1 ? { ...t, steps: [...t.steps, ...resumedSteps] } : t
+          );
+          const resolvedConvId = completedConvIdRef.current || conversationId;
+          if (resolvedConvId) setStoreTurns(resolvedConvId, updated);
+          return updated;
+        });
+      }
+    } catch (err: any) {
+      console.error('HITL resume error:', err);
+      setTurnsLocal(prev => prev.length === 0 ? prev : prev.map((t, i) =>
+        i === prev.length - 1 ? { ...t, steps: [...t.steps, {
+          nodeName: 'ERROR', status: 'error' as const, content: err.message || 'Resume failed',
+        }] } : t
+      ));
+    } finally {
+      setHitlFeedback('');
+      setIsStreaming(false);
+    }
   };
 
   /** Re-run the last completed turn's question. */

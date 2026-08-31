@@ -30,6 +30,7 @@ export default function AgentExecutionView({
     rightPanelVisible, setRightPanelVisible,
   } = useLayout();
   const [isDragging, setIsDragging] = useState(false);
+  const [hitlFeedback, setHitlFeedback] = useState('');
 
   // When streaming starts, show the toggle (collapsed). When streaming stops
   // and multimodal content exists, auto-expand the right panel.
@@ -160,9 +161,17 @@ export default function AgentExecutionView({
           >
             {typeof hitlPending.plan === 'string' ? hitlPending.plan : JSON.stringify(hitlPending.plan, null, 2)}
           </pre>
+          <textarea
+            value={hitlFeedback}
+            onChange={e => setHitlFeedback(e.target.value)}
+            placeholder="If rejecting, describe how the plan should change"
+            className="mb-3 w-full rounded-md p-2 text-xs resize-y"
+            rows={2}
+            style={{ background: 'var(--color-app-bg)', color: 'var(--color-ink-secondary)', border: '1px solid var(--color-border-subtle)' }}
+          />
           <div className="flex gap-2 justify-end">
             <button
-              onClick={() => onHitlConfirm(false, 'User rejected')}
+              onClick={() => { onHitlConfirm(false, hitlFeedback || 'User rejected'); setHitlFeedback(''); }}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
               style={{
                 color: 'var(--color-ink-secondary)',
@@ -172,7 +181,7 @@ export default function AgentExecutionView({
               Reject
             </button>
             <button
-              onClick={() => onHitlConfirm(true)}
+              onClick={() => { onHitlConfirm(true, hitlFeedback); setHitlFeedback(''); }}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
               style={{
                 background: 'var(--color-ink)',
