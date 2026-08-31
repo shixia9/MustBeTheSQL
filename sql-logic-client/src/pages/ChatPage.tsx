@@ -208,6 +208,7 @@ export default function ChatPage() {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      const seenSequence = new Set<number>();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -224,6 +225,11 @@ export default function ChatPage() {
 
           try {
             const parsed = JSON.parse(data);
+            const sequence = Number(parsed.sequenceNo ?? 0);
+            if (sequence > 0) {
+              if (seenSequence.has(sequence)) continue;
+              seenSequence.add(sequence);
+            }
 
             if (parsed.type === 'AWAITING_CONFIRMATION') {
               setHitlPending({
@@ -599,6 +605,7 @@ export default function ChatPage() {
       if (!reader) throw new Error('No response body');
       const decoder = new TextDecoder();
       let buffer = '';
+      const seenSequence = new Set<number>();
       const events: any[] = [];
       while (true) {
         const { done, value } = await reader.read();
@@ -610,7 +617,15 @@ export default function ChatPage() {
           if (!line.startsWith('data:')) continue;
           const raw = line.slice(5).trim();
           if (!raw || raw === '[DONE]') continue;
-          try { events.push(JSON.parse(raw)); } catch { /* ignore malformed SSE */ }
+          try {
+            const parsed = JSON.parse(raw);
+            const sequence = Number(parsed.sequenceNo ?? 0);
+            if (sequence > 0) {
+              if (seenSequence.has(sequence)) continue;
+              seenSequence.add(sequence);
+            }
+            events.push(parsed);
+          } catch { /* ignore malformed SSE */ }
         }
       }
       const errorEvent = events.find(e => e.type === 'ERROR');
